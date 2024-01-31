@@ -968,19 +968,6 @@ private:
   CGContextRef mCG;
 };
 
-static inline CGAffineTransform
-GfxMatrixToCGAffineTransform(const Matrix &m)
-{
-  CGAffineTransform t;
-  t.a = m._11;
-  t.b = m._12;
-  t.c = m._21;
-  t.d = m._22;
-  t.tx = m._31;
-  t.ty = m._32;
-  return t;
-}
-
 /***
  * We have to do a lot of work to draw glyphs with CG because
  * CG assumes that the origin of rects are in the bottom left

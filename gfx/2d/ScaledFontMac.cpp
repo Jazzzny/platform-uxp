@@ -94,7 +94,13 @@ ScaledFontMac::GetPathForGlyphs(const GlyphBuffer &aBuffer, const DrawTarget *aT
           // XXX: we could probably fold both of these transforms together to avoid extra work
           CGAffineTransform flip = CGAffineTransformMakeScale(1, -1);
 
+          // CGFontGetGlyphPath is non-public and CoreText can do the same on 10.5 and later
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
           CGPathRef glyphPath = ::CGFontGetGlyphPath(mFont, &flip, 0, aBuffer.mGlyphs[i].mIndex);
+#else
+          CTFontRef ctFont = CTFontCreateWithGraphicsFont(mFont, 0, NULL, NULL);
+          CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, aBuffer.mGlyphs[i].mIndex, &flip);
+#endif
 
           CGAffineTransform matrix = CGAffineTransformMake(mSize, 0, 0, mSize,
                                                            aBuffer.mGlyphs[i].mPosition.x,
