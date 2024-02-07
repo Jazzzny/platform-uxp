@@ -576,7 +576,10 @@ static bool FindTagInTableDir(const FallibleTArray<uint8_t>& table,
 #endif
   uint32_t i;
   const uint32_t *wtable = (reinterpret_cast<const uint32_t *>(table.Elements()));
-  for (i=3; i<(sizer/4); i+=4) { // Skip header
+  // Make sure we don't overrun the buffer
+  uint32_t count = sizer / 4;
+  uint32_t length = table.Length();
+  for (i=3; i<count && i<length; i+=4) { // Skip header
 #ifdef DEBUG_X
     char tag[5] = { table[j], table[j+1], table[j+2], table[j+3], '\0' };
     fprintf(stderr, "%s ", tag); // remember: big endian
@@ -632,8 +635,9 @@ MacOSFontEntry::HasFontTable(uint32_t aTableTag)
     if (!mIsDataUserFont || mIsLocalUserFont) TryGlobalFontTableCache();
 
     // Use cached directory to avoid repeatedly fetching the same data.
-    if (MOZ_LIKELY(mFontTableDirSize > 0))
+    if (MOZ_LIKELY(mFontTableDirSize > 0)) {
         return FindTagInTableDir(mFontTableDir, aTableTag, mFontTableDirSize);
+    }
 
     ByteCount sizer;
 
@@ -641,9 +645,8 @@ MacOSFontEntry::HasFontTable(uint32_t aTableTag)
       // If the header is abnormal, try the old, slower way in case this
       // is a gap in our algorithm.
       if (MOZ_UNLIKELY(sizer <= 12 || ((sizer-12) % 16) || sizer >= 1024)) {
-        fprintf(stderr, "Warning: TenFourFox found "
-                "abnormal font table dir in %s (%i).\n",
-                 NS_ConvertUTF16toUTF8(mName).get(), sizer);
+        fprintf(stderr, "Warning: Found abnormal font table dir in %s (%i).\n",
+                NS_ConvertUTF16toUTF8(mName).get(), sizer);
         return
         (::ATSFontGetTable(fontRef, aTableTag, 0, 0, 0, &sizer) == noErr);
       }
@@ -660,9 +663,9 @@ MacOSFontEntry::HasFontTable(uint32_t aTableTag)
         reinterpret_cast<void *>(mFontTableDir.Elements()), &sizer) == noErr)) {
 
         // Push to platform.
-        if (!mIsDataUserFont || mIsLocalUserFont)
+        if (!mIsDataUserFont || mIsLocalUserFont) {
              reinterpret_cast<gfxPlatformMac *>(gfxPlatform::GetPlatform())->SetCachedDirForFont(mName, reinterpret_cast<uint8_t *>(mFontTableDir.Elements()), mFontTableDirSize);
-
+        }
         return FindTagInTableDir(mFontTableDir, aTableTag, mFontTableDirSize);
       }
    }
@@ -1686,8 +1689,7 @@ gfxMacPlatformFontList::MakePlatformFont(const nsAString& aFontName,
             [psname isEqualToString:@".SFNSText-Medium"] ||
             [psname isEqualToString:@".SFNSDisplay-Medium"] ||
                 0) {
-            fprintf(stderr,
-"Warning: TenFourFox rejected ATSUI-incompatible web font %s.\n",
+            fprintf(stderr, "Warning: Rejected ATSUI-incompatible web font %s.\n",
                 [psname UTF8String]);
             [psname release];
             ::ATSFontDeactivate(containerRef, NULL,

@@ -98,7 +98,7 @@ ScaledFontMac::GetPathForGlyphs(const GlyphBuffer &aBuffer, const DrawTarget *aT
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
           CGPathRef glyphPath = ::CGFontGetGlyphPath(mFont, &flip, 0, aBuffer.mGlyphs[i].mIndex);
 #else
-          CTFontRef ctFont = CTFontCreateWithGraphicsFont(mFont, 0, NULL, NULL);
+          CTFontRef ctFont = CTFontCreateWithGraphicsFont(mFont, 1.0, NULL, NULL);
           CGPathRef glyphPath = CTFontCreatePathForGlyph(ctFont, aBuffer.mGlyphs[i].mIndex, &flip);
 #endif
 
