@@ -4963,6 +4963,7 @@ GetIntegerDeltaForEvent(NSEvent* aEvent)
 
   WidgetMouseEventBase* mouseEvent = outGeckoEvent->AsMouseEventBase();
   mouseEvent->buttons = 0;
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
   NSUInteger mouseButtons = [NSEvent pressedMouseButtons];
 
   if (mouseButtons & 0x01) {
@@ -4980,6 +4981,7 @@ GetIntegerDeltaForEvent(NSEvent* aEvent)
   if (mouseButtons & 0x10) {
     mouseEvent->buttons |= WidgetMouseEvent::e5thButtonFlag;
   }
+#endif
 
   switch ([aMouseEvent type]) {
     case NSLeftMouseDown:

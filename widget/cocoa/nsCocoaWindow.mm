@@ -890,8 +890,8 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
                             ordered:NSWindowAbove];
     }
     else {
-#if defined(MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)
       NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
+#if defined(MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)
       if (mWindowType == eWindowType_toplevel &&
           [mWindow respondsToSelector:@selector(setAnimationBehavior:)]) {
         NSWindowAnimationBehavior behavior;
@@ -912,9 +912,9 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
         }
         [mWindow setAnimationBehavior:behavior];
       }
+#endif
       [mWindow makeKeyAndOrderFront:nil];
       NS_OBJC_END_TRY_ABORT_BLOCK;
-#endif
       SendSetZLevelEvent();
     }
   }

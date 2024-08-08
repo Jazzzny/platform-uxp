@@ -4060,10 +4060,10 @@ IMEInputHandler::OnSelectionChange(const IMENotification& aIMENotification)
 bool
 IMEInputHandler::OnHandleEvent(NSEvent* aEvent)
 {
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
   if (!IsFocused()) {
     return false;
   }
-#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
   NSTextInputContext* inputContext = [mView inputContext];
   return [inputContext handleEvent:aEvent];
 #else
