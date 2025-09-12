@@ -3343,16 +3343,12 @@ NSEvent* gLastDragMouseDownEvent = nil;
 
 - (void)installTextInputHandler:(TextInputHandler*)aHandler
 {
-#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
   mTextInputHandler = aHandler;
-#endif
 }
 
 - (void)uninstallTextInputHandler
 {
-#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
   mTextInputHandler = nullptr;
-#endif
 }
 
 - (bool)preRender:(NSOpenGLContext *)aGLContext
@@ -4993,11 +4989,29 @@ GetIntegerDeltaForEvent(NSEvent* aEvent)
     case NSOtherMouseDown:
     case NSOtherMouseUp:
     case NSOtherMouseDragged:
+    {
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+      // pressedMouseButtons: doesn't exist in the 10.4 SDK, so use the
+      // additional code below (TenFourFox issue 507).
+
+      NSInteger mouseButtons = [aMouseEvent buttonNumber];
+      if (mouseButtons == 0)
+        mouseEvent->buttons |= WidgetMouseEvent::eLeftButtonFlag;
+      else if (mouseButtons == 1)
+        mouseEvent->buttons |= WidgetMouseEvent::eRightButtonFlag;
+      else if (mouseButtons == 2)
+        mouseEvent->buttons |= WidgetMouseEvent::eMiddleButtonFlag;
+      else if (mouseButtons == 3)
+        mouseEvent->buttons |= WidgetMouseEvent::e4thButtonFlag;
+      else if (mouseButtons >= 4) // WRONG! but close enough
+        mouseEvent->buttons |= WidgetMouseEvent::e5thButtonFlag;
+#endif
       if ([aMouseEvent subtype] == NSTabletPointEventSubtype) {
         mouseEvent->pressure = [aMouseEvent pressure];
         MOZ_ASSERT(mouseEvent->pressure >= 0.0 && mouseEvent->pressure <= 1.0);
       }
       break;
+    }
 
     default:
       // Don't check other NSEvents for pressure.

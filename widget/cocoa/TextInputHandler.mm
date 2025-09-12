@@ -4067,7 +4067,7 @@ IMEInputHandler::OnHandleEvent(NSEvent* aEvent)
   NSTextInputContext* inputContext = [mView inputContext];
   return [inputContext handleEvent:aEvent];
 #else
-  return true;
+  return false;
 #endif
 }
 

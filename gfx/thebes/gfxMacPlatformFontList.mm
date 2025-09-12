@@ -1464,12 +1464,22 @@ gfxMacPlatformFontList::PlatformGlobalFontFallback(const uint32_t aCh,
 
     return fontEntry;
 #else
-    uint32_t aCmapCount = 0;
-    return gfxPlatformFontList::GlobalFontFallback(aCh,
-                                                   aRunScript,
-                                                   aMatchStyle,
-                                                   aCmapCount,
-                                                   aMatchedFamily);
+    static bool recursing = false;
+    gfxFontEntry *retval = nullptr;
+    if (!recursing) {
+        uint32_t aCmapCount = 0;
+        // Try calling GlobalFontFallback once in case we were called
+        // directly.  Then stop and return nullptr so GlobalFontCallback
+        // will search the internal font table. 
+        recursing = true;
+        retval = gfxPlatformFontList::GlobalFontFallback(aCh,
+                                                         aRunScript,
+                                                         aMatchStyle,
+                                                         aCmapCount,
+                                                         aMatchedFamily);
+        recursing = false;
+    }
+	return retval;
 #endif
 }
 
