@@ -10,6 +10,19 @@
 #include "PlatformDecoderModule.h"
 #include "prlink.h"
 
+#ifdef XP_DARWIN
+  #include <dlfcn.h>
+  #include <libgen.h>
+  #include <mach-o/dyld.h>
+
+namespace mozilla {
+
+void* FFmpegLibWrapper::mAVUtilLib = nullptr;
+void* FFmpegLibWrapper::mAVCodecLib = nullptr;
+
+}  // namespace mozilla
+#endif /* XP_DARWIN */
+
 #define AV_LOG_WARNING 24
 
 namespace mozilla
@@ -34,7 +47,11 @@ FFmpegLibWrapper::Link()
   }
 
   avcodec_version =
+  #ifdef XP_DARWIN
+    (decltype(avcodec_version))dlsym(mAVCodecLib, "avcodec_version");
+  #else
     (decltype(avcodec_version))PR_FindSymbol(mAVCodecLib, "avcodec_version");
+  #endif
   if (!avcodec_version) {
     Unlink();
     return LinkResult::NoAVCodecVersion;
@@ -77,6 +94,16 @@ FFmpegLibWrapper::Link()
       return LinkResult::UnknownFFMpegVersion;
   }
 
+#ifdef XP_DARWIN
+#define AV_FUNC_OPTION(func, ver)                                                     \
+  if ((ver) & version) {                                                       \
+    if (!(func = (decltype(func))dlsym(((ver) & AV_FUNC_AVUTIL_MASK) ? mAVUtilLib : mAVCodecLib, #func))) { \
+      FFMPEG_LOG("Couldn't load function " #func);                             \
+    }                                                                          \
+  } else {                                                                     \
+    func = (typeof(func))nullptr;                                              \
+  }
+#else
 #define AV_FUNC_OPTION(func, ver)                                              \
   if ((ver) & version) {                                                       \
     if (!(func = (decltype(func))PR_FindSymbol(((ver) & AV_FUNC_AVUTIL_MASK) ? mAVUtilLib : mAVCodecLib, #func))) { \
@@ -85,6 +112,7 @@ FFmpegLibWrapper::Link()
   } else {                                                                     \
     func = (decltype(func))nullptr;                                            \
   }
+#endif /* XP_DARWIN */
 
 #define AV_FUNC(func, ver)                                                     \
   AV_FUNC_OPTION(func, ver)                                                    \
@@ -143,10 +171,18 @@ FFmpegLibWrapper::Unlink()
     av_lockmgr_register(nullptr);
   }
   if (mAVUtilLib && mAVUtilLib != mAVCodecLib) {
+  #ifdef XP_DARWIN
+    dlclose(mAVUtilLib);
+  #else
     PR_UnloadLibrary(mAVUtilLib);
+  #endif
   }
   if (mAVCodecLib) {
+  #ifdef XP_DARWIN
+    dlclose(mAVUtilLib);
+  #else
     PR_UnloadLibrary(mAVCodecLib);
+  #endif
   }
   PodZero(this);
 }

@@ -9,6 +9,12 @@
 #include "FFmpegLog.h"
 #include "prlink.h"
 
+#ifdef XP_DARWIN
+  #include <dlfcn.h>
+  #include <libgen.h>
+  #include <mach-o/dyld.h>
+#endif /* XP_DARWIN */
+
 namespace mozilla
 {
 
@@ -50,12 +56,36 @@ FFmpegRuntimeLinker::Init()
   // more precise error if possible.
   sLinkStatus = LinkStatus_NOT_FOUND;
 
+  #ifdef XP_DARWIN // Explanation below.
+  char execPath[PATH_MAX];
+  execPath[0] = '\0';
+  uint32_t pathlen = PATH_MAX;
+  _NSGetExecutablePath(execPath, &pathlen);
+  char *execDir = dirname(execPath);
+  #endif /* XP_DARWIN */
+
   for (size_t i = 0; i < ArrayLength(sLibs); i++) {
     const char* lib = sLibs[i];
+#ifdef XP_DARWIN
+    /* Loading FFMPEG on Mac OS X (macOS is a typo) fails because mozilla
+      searches for sybols defined in libavutil with a handle to libavcodec.
+      This is due to the fact that NSPR uses NSAddressOfSymbol & cie who limits
+      its researches only to libavcodec and not its dependencies.  We don't have
+      this issue with dlsym().  */
+    if (!(sLibAV.mAVCodecLib = dlopen(lib, RTLD_NOW | RTLD_LOCAL))) {
+      /* Bonus time: if we don't find libavcodec in standard locations, we look
+        if our venerable FFMPEG's libraries are in the same folder as XUL. */
+      char *libFullPath = NULL;
+      if (asprintf(&libFullPath, "%s/%s", execDir, lib) > 0 && libFullPath)
+        sLibAV.mAVCodecLib = dlopen(libFullPath, RTLD_NOW | RTLD_LOCAL);
+      free(libFullPath);
+    }
+#else
     PRLibSpec lspec;
     lspec.type = PR_LibSpec_Pathname;
     lspec.value.pathname = lib;
     sLibAV.mAVCodecLib = PR_LoadLibraryWithFlags(lspec, PR_LD_NOW | PR_LD_LOCAL);
+#endif /* XP_DARWIN */
     if (sLibAV.mAVCodecLib) {
       sLibAV.mAVUtilLib = sLibAV.mAVCodecLib;
       switch (sLibAV.Link()) {

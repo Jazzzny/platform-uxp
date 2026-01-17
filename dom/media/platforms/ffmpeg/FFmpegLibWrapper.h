@@ -80,8 +80,13 @@ struct FFmpegLibWrapper
   decltype(::av_tx_init)* av_tx_init;
   decltype(::av_tx_uninit)* av_tx_uninit;
 
+#ifdef XP_DARWIN
+  static void* mAVCodecLib;
+  static void* mAVUtilLib;
+#else
   PRLibrary* mAVCodecLib;
   PRLibrary* mAVUtilLib;
+#endif
 
 private:
 };
