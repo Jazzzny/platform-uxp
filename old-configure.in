@@ -3311,6 +3311,9 @@ dnl Detect if we can use yasm to enable FFmpeg's ffvpx assembly decoder.
 if test -n "$MOZ_FFVPX" -a -n "$COMPILE_ENVIRONMENT"; then
   AC_DEFINE(MOZ_FFVPX)
   case "$OS_ARCH:$CPU_ARCH" in
+  Darwin:x86)
+    FFVPX_ASFLAGS="-DPIC -DMACHO"
+  ;;
   Darwin:x86_64)
     FFVPX_ASFLAGS="-D__x86_64__ -DPIC -DMACHO"
   ;;
