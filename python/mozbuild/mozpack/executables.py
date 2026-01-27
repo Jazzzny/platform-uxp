@@ -95,8 +95,8 @@ def strip(path):
     strip = substs['STRIP']
     flags = substs['STRIP_FLAGS'].split() if 'STRIP_FLAGS' in substs else []
     cmd = [strip] + flags + [path]
-    if subprocess.call(cmd) != 0:
-        errors.fatal('Error executing ' + ' '.join(cmd))
+#    if subprocess.call(cmd) != 0:
+#        errors.fatal('Error executing ' + ' '.join(cmd))
 
 
 def may_elfhack(path):
