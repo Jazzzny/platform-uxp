@@ -2165,7 +2165,7 @@ cocoa)
     # Use -Wl as a trick to avoid -framework and framework names from
     # being separated by AC_SUBST_LIST.
     TK_LIBS='-Wl,-framework,QuartzCore -Wl,-framework,Carbon -Wl,-framework,CoreAudio -Wl,-framework,AudioToolbox -Wl,-framework,AudioUnit -Wl,-framework,AddressBook -Wl,-framework,OpenGL -Wl,-framework,Security'
-    if test "$CPU_ARCH" != "ppc"
+    if test -n "$MACOSX_DEPLOYMENT_TARGET" -a "$MACOSX_DEPLOYMENT_TARGET" \> "10.5"
     then
         TK_LIBS="-Wl,-framework,CoreLocation $TK_LIBS -Wl,-framework,ServiceManagement"
     fi
