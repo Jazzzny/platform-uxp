@@ -172,39 +172,19 @@ DrawTargetCG::~DrawTargetCG()
 DrawTargetType
 DrawTargetCG::GetType() const
 {
-#if !defined(__ppc__)
-  return GetBackendType() == BackendType::COREGRAPHICS_ACCELERATED ?
-           DrawTargetType::HARDWARE_RASTER : DrawTargetType::SOFTWARE_RASTER;
-#else
   return DrawTargetType::SOFTWARE_RASTER;
-#endif
 }
 
 BackendType
 DrawTargetCG::GetBackendType() const
 {
-#if defined(MOZ_WIDGET_COCOA) && !defined(__ppc__)
-  // It may be worth spliting Bitmap and IOSurface DrawTarget
-  // into seperate classes.
-  if (GetContextType(mCg) == CG_CONTEXT_TYPE_IOSURFACE) {
-    return BackendType::COREGRAPHICS_ACCELERATED;
-  } else {
-    return BackendType::COREGRAPHICS;
-  }
-#else
   return BackendType::COREGRAPHICS;
-#endif
 }
 
 already_AddRefed<SourceSurface>
 DrawTargetCG::Snapshot()
 {
   if (!mSnapshot) {
-#if defined(MOZ_WIDGET_COCOA) && !defined(__ppc__)
-    if (GetContextType(mCg) == CG_CONTEXT_TYPE_IOSURFACE) {
-      return MakeAndAddRef<SourceSurfaceCGIOSurfaceContext>(this);
-    }
-#endif
     Flush();
     mSnapshot = new SourceSurfaceCGBitmapContext(this);
   }
@@ -1860,16 +1840,7 @@ DrawTargetCG::CreatePathBuilder(FillRule aFillRule) const
 void*
 DrawTargetCG::GetNativeSurface(NativeSurfaceType aType)
 {
-#if defined(MOZ_WIDGET_COCOA) && !defined(__ppc__)
-  if ((aType == NativeSurfaceType::CGCONTEXT && GetContextType(mCg) == CG_CONTEXT_TYPE_BITMAP) ||
-      (aType == NativeSurfaceType::CGCONTEXT_ACCELERATED && GetContextType(mCg) == CG_CONTEXT_TYPE_IOSURFACE)) {
-    return mCg;
-  } else {
-    return nullptr;
-  }
-#else
   return mCg;
-#endif
 }
 
 void
