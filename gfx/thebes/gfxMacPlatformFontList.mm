@@ -851,8 +851,8 @@ gfxMacFontFamily::FindStyleVariations(FontInfoData *aFontInfoData)
             LOG_FONTLIST(("(fontlist) added (%s) to family (%s)"
                  " with style: %s weight: %d stretch: %d"
                  " (apple-weight: %d macTraits: %8.8x)",
-                 NS_ConvertUTF16toUTF8(fontEntry->Name()).get(), 
-                 NS_ConvertUTF16toUTF8(Name()).get(), 
+                 NS_ConvertUTF16toUTF8(fontEntry->Name()).get(),
+                 NS_ConvertUTF16toUTF8(Name()).get(),
                  fontEntry->IsItalic() ? "italic" : "normal",
                  cssWeight, fontEntry->Stretch(),
                  appKitWeight, macTraits));
@@ -1102,19 +1102,15 @@ gfxMacPlatformFontList::InitFontListForPlatform()
     ATSGeneration currentGeneration = ::ATSGetGeneration();
 
     // need to ignore notifications after adding each font
-    if (mATSGeneration == currentGeneration)
+    if (mATSGeneration == currentGeneration && mFontFamilies.Count() > 0)
         return NS_OK;
     mATSGeneration = currentGeneration;
 
-    // reset font lists
-    gfxPlatformFontList::InitFontList();
 #endif
     mSystemFontFamilies.Clear();
+    InitSystemFontNames();
 
 #if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
-    // iterate over available families
-
-    InitSystemFontNames();
 
     CFArrayRef familyNames = CTFontManagerCopyAvailableFontFamilyNames();
 
@@ -1574,7 +1570,7 @@ gfxMacPlatformFontList::PlatformGlobalFontFallback(const uint32_t aCh,
         uint32_t aCmapCount = 0;
         // Try calling GlobalFontFallback once in case we were called
         // directly.  Then stop and return nullptr so GlobalFontCallback
-        // will search the internal font table. 
+        // will search the internal font table.
         recursing = true;
         retval = gfxPlatformFontList::GlobalFontFallback(aCh,
                                                          aRunScript,
@@ -2131,6 +2127,10 @@ MacFontInfo::LoadFontFamilyData(const nsAString& aFamilyName)
 already_AddRefed<FontInfoData>
 gfxMacPlatformFontList::CreateFontInfoData()
 {
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+    // This crashes on 10.5 and is only used in the asynchronous code, so just bail out.
+	return nullptr;
+#endif
     bool loadCmaps = !UsesSystemFallback() ||
         gfxPlatform::GetPlatform()->UseCmapsDuringSystemFallback();
 

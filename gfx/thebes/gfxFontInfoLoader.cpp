@@ -12,6 +12,9 @@
 #ifdef XP_WIN
 #include <d3d11.h>
 #endif
+#ifdef XP_DARWIN
+#include <AvailabilityMacros.h>
+#endif
 
 using namespace mozilla;
 using services::GetObserverService;
@@ -169,6 +172,15 @@ gfxFontInfoLoader::StartLoader(uint32_t aDelay, uint32_t aInterval)
 
     mFontInfo = CreateFontInfoData();
 
+#ifdef XP_DARWIN
+    // On 10.5, ATS crashes
+    // invoked from a background thread. So we skip the background
+    // thread and load synchronously on the main thread, meaning this will be null.
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+	if (!mFontInfo)
+		return;
+#endif
+#endif
     // initialize
     InitLoader();
 
