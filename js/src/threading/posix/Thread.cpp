@@ -22,6 +22,10 @@
 #include <sys/prctl.h>
 #endif
 
+#ifdef XP_DARWIN
+#include <AvailabilityMacros.h>
+#endif
+
 #include "threading/Thread.h"
 
 class js::Thread::Id::PlatformData
@@ -152,7 +156,7 @@ js::ThisThread::SetName(const char* name)
 
   int rv = 0;
 #ifdef XP_DARWIN
-#ifndef __ppc__
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
   rv = pthread_setname_np(name);
 #endif
 #elif defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)

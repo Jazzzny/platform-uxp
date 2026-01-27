@@ -89,7 +89,7 @@ struct cubeb {
   cubeb_device_type collection_changed_devtype;
   uint32_t devtype_device_count;
   AudioObjectID * devtype_device_array;
-#ifndef __ppc__
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
   // The queue is asynchronously deallocated once all references to it are released
   dispatch_queue_t serial_queue = dispatch_queue_create(DISPATCH_QUEUE_LABEL, DISPATCH_QUEUE_SERIAL);
 #endif
@@ -706,7 +706,7 @@ audiounit_property_listener_callback(AudioObjectID /* id */, UInt32 address_coun
 
   // Use a new thread, through the queue, to avoid deadlock when calling
   // Get/SetProperties method from inside notify callback
-#ifndef __ppc__
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
   dispatch_async(stm->context->serial_queue, ^() {
 #endif
     if (audiounit_reinit_stream(stm) != CUBEB_OK) {
@@ -714,7 +714,7 @@ audiounit_property_listener_callback(AudioObjectID /* id */, UInt32 address_coun
       LOG("(%p) Could not reopen the stream after switching.", stm);
     }
     stm->switching_device = false;
-#ifndef __ppc__
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
   });
 #endif
 
@@ -1938,13 +1938,15 @@ audiounit_stream_destroy(cubeb_stream * stm)
 
   // Execute close in serial queue to avoid collision
   // with reinit when un/plug devices
-#ifndef __ppc__
-  dispatch_sync(stm->context->serial_queue, ^() {
-    auto_lock lock(stm->mutex);
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
+  dispatch_sync(stm->context->serial_queue, ^()
 #endif
+  {
+    auto_lock lock(stm->mutex);
     audiounit_close_stream(stm);
-#ifndef __ppc__
-  });
+  }
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
+  );
 #endif
 
   assert(stm->context->active_streams >= 1);

@@ -26,6 +26,10 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_util/aom_thread.h"
 
+#if defined(__APPLE__)
+#include <AvailabilityMacros.h>
+#endif
+
 #if CONFIG_MULTITHREAD
 
 struct AVxWorkerImpl {
@@ -40,7 +44,7 @@ static void execute(AVxWorker *const worker);  // Forward declaration.
 
 static THREADFN thread_loop(void *ptr) {
   AVxWorker *const worker = (AVxWorker *)ptr;
-#if defined(__APPLE__) && !defined(__ppc__)
+#if defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6)
   if (worker->thread_name != NULL) {
     // Apple's version of pthread_setname_np takes one argument and operates on
     // the current thread only. The maximum size of the thread_name buffer was
