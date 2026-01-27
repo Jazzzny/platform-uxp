@@ -7,7 +7,6 @@
 #define RectTextureImage_h_
 
 #include "mozilla/RefPtr.h"
-#include <functional>
 
 class MacIOSurface;
 
@@ -27,7 +26,7 @@ namespace widget {
 // OMTC BasicLayers drawing.
 class RectTextureImage {
 public:
-  RectTextureImage();
+  explicit RectTextureImage(gl::GLContext* aGLContext);
 
   virtual ~RectTextureImage();
 
@@ -35,12 +34,12 @@ public:
     BeginUpdate(const LayoutDeviceIntSize& aNewSize,
                 const LayoutDeviceIntRegion& aDirtyRegion =
                   LayoutDeviceIntRegion());
-  void EndUpdate();
+  void EndUpdate(bool aKeepSurface = false);
 
   void UpdateIfNeeded(const LayoutDeviceIntSize& aNewSize,
                       const LayoutDeviceIntRegion& aDirtyRegion,
-                      std::function<void(gfx::DrawTarget*,
-                                         const LayoutDeviceIntRegion&)> aCallback)
+                      void (*aCallback)(gfx::DrawTarget*,
+                                        const LayoutDeviceIntRegion&))
   {
     RefPtr<gfx::DrawTarget> drawTarget = BeginUpdate(aNewSize, aDirtyRegion);
     if (drawTarget) {
@@ -62,15 +61,18 @@ public:
             const LayoutDeviceIntPoint& aLocation,
             const gfx::Matrix4x4& aTransform = gfx::Matrix4x4());
 
+  static LayoutDeviceIntSize TextureSizeForSize(
+    const LayoutDeviceIntSize& aSize);
 
 protected:
-  void DeleteTexture();
-  void BindIOSurfaceToTexture(gl::GLContext* aGL);
 
-  RefPtr<MacIOSurface> mIOSurface;
+  RefPtr<gfx::DrawTarget> mUpdateDrawTarget;
+  UniquePtr<unsigned char[]> mUpdateDrawTargetData;
   gl::GLContext* mGLContext;
   LayoutDeviceIntRegion mUpdateRegion;
+  LayoutDeviceIntSize mUsedSize;
   LayoutDeviceIntSize mBufferSize;
+  LayoutDeviceIntSize mTextureSize;
   GLuint mTexture;
   bool mInUpdate;
 };
