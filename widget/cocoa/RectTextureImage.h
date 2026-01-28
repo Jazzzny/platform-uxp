@@ -8,6 +8,7 @@
 
 #include "mozilla/RefPtr.h"
 #include <functional>
+#include <utility>
 
 class MacIOSurface;
 
@@ -47,19 +48,15 @@ public:
   void EndUpdate(bool aKeepSurface = false);
 #endif
 
+  template<typename Function, typename... Args>
   void UpdateIfNeeded(const LayoutDeviceIntSize& aNewSize,
                       const LayoutDeviceIntRegion& aDirtyRegion,
-#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
-                      std::function<void(gfx::DrawTarget*,
-                                         const LayoutDeviceIntRegion&)> aCallback)
-#else
-                      void (*aCallback)(gfx::DrawTarget*,
-                                        const LayoutDeviceIntRegion&))
-#endif
+                      Function aCallback,
+                      Args&&... aArgs)
   {
     RefPtr<gfx::DrawTarget> drawTarget = BeginUpdate(aNewSize, aDirtyRegion);
     if (drawTarget) {
-      aCallback(drawTarget, GetUpdateRegion());
+      aCallback(drawTarget, GetUpdateRegion(), std::forward<Args>(aArgs)...);
       EndUpdate();
     }
   }
