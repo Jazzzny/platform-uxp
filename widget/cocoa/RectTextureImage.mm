@@ -126,9 +126,6 @@ RectTextureImage::BeginUpdate(const LayoutDeviceIntSize& aNewSize,
                                             stride, format);
     mBufferSize = neededBufferSize;
 
-    // DEBUG
-    mUpdateDrawTarget->FillRect(gfx::Rect(0, 0, size.width, size.height),
-                                gfx::ColorPattern(gfx::Color(1.0f, 0.0f, 0.0f, 0.5f)));
 #endif
   }
 
@@ -172,6 +169,9 @@ RectTextureImage::EndUpdate(bool aKeepSurface)
 #else
   mGLContext->MakeCurrent();
   bool needInit = !mTexture;
+  if (!mTexture) {
+    mGLContext->fGenTextures(1, &mTexture);
+  }
   LayoutDeviceIntRegion updateRegion = mUpdateRegion;
   if (mTextureSize != mBufferSize) {
     mTextureSize = mBufferSize;
@@ -196,8 +196,6 @@ RectTextureImage::EndUpdate(bool aKeepSurface)
                            LOCAL_GL_TEXTURE0,
                            LOCAL_GL_TEXTURE_RECTANGLE_ARB);
 
-  printf("RectTextureImage DEBUG: Texture=%u Size=%d,%d Error=0x%x\n",
-          mTexture, mBufferSize.width, mBufferSize.height, mGLContext->fGetError());
 
   if (!aKeepSurface) {
     mUpdateDrawTarget = nullptr;
