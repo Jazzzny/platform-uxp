@@ -220,6 +220,16 @@ const GfxDeviceFamily* GfxDriverInfo::GetDeviceFamily(DeviceFamily id)
     case Geforce7300GT:
       APPEND_DEVICE(0x0393);
       break;
+    case GeforceFX:
+      // GeForce FX (5000 series) fail to render with layer acceleration.
+      APPEND_DEVICE(0x0300);
+      APPEND_DEVICE(0x0310);
+      APPEND_DEVICE(0x0320);
+      APPEND_DEVICE(0x0330);
+      APPEND_DEVICE(0x0340);
+      APPEND_DEVICE(0x0350);
+      APPEND_DEVICE(0x0360);
+      APPEND_DEVICE(0x00f0);
     case Nvidia310M:
       APPEND_DEVICE(0x0A70);
       break;
