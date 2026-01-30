@@ -308,9 +308,9 @@ GfxInfo::GetGfxDriverInfo()
     IMPLEMENT_MAC_DRIVER_BLOCKLIST(OperatingSystem::OSX,
       (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorATI), GfxDriverInfo::allDevices,
       nsIGfxInfo::FEATURE_WEBGL_MSAA, nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION, "FEATURE_FAILURE_MAC_ATI_NO_MSAA");
-    IMPLEMENT_MAC_DRIVER_BLOCKLIST(OperatingSystem::OSX,
-      (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorATI), (GfxDeviceFamily*) GfxDriverInfo::GetDeviceFamily(RadeonX1000),
-      nsIGfxInfo::FEATURE_OPENGL_LAYERS, nsIGfxInfo::FEATURE_BLOCKED_DEVICE, "FEATURE_FAILURE_MAC_RADEONX1000_NO_TEXTURE2D");
+//    IMPLEMENT_MAC_DRIVER_BLOCKLIST(OperatingSystem::OSX,
+//      (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorATI), (GfxDeviceFamily*) GfxDriverInfo::GetDeviceFamily(RadeonX1000),
+//      nsIGfxInfo::FEATURE_OPENGL_LAYERS, nsIGfxInfo::FEATURE_BLOCKED_DEVICE, "FEATURE_FAILURE_MAC_RADEONX1000_NO_TEXTURE2D");
     IMPLEMENT_MAC_DRIVER_BLOCKLIST(OperatingSystem::OSX,
       (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorNVIDIA), (GfxDeviceFamily*) GfxDriverInfo::GetDeviceFamily(Geforce7300GT),
       nsIGfxInfo::FEATURE_WEBGL_OPENGL, nsIGfxInfo::FEATURE_BLOCKED_DEVICE, "FEATURE_FAILURE_MAC_7300_NO_WEBGL");
