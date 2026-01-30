@@ -920,12 +920,17 @@ DrawTargetCG::MaskSurface(const Pattern &aSource,
       maskSurf = dt->Snapshot();
     }
   }
+
   image = GetRetainedImageFromSourceSurface(maskSurf);
+
+  // use a negative-y so that the mask image draws right ways up
+  CGContextScaleCTM(cg, 1, -1);
 
   IntSize size = maskSurf->GetSize();
 
-  CGContextClipToMask(cg, CGRectMake(aOffset.x, aOffset.y, size.width, size.height), image);
+  CGContextClipToMask(cg, CGRectMake(aOffset.x, -(aOffset.y + size.height), size.width, size.height), image);
 
+  CGContextScaleCTM(cg, 1, -1);
   if (isGradient(aSource)) {
     // we shouldn't need to clip to an additional rectangle
     // as the cliping to the mask should be sufficient.
