@@ -909,12 +909,24 @@ DrawTargetCG::MaskSurface(const Pattern &aSource,
   CGContextSetAlpha(cg, aDrawOptions.mAlpha);
   CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AntialiasMode::NONE);
 
-  CGImageRef image = GetRetainedImageFromSourceSurface(aMask);
+  CGImageRef image = nullptr;
+  RefPtr<SourceSurface> maskSurf = aMask;
+
+  if (maskSurf->GetFormat() == SurfaceFormat::A8) {
+    IntSize size = maskSurf->GetSize();
+    RefPtr<DrawTarget> dt = CreateSimilarDrawTarget(size, SurfaceFormat::B8G8R8A8);
+    if (dt) {
+      dt->CopySurface(maskSurf, IntRect(IntPoint(0,0), size), IntPoint(0,0));
+      maskSurf = dt->Snapshot();
+    }
+  }
+
+  image = GetRetainedImageFromSourceSurface(maskSurf);
 
   // use a negative-y so that the mask image draws right ways up
   CGContextScaleCTM(cg, 1, -1);
 
-  IntSize size = aMask->GetSize();
+  IntSize size = maskSurf->GetSize();
 
   CGContextClipToMask(cg, CGRectMake(aOffset.x, -(aOffset.y + size.height), size.width, size.height), image);
 
@@ -1869,8 +1881,10 @@ DrawTargetCG::Mask(const Pattern &aSource,
     if (aMask.GetType() == PatternType::SURFACE) {
       const SurfacePattern& pat = static_cast<const SurfacePattern&>(aMask);
       if (pat.mExtendMode == ExtendMode::CLAMP) {
-        maskImage = GetRetainedImageFromSourceSurface(pat.mSurface.get());
-        maskTransform = pat.mMatrix;
+        if (pat.mSurface->GetFormat() != SurfaceFormat::A8) {
+          maskImage = GetRetainedImageFromSourceSurface(pat.mSurface.get());
+          maskTransform = pat.mMatrix;
+        }
       }
     }
 
@@ -1878,7 +1892,7 @@ DrawTargetCG::Mask(const Pattern &aSource,
       CGRect clipBounds = CGContextGetClipBoundingBox(mCg);
       IntRect rect = RoundedOut(CGRectToRect(clipBounds));
 
-      RefPtr<DrawTarget> dt = CreateSimilarDrawTarget(rect.Size(), SurfaceFormat::A8);
+      RefPtr<DrawTarget> dt = CreateSimilarDrawTarget(rect.Size(), SurfaceFormat::B8G8R8A8);
       if (dt) {
         dt->SetTransform(Matrix::Translation(-rect.x, -rect.y));
         dt->FillRect(Rect(rect), aMask, DrawOptions(1.0f, CompositionOp::OP_SOURCE));
