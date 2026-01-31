@@ -118,15 +118,30 @@ GfxInfo::GetDeviceInfo()
     CFRelease(device_id_ref);
   }
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
-  CFTypeRef bundle_name_ref = SearchPortForProperty(dsp_port, CFSTR("IOGLBundleName"));
-  if (bundle_name_ref) {
-    if (CFGetTypeID(bundle_name_ref) == CFStringGetTypeID()) {
-      NSString* str = (NSString*)bundle_name_ref;
-      mIOGLBundleName.Assign(NS_ConvertUTF8toUTF16([str UTF8String]));
-      fprintf(stderr, "GfxInfo::GetDeviceInfo: IOGLBundleName: %s\n", NS_ConvertUTF16toUTF8(mIOGLBundleName).get());
+  CFMutableDictionaryRef matchingDict = IOServiceMatching("IOAccelerator");
+  io_iterator_t iterator;
+  if (IOServiceGetMatchingServices(kIOMasterPortDefault, matchingDict, &iterator) == kIOReturnSuccess) {
+    io_registry_entry_t registryEntry;
+    while ((registryEntry = IOIteratorNext(iterator))) {
+      CFTypeRef bundleName = IORegistryEntryCreateCFProperty(registryEntry,
+                                                             CFSTR("IOGLBundleName"),
+                                                             kCFAllocatorDefault,
+                                                             0);
+      if (bundleName) {
+        if (CFGetTypeID(bundleName) == CFStringGetTypeID()) {
+          NSString* str = (NSString*)bundleName;
+          mIOGLBundleName.Assign(NS_ConvertUTF8toUTF16([str UTF8String]));
+          fprintf(stderr, "GfxInfo::GetDeviceInfo: IOGLBundleName: %s\n", NS_ConvertUTF16toUTF8(mIOGLBundleName).get());
+        }
+        CFRelease(bundleName);
+      }
+      IOObjectRelease(registryEntry);
+      if (!mIOGLBundleName.IsEmpty()) break;
     }
-    CFRelease(bundle_name_ref);
-  } else {
+    IOObjectRelease(iterator);
+  }
+
+  if (mIOGLBundleName.IsEmpty()) {
     fprintf(stderr, "GfxInfo::GetDeviceInfo: No IOGLBundleName found\n");
   }
 #endif
