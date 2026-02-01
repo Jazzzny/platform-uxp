@@ -23,6 +23,8 @@
 #include "nsCOMPtr.h"
 #include "nsToolkit.h"
 #include "nsCRT.h"
+#include "nsIGfxInfo.h"
+#include "nsServiceManagerUtils.h"
 
 #include "nsFontMetrics.h"
 #include "nsIRollupListener.h"
@@ -2790,6 +2792,16 @@ nsChildView::InitCompositor(Compositor* aCompositor)
 {
   if (aCompositor->GetBackendType() == LayersBackend::LAYERS_BASIC) {
     if (!mGLPresenter) {
+      nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
+      if (gfxInfo) {
+        int32_t status;
+        nsCString discardFailureId;
+        gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_OPENGL_LAYERS, discardFailureId, &status);
+        if (status == nsIGfxInfo::FEATURE_BLOCKED_DEVICE) {
+          return true;
+        }
+      }
+
       mGLPresenter = GLPresenter::CreateForWindow(this);
     }
 
