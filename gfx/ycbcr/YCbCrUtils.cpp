@@ -53,7 +53,11 @@ GetYCbCrToRGBDestFormatAndSize(const layers::PlanarYCbCrData& aData,
   }
   else if (aSuggestedFormat != SurfaceFormat::B8G8R8X8) {
     // No other formats are currently supported.
+#if defined(MOZ_BIG_ENDIAN)
+    aSuggestedFormat = SurfaceFormat::R8G8B8X8;
+#else
     aSuggestedFormat = SurfaceFormat::B8G8R8X8;
+#endif
   }
   if (aSuggestedFormat == SurfaceFormat::B8G8R8X8) {
     /* ScaleYCbCrToRGB32 does not support a picture offset, nor 4:4:4 data.
@@ -61,6 +65,12 @@ GetYCbCrToRGBDestFormatAndSize(const layers::PlanarYCbCrData& aData,
     if (aData.mPicX != 0 || aData.mPicY != 0 || yuvtype == YV24)
       prescale = false;
   }
+#if defined(MOZ_BIG_ENDIAN)
+  if (aSuggestedFormat == SurfaceFormat::R8G8B8X8) {
+    if (aData.mPicX != 0 || aData.mPicY != 0 || yuvtype == YV24)
+      prescale = false;
+  }
+#endif
   if (!prescale) {
     aSuggestedSize = aData.mPicSize;
   }
