@@ -46,6 +46,24 @@ const YuvConstants* GetYUVConstants(mozilla::YUVColorSpace yuv_color_space,
   }
 }
 
+const YuvConstants* GetYVUConstants(mozilla::YUVColorSpace yuv_color_space,
+                                    mozilla::ColorRange color_range)
+{
+  switch (yuv_color_space) {
+    case mozilla::YUVColorSpace::BT709:
+      return color_range == mozilla::ColorRange::LIMITED
+        ? &libyuv::kYvuH709Constants
+        : &libyuv::kYvuF709Constants;
+
+    default:
+      MOZ_FALLTHROUGH_ASSERT("Unsupported YUVColorSpace");
+    case mozilla::YUVColorSpace::BT601:
+      return color_range == mozilla::ColorRange::LIMITED
+        ? &libyuv::kYvuI601Constants
+        : &libyuv::kYvuJPEGConstants;
+  }
+}
+
 
 // YUV to RGB conversion and scaling functions were implemented by referencing
 // scale_argb.cc
@@ -77,7 +95,7 @@ const YuvConstants* GetYUVConstants(mozilla::YUVColorSpace yuv_color_space,
 // -[3] Modified scaling functions as to handle YUV conversion buffer and
 //      use YUVBuferIter.
 // -[4] Color conversion function selections in YUVBuferIter were borrowed from
-//      I444ToARGBMatrix(), I422ToARGBMatrix() and I420ToARGBMatrix() 
+//      I444ToARGBMatrix(), I422ToARGBMatrix() and I420ToARGBMatrix()
 
 static __inline int Abs(int v) {
   return v >= 0 ? v : -v;

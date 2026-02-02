@@ -73,9 +73,15 @@ void GBRPlanarToARGB(const uint8_t* src_y, int y_pitch,
   // fixme: replace with something less awful
   for (const auto row : MakeRange(pic_height)) {
     for (const auto col : MakeRange(pic_width)) {
+#if defined(MOZ_BIG_ENDIAN)
+      rgb_buf[rgb_pitch * row + col * 4 + 0] = src_v[v_pitch * row + col];
+      rgb_buf[rgb_pitch * row + col * 4 + 1] = src_y[y_pitch * row + col];
+      rgb_buf[rgb_pitch * row + col * 4 + 2] = src_u[u_pitch * row + col];
+#else
       rgb_buf[rgb_pitch * row + col * 4 + 0] = src_u[u_pitch * row + col];
       rgb_buf[rgb_pitch * row + col * 4 + 1] = src_y[y_pitch * row + col];
       rgb_buf[rgb_pitch * row + col * 4 + 2] = src_v[v_pitch * row + col];
+#endif
       rgb_buf[rgb_pitch * row + col * 4 + 3] = 255;
     }
   }
@@ -164,6 +170,13 @@ void ConvertYCbCrToRGB32(const uint8_t* y_buf,
   }
 
   auto yuv_constant = libyuv::GetYUVConstants(yuv_color_space, color_range);
+
+#if defined(MOZ_BIG_ENDIAN)
+  const uint8_t* temp_u = src_u;
+  src_u = src_v;
+  src_v = temp_u;
+  yuv_constant = libyuv::GetYVUConstants(yuv_color_space, color_range);
+#endif
 
   DebugOnly<int> err =
     fConvertYUVToARGB(src_y, y_pitch, src_u, uv_pitch, src_v, uv_pitch,
@@ -563,12 +576,21 @@ void ConvertYCbCrAToARGB32(const uint8_t* y_buf,
 
   // The downstream graphics stack expects an attenuated input, hence why the
   // attenuation parameter is set.
+#if defined(MOZ_BIG_ENDIAN)
+  DebugOnly<int> err = libyuv::I420AlphaToABGR(y_buf, ya_pitch,
+                                               u_buf, uv_pitch,
+                                               v_buf, uv_pitch,
+                                               a_buf, ya_pitch,
+                                               argb_buf, argb_pitch,
+                                               pic_width, pic_height, 1);
+#else
   DebugOnly<int> err = libyuv::I420AlphaToARGB(y_buf, ya_pitch,
                                                u_buf, uv_pitch,
                                                v_buf, uv_pitch,
                                                a_buf, ya_pitch,
                                                argb_buf, argb_pitch,
                                                pic_width, pic_height, 1);
+#endif
   MOZ_ASSERT(!err);
 }
 

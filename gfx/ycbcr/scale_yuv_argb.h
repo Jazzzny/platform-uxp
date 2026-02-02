@@ -25,6 +25,9 @@ extern "C" {
 const YuvConstants* GetYUVConstants(mozilla::YUVColorSpace yuv_color_space,
                                     mozilla::ColorRange color_range);
 
+const YuvConstants* GetYVUConstants(mozilla::YUVColorSpace yuv_color_space,
+                                    mozilla::ColorRange color_range);
+
 
 int YUVToARGBScale(const uint8_t* src_y, int src_stride_y,
                    const uint8_t* src_u, int src_stride_u,
