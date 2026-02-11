@@ -1788,11 +1788,11 @@ gfxMacPlatformFontList::MakePlatformFont(const nsAString& aFontName,
         if (0 ||
             [psname isEqualToString:@"prisjakticons"] ||
             [psname isEqualToString:@"FSEmericWeb-SemiBold"] ||
-            [psname isEqualToString:@"SFProText-Regular"] ||
-            [psname isEqualToString:@"SFProText-Bold"] ||
-            [psname isEqualToString:@"SFProText-Semibold"] ||
-            [psname isEqualToString:@"SFProDisplay-Medium"] ||
-            [psname isEqualToString:@"SFProDisplay-Light"] ||
+            //[psname isEqualToString:@"SFProText-Regular"] ||
+            //[psname isEqualToString:@"SFProText-Bold"] ||
+            //[psname isEqualToString:@"SFProText-Semibold"] ||
+            //[psname isEqualToString:@"SFProDisplay-Medium"] ||
+            //[psname isEqualToString:@"SFProDisplay-Light"] ||
             [psname isEqualToString:@".SFNSDisplay-Ultralight"] ||
             [psname isEqualToString:@".SFNSText-Light"] ||
             [psname isEqualToString:@".SFNSDisplay-Light"] ||
