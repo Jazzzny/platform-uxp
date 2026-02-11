@@ -3699,12 +3699,10 @@ NSEvent* gLastDragMouseDownEvent = nil;
     // So we need to clear the pixel buffer contents in these areas.
     [self clearCorners];
 
-    bool needsRedraw = NO;
     if (mNeedsGLUpdate) {
         [mGLContext setView:mPixelHostingView];
         [mGLContext update];
         mNeedsGLUpdate = NO;
-        needsRedraw = YES;
     }
 
     // Force a sync OMTC composite into the OpenGL context and return.
@@ -3712,10 +3710,6 @@ NSEvent* gLastDragMouseDownEvent = nil;
     LayoutDeviceIntRegion region(geckoBounds);
 
     mGeckoChild->PaintWindow(region);
-
-    if (needsRedraw) {
-        [self setNeedsDisplay:YES];
-    }
 
     return;
   }
