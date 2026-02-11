@@ -3435,7 +3435,8 @@ NSEvent* gLastDragMouseDownEvent = nil;
 
   [mGLContext clearDrawable];
   CGLLockContext((CGLContextObj)[mGLContext CGLContextObj]);
-  [self updateGLContext];
+  [mGLContext setView:self];
+  [mGLContext update];
   CGLUnlockContext((CGLContextObj)[mGLContext CGLContextObj]);
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
