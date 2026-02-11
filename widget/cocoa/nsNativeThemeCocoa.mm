@@ -605,7 +605,7 @@ nsNativeThemeCocoa::~nsNativeThemeCocoa()
 }
 
 // Limit on the area of the target rect (in pixels^2) in
-// DrawCellWithScaling() and DrawButton() and above which we
+// DrawCellWithScaling(), DrawButton() and DrawScrollbar(), above which we
 // don't draw the object into a bitmap buffer.  This is to avoid crashes in
 // [NSGraphicsContext graphicsContextWithGraphicsPort:flipped:] and
 // CGContextDrawImage(), and also to avoid very poor drawing performance in
@@ -2152,7 +2152,7 @@ nsNativeThemeCocoa::GetScrollbarDrawInfo(HIThemeTrackDrawInfo& aTdi, nsIFrame *a
   // creating a TrackDrawInfo to determine the size of the thumb. There's
   // also no reason to do this on Lion or later, whose scrollbars have no
   // arrow buttons.
-  if (aShouldGetButtonStates) {
+  if (aShouldGetButtonStates && !nsCocoaFeatures::OnLionOrLater()) {
     EventStates buttonStates[4];
     GetScrollbarPressStates(aFrame, buttonStates);
     NSString *buttonPlacement = [[NSUserDefaults standardUserDefaults] objectForKey:@"AppleScrollBarVariant"];
