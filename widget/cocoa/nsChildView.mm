@@ -3697,7 +3697,12 @@ NSEvent* gLastDragMouseDownEvent = nil;
     // corners and the vibrant regions of the window - the rest of the window
     // is covered by opaque content in our OpenGL surface.
     // So we need to clear the pixel buffer contents in these areas.
-    [self clearCorners];
+    if (!nsCocoaFeatures::OnLionOrLater()) {
+      [[NSColor clearColor] set];
+      NSRectFill([self bounds]);
+    } else {
+      [self clearCorners];
+    }
 
     // Force a sync OMTC composite into the OpenGL context and return.
     LayoutDeviceIntRect geckoBounds = mGeckoChild->GetBounds();
