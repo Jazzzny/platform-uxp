@@ -44,6 +44,10 @@
 #include <sys/prctl.h>
 #endif
 
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#endif
+
 #if defined(_WIN32)
 /* Adapter to translate Unix thread start routines to Windows thread start
  * routines.
@@ -83,7 +87,7 @@ sctp_userspace_thread_create(userland_thread_t *thread, start_routine_t start_ro
 void
 sctp_userspace_set_threadname(const char *name)
 {
-#if defined(__APPLE__)
+#if defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
 	pthread_setname_np(name);
 #endif
 #if defined(__linux__)

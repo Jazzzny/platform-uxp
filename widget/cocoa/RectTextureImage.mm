@@ -157,11 +157,7 @@ CanUploadSubtextures()
 
 
 void
-#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
-RectTextureImage::EndUpdate()
-#else
 RectTextureImage::EndUpdate(bool aKeepSurface)
-#endif
 {
   MOZ_ASSERT(mInUpdate, "Ending update while not in update");
 #if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
@@ -227,7 +223,9 @@ RectTextureImage::UpdateFromCGContext(const LayoutDeviceIntSize& aNewSize,
       dt->DrawSurface(sourceSurface, rect, rect,
                       gfx::DrawSurfaceOptions(),
                       gfx::DrawOptions(1.0, gfx::CompositionOp::OP_SOURCE));
-    } else {
+    }
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6) 
+    else {
         CGImageRef image = CGBitmapContextCreateImage(aCGContext);
         if (image) {
             RefPtr<gfx::SourceSurface> sourceSurface = new gfx::SourceSurfaceCG(image);
@@ -237,6 +235,7 @@ RectTextureImage::UpdateFromCGContext(const LayoutDeviceIntSize& aNewSize,
                             gfx::DrawOptions(1.0, gfx::CompositionOp::OP_SOURCE));
         }
     }
+#endif
     dt->PopClip();
     EndUpdate(true);
   }

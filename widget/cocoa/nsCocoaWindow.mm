@@ -467,6 +467,11 @@ nsresult nsCocoaWindow::CreateNativeWindow(const NSRect &aRect,
   mWindow = [[windowClass alloc] initWithContentRect:contentRect styleMask:features 
                                  backing:NSBackingStoreBuffered defer:YES];
 
+  // Make sure the window does not have a resize thumb on 10.6 and below
+#if !defined(MAC_OS_X_VERSION_10_7) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7)
+  [mWindow setShowsResizeIndicator:Preferences::GetBool("ui.mouse.resize_grip", false)];
+#endif
+
   // Make sure that window titles don't leak to disk in private browsing mode
   // due to macOS' resume feature.
 #if defined(MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)

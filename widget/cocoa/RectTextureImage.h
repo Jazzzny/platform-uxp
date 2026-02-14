@@ -42,11 +42,7 @@ public:
     BeginUpdate(const LayoutDeviceIntSize& aNewSize,
                 const LayoutDeviceIntRegion& aDirtyRegion =
                   LayoutDeviceIntRegion());
-#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
-  void EndUpdate();
-#else
   void EndUpdate(bool aKeepSurface = false);
-#endif
 
   template<typename Function, typename... Args>
   void UpdateIfNeeded(const LayoutDeviceIntSize& aNewSize,

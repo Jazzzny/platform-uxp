@@ -1105,7 +1105,6 @@ gfxMacPlatformFontList::InitFontListForPlatform()
     if (mATSGeneration == currentGeneration && mFontFamilies.Count() > 0)
         return NS_OK;
     mATSGeneration = currentGeneration;
-
 #endif
     mSystemFontFamilies.Clear();
     InitSystemFontNames();

@@ -244,7 +244,7 @@ typedef char* caddr_t;
 
 #else /* !defined(Userspace_os_Windows) */
 #include <sys/socket.h>
-#if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__linux__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__native_client__) || defined(__Fuchsia__) || defined(__EMSCRIPTEN_PTHREADS__)
+#if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__linux__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__APPLE__) | defined(__native_client__) || defined(__Fuchsia__) || defined(__EMSCRIPTEN_PTHREADS__)
 #include <pthread.h>
 #endif
 typedef pthread_mutex_t userland_mutex_t;
