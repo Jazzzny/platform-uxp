@@ -294,6 +294,7 @@ TexImage2DHelper(GLContext* gl,
 
         MOZ_ASSERT(width >= 0 && height >= 0);
         if (!CanUploadNonPowerOfTwo(gl)
+            && target != LOCAL_GL_TEXTURE_RECTANGLE_ARB
             && (stride != width * pixelsize
             || !IsPowerOfTwo((uint32_t)width)
             || !IsPowerOfTwo((uint32_t)height))) {
