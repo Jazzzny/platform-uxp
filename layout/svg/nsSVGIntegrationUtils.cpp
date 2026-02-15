@@ -468,6 +468,7 @@ PaintMaskSurface(const PaintFramesParams& aParams,
       const nsStyleImage& maskImage = svgReset->mMask.mLayers[i].mImage;
       if (maskImage.GetType() == nsStyleImageType::eStyleImageType_Gradient) {
         // TODO: Fix gradient masks in CG backend.
+        fprintf(stderr, "debug: gradient masks are not supported\n");
         IntSize maskSize = aMaskDT->GetSize();
         aMaskDT->FillRect(Rect(0, 0, maskSize.width, maskSize.height),
                           ColorPattern(Color(1.0, 1.0, 1.0, 1.0)));
