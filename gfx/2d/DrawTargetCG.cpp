@@ -1050,9 +1050,12 @@ DrawTargetCG::FillRect(const Rect &aRect,
               CGContextSetRGBFillColor(temp, 1.0, 0.0, 0.0, 1.0);
               CGContextFillRect(temp, hugeRect);
 
+              size_t totalBytes = tempStride * static_cast<size_t>(h);
+              memset(tempBuf.get(), 255, totalBytes);
+
               // DrawGradient(rgb, temp, aPattern, localBounds);
 
-              unsigned char* srcData = static_cast<unsigned char*>(CGBitmapContextGetData(temp));
+              unsigned char* srcData = tempBuf.get(); // Use our buffer pointer directly.
               unsigned char* dstData = static_cast<unsigned char*>(CGBitmapContextGetData(cg));
               size_t srcStride = CGBitmapContextGetBytesPerRow(temp);
               size_t dstStride = CGBitmapContextGetBytesPerRow(cg);
