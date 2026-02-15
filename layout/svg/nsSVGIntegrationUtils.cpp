@@ -586,36 +586,36 @@ CreateAndPaintMaskSurface(const PaintFramesParams& aParams,
     RefPtr<DataSourceSurface> bgraData = bgraSurface->GetDataSurface();
     if (bgraData) {
       IntSize sz = bgraData->GetSize();
-      RefPtr<DrawTarget> a8DT =
-        Factory::CreateDrawTarget(BackendType::COREGRAPHICS, sz, SurfaceFormat::A8);
-      if (a8DT && a8DT->IsValid()) {
-        RefPtr<SourceSurface> a8Snap = a8DT->Snapshot();
-        RefPtr<DataSourceSurface> a8Data = a8Snap->GetDataSurface();
-        if (a8Data) {
-          DataSourceSurface::ScopedMap srcMap(bgraData, DataSourceSurface::READ);
-          DataSourceSurface::ScopedMap dstMap(a8Data, DataSourceSurface::READ_WRITE);
-          if (srcMap.IsMapped() && dstMap.IsMapped()) {
-            const uint8_t* src = srcMap.GetData();
-            uint8_t* dst = dstMap.GetData();
-            int32_t srcStride = srcMap.GetStride();
-            int32_t dstStride = dstMap.GetStride();
-            for (int32_t y = 0; y < sz.height; ++y) {
-              const uint8_t* srcRow = src + y * srcStride;
-              uint8_t* dstRow = dst + y * dstStride;
-              for (int32_t x = 0; x < sz.width; ++x) {
-                uint32_t pixel;
-                memcpy(&pixel, srcRow + x * 4, sizeof(pixel));
-                uint8_t b = pixel & 0xFF;
-                uint8_t g = (pixel >> 8) & 0xFF;
-                uint8_t r = (pixel >> 16) & 0xFF;
-                uint8_t a = (pixel >> 24) & 0xFF;
-                uint8_t luma = static_cast<uint8_t>((54 * r + 183 * g + 19 * b + 128) >> 8);
-                dstRow[x] = static_cast<uint8_t>((luma * a + 127) / 255);
-              }
+      RefPtr<DataSourceSurface> a8Surface =
+        Factory::CreateDataSourceSurface(sz, SurfaceFormat::A8);
+      if (a8Surface && a8Surface->IsValid()) {
+        DataSourceSurface::ScopedMap srcMap(bgraData, DataSourceSurface::READ);
+        DataSourceSurface::ScopedMap dstMap(a8Surface, DataSourceSurface::WRITE);
+        if (srcMap.IsMapped() && dstMap.IsMapped()) {
+          const uint8_t* src = srcMap.GetData();
+          uint8_t* dst = dstMap.GetData();
+          int32_t srcStride = srcMap.GetStride();
+          int32_t dstStride = dstMap.GetStride();
+          for (int32_t y = 0; y < sz.height; ++y) {
+            const uint8_t* srcRow = src + y * srcStride;
+            uint8_t* dstRow = dst + y * dstStride;
+            for (int32_t x = 0; x < sz.width; ++x) {
+              uint32_t pixel;
+              memcpy(&pixel, srcRow + x * 4, sizeof(pixel));
+              uint8_t b = pixel & 0xFF;
+              uint8_t g = (pixel >> 8) & 0xFF;
+              uint8_t r = (pixel >> 16) & 0xFF;
+              uint8_t a = (pixel >> 24) & 0xFF;
+              uint8_t luma = static_cast<uint8_t>((54 * r + 183 * g + 19 * b + 128) >> 8);
+              dstRow[x] = static_cast<uint8_t>((luma * a + 127) / 255);
             }
           }
+          paintResult.maskTransform = ToMatrix(maskSurfaceMatrix);
+          if (paintResult.maskTransform.Invert()) {
+            paintResult.maskSurface = a8Surface;
+          }
+          return paintResult;
         }
-        maskDT = a8DT;
       }
     }
   }
