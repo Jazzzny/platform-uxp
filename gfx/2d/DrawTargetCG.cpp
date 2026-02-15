@@ -1046,16 +1046,15 @@ DrawTargetCG::FillRect(const Rect &aRect,
                                                       tempStride, rgb,
                                                       kCGBitmapByteOrder32Host | kCGImageAlphaPremultipliedFirst);
             if (temp) {
-              CGRect hugeRect = CGRectMake(-10000, -10000, 20000, 20000);
-              CGContextSetRGBFillColor(temp, 1.0, 0.0, 0.0, 1.0);
-              CGContextFillRect(temp, hugeRect);
+              CGAffineTransform originalCTM = CGContextGetCTM(cg);
+              CGContextTranslateCTM(temp, -writeBounds.origin.x, -writeBounds.origin.y);
+              CGContextConcatCTM(temp, originalCTM);
 
-              size_t totalBytes = tempStride * static_cast<size_t>(h);
-              memset(tempBuf.get(), 255, totalBytes);
+              DrawGradient(rgb, temp, aPattern, writeBounds);
 
-              // DrawGradient(rgb, temp, aPattern, localBounds);
+              CGContextFlush(temp);
 
-              unsigned char* srcData = tempBuf.get(); // Use our buffer pointer directly.
+              unsigned char* srcData = tempBuf.get();
               unsigned char* dstData = static_cast<unsigned char*>(CGBitmapContextGetData(cg));
               size_t srcStride = CGBitmapContextGetBytesPerRow(temp);
               size_t dstStride = CGBitmapContextGetBytesPerRow(cg);
