@@ -417,12 +417,7 @@ PaintMaskSurface(const PaintFramesParams& aParams,
                  const nsPoint& aOffsetToUserSpace)
 {
   MOZ_ASSERT(aMaskFrames.Length() > 0);
-#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
-  MOZ_ASSERT(aMaskDT->GetFormat() == SurfaceFormat::A8 ||
-             aMaskDT->GetFormat() == SurfaceFormat::B8G8R8A8);
-#else
   MOZ_ASSERT(aMaskDT->GetFormat() == SurfaceFormat::A8);
-#endif
 
   const nsStyleSVGReset *svgReset = aSC->StyleSVGReset();
   gfxMatrix cssPxToDevPxMatrix =
@@ -469,6 +464,11 @@ PaintMaskSurface(const PaintFramesParams& aParams,
       gfxContextMatrixAutoSaveRestore matRestore(maskContext);
 
       maskContext->Multiply(gfxMatrix::Translation(-devPixelOffsetToUserSpace));
+      const nsStyleImage& maskImage = svgReset->mMask.mLayers[i].mImage;
+      if (maskImage.GetType() == nsStyleImageType::eStyleImageType_Gradient) {
+        fprintf(stderr, "mask layer %d: gradient image mask (backend=%d)\n", i,
+                int(aMaskDT->GetBackendType()));
+      }
       nsRenderingContext rc(maskContext);
       nsCSSRendering::PaintBGParams  params =
         nsCSSRendering::PaintBGParams::ForSingleLayer(*presContext,
@@ -541,19 +541,13 @@ CreateAndPaintMaskSurface(const PaintFramesParams& aParams,
   }
 
   RefPtr<DrawTarget> maskDT;
-#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
-  bool needsBGRAtoA8 = false;
-#endif
   if (ctx.GetDrawTarget()->GetBackendType() == BackendType::COREGRAPHICS) {
 #if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
     maskDT = Factory::CreateDrawTarget(BackendType::SKIA, maskSurfaceRect.Size(),
                                        SurfaceFormat::A8);
 #else
-    // CoreGraphics cannot draw gradients into A8, create as BGRA so gradients render normally,
-    // then convert to A8 after painting.
     maskDT = Factory::CreateDrawTarget(BackendType::COREGRAPHICS, maskSurfaceRect.Size(),
-                                       SurfaceFormat::B8G8R8A8);
-    needsBGRAtoA8 = true;
+                                       SurfaceFormat::A8);
 #endif
   } else {
     maskDT = ctx.GetDrawTarget()->CreateSimilarDrawTarget(maskSurfaceRect.Size(),
@@ -579,48 +573,6 @@ CreateAndPaintMaskSurface(const PaintFramesParams& aParams,
                                           ? aOpacity : 1.0,
                                         aSC, aMaskFrames, maskSurfaceMatrix,
                                         aOffsetToUserSpace);
-
-#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
-  if (needsBGRAtoA8 && paintResult.result == DrawResult::SUCCESS) {
-    RefPtr<SourceSurface> bgraSurface = maskDT->Snapshot();
-    RefPtr<DataSourceSurface> bgraData = bgraSurface->GetDataSurface();
-    if (bgraData) {
-      IntSize sz = bgraData->GetSize();
-      RefPtr<DrawTarget> a8DT =
-        Factory::CreateDrawTarget(BackendType::COREGRAPHICS, sz, SurfaceFormat::A8);
-      if (a8DT && a8DT->IsValid()) {
-        RefPtr<SourceSurface> a8Snap = a8DT->Snapshot();
-        RefPtr<DataSourceSurface> a8Data = a8Snap->GetDataSurface();
-        if (a8Data) {
-          DataSourceSurface::ScopedMap srcMap(bgraData, DataSourceSurface::READ);
-          DataSourceSurface::ScopedMap dstMap(a8Data, DataSourceSurface::READ_WRITE);
-          if (srcMap.IsMapped() && dstMap.IsMapped()) {
-            const uint8_t* src = srcMap.GetData();
-            uint8_t* dst = dstMap.GetData();
-            int32_t srcStride = srcMap.GetStride();
-            int32_t dstStride = dstMap.GetStride();
-            for (int32_t y = 0; y < sz.height; ++y) {
-              const uint8_t* srcRow = src + y * srcStride;
-              uint8_t* dstRow = dst + y * dstStride;
-              for (int32_t x = 0; x < sz.width; ++x) {
-                uint32_t pixel;
-                memcpy(&pixel, srcRow + x * 4, sizeof(pixel));
-                uint8_t b = pixel & 0xFF;
-                uint8_t g = (pixel >> 8) & 0xFF;
-                uint8_t r = (pixel >> 16) & 0xFF;
-                uint8_t a = (pixel >> 24) & 0xFF;
-                uint8_t luma = static_cast<uint8_t>((54 * r + 183 * g + 19 * b + 128) >> 8);
-                dstRow[x] = static_cast<uint8_t>((luma * a + 127) / 255);
-              }
-            }
-          }
-        }
-        maskDT = a8DT;
-      }
-    }
-  }
-#endif
-
   if (paintResult.result != DrawResult::SUCCESS) {
     // Now we know the status of mask resource since we used it while painting.
     // According to the return value of PaintMaskSurface, we know whether mask
