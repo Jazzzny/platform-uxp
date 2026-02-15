@@ -1030,6 +1030,8 @@ DrawTargetCG::FillRect(const Rect &aRect,
               size_t srcStride = CGBitmapContextGetBytesPerRow(temp);
               size_t dstStride = CGBitmapContextGetBytesPerRow(cg);
               if (srcData && dstData) {
+                uint8_t minA = 255;
+                uint8_t maxA = 0;
                 for (int32_t y = 0; y < h; ++y) {
                   const unsigned char* srcRow = srcData + y * srcStride;
                   unsigned char* dstRow = dstData + (dstY + y) * dstStride + dstX;
@@ -1040,8 +1042,11 @@ DrawTargetCG::FillRect(const Rect &aRect,
                     const uint8_t a = srcRow[x * 4 + 3];
                     const uint8_t luma = static_cast<uint8_t>((54 * r + 183 * g + 19 * b + 128) >> 8);
                     dstRow[x] = static_cast<uint8_t>((luma * a + 127) / 255);
+                    minA = std::min(minA, dstRow[x]);
+                    maxA = std::max(maxA, dstRow[x]);
                   }
                 }
+                fprintf(stderr, "cg A8 gradient fallback write alpha min=%u max=%u\n", minA, maxA);
                 CGContextRelease(temp);
                 CGColorSpaceRelease(rgb);
                 fixer.Fix(this);
