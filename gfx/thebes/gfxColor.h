@@ -7,7 +7,7 @@
 #define GFX_COLOR_H
 
 #include "mozilla/Attributes.h" // for MOZ_ALWAYS_INLINE
-#include "mozilla/EndianUtils.h" // for mozilla::NativeEndian::swapToBigEndian
+#include "mozilla/EndianUtils.h" // for mozilla::NativeEndian
 
 /**
  * GFX_BLOCK_RGB_TO_FRGB(from,to)
@@ -59,7 +59,11 @@ uint8_t MOZ_ALWAYS_INLINE gfxPreMultiply(uint8_t c, uint8_t a) {
  */
 uint32_t MOZ_ALWAYS_INLINE
 gfxPackedPixelNoPreMultiply(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
-    return (((a) << 24) | ((r) << 16) | ((g) << 8) | (b));
+    uint32_t v = (((a) << 24) | ((r) << 16) | ((g) << 8) | (b));
+#if MOZ_BIG_ENDIAN
+    v = mozilla::NativeEndian::swapToLittleEndian(v);
+#endif
+    return v;
 }
 
 /**
@@ -73,10 +77,14 @@ gfxPackedPixel(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
     else if (a == 0xFF) {
         return gfxPackedPixelNoPreMultiply(a, r, g, b);
     } else {
-        return  ((a) << 24) |
-                (gfxPreMultiply(r,a) << 16) |
-                (gfxPreMultiply(g,a) << 8)  |
-                (gfxPreMultiply(b,a));
+        uint32_t v = ((a) << 24) |
+                 (gfxPreMultiply(r,a) << 16) |
+                 (gfxPreMultiply(g,a) << 8)  |
+                 (gfxPreMultiply(b,a));
+    #if MOZ_BIG_ENDIAN
+        v = mozilla::NativeEndian::swapToLittleEndian(v);
+    #endif
+        return v;
     }
 }
 
