@@ -890,6 +890,8 @@ GLContext::InitWithPrefixImpl(const char* prefix, bool trygl)
             MarkUnsupported(GLFeature::depth_texture);
         }
 
+        printf_stderr("renderer: %s\n", fGetString(LOCAL_GL_RENDERER));
+
         if (Vendor() == gl::GLVendor::NVIDIA) {
            const char* renderer = (const char*)fGetString(LOCAL_GL_RENDERER);
            if (renderer && strstr(renderer, "NV34")) {
