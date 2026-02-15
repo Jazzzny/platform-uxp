@@ -1051,6 +1051,9 @@ DrawTargetCG::FillRect(const Rect &aRect,
 
               CGContextTranslateCTM(temp, -writeBounds.origin.x, -writeBounds.origin.y);
 
+              CGContextSetRGBFillColor(temp, 1.0, 0.0, 0.0, 1.0);
+              CGContextFillRect(temp, writeBounds);
+
               DrawGradient(rgb, temp, aPattern, writeBounds);
 
               unsigned char* srcData = static_cast<unsigned char*>(CGBitmapContextGetData(temp));
