@@ -272,83 +272,6 @@ GetRetainedImageFromSourceSurface(SourceSurface *aSurface)
   }
 }
 
-static CGImageRef
-CreateGrayMaskImage(SourceSurface* aSurface)
-{
-  RefPtr<DataSourceSurface> data = aSurface->GetDataSurface();
-  if (!data) {
-    return nullptr;
-  }
-
-  DataSourceSurface::ScopedMap map(data, DataSourceSurface::READ);
-  if (!map.IsMapped()) {
-    return nullptr;
-  }
-
-  IntSize size = data->GetSize();
-  if (size.width <= 0 || size.height <= 0) {
-    return nullptr;
-  }
-
-  size_t dstStride = size.width; // 1 byte per pixel
-  size_t bufLen = dstStride * size.height;
-  uint8_t* alphaBuf = static_cast<uint8_t*>(malloc(bufLen));
-  if (!alphaBuf) {
-    return nullptr;
-  }
-
-  const uint8_t* src = map.GetData();
-  ptrdiff_t srcStride = map.GetStride();
-
-  auto copyAlpha = [&](uint8_t aAlphaIdx) {
-    for (int32_t y = 0; y < size.height; ++y) {
-      const uint8_t* row = src + y * srcStride;
-      uint8_t* dst = alphaBuf + y * dstStride;
-      for (int32_t x = 0; x < size.width; ++x) {
-        dst[x] = row[x * 4 + aAlphaIdx];
-      }
-    }
-  };
-
-  switch (data->GetFormat()) {
-    case SurfaceFormat::A8:
-      for (int32_t y = 0; y < size.height; ++y) {
-        memcpy(alphaBuf + y * dstStride, src + y * srcStride, dstStride);
-      }
-      break;
-    case SurfaceFormat::B8G8R8A8:
-    case SurfaceFormat::R8G8B8A8:
-      copyAlpha(3);
-      break;
-    case SurfaceFormat::B8G8R8X8:
-    case SurfaceFormat::R8G8B8X8:
-      for (int32_t y = 0; y < size.height; ++y) {
-        memset(alphaBuf + y * dstStride, 0xFF, dstStride);
-      }
-      break;
-    default:
-      free(alphaBuf);
-      return nullptr;
-  }
-
-  CGDataProviderReleaseDataCallback releaseAlpha = [](void* info, const void* data, size_t) {
-    free(info);
-  };
-
-  CGDataProviderRef provider = CGDataProviderCreateWithData(alphaBuf, alphaBuf, bufLen, releaseAlpha);
-  if (!provider) {
-    free(alphaBuf);
-    return nullptr;
-  }
-
-  CGFloat decode[] = {1.0, 0.0};
-  CGImageRef maskImage = CGImageMaskCreate(size.width, size.height,
-                                           8, 8, dstStride,
-                                           provider, decode, true);
-  CGDataProviderRelease(provider);
-  return maskImage;
-}
-
 already_AddRefed<SourceSurface>
 DrawTargetCG::OptimizeSourceSurface(SourceSurface *aSurface) const
 {
@@ -1006,10 +929,7 @@ DrawTargetCG::MaskSurface(const Pattern &aSource,
   CGContextSetAlpha(cg, aDrawOptions.mAlpha);
   CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AntialiasMode::NONE);
 
-  CGImageRef image = CreateGrayMaskImage(aMask);
-  if (!image) {
-    image = GetRetainedImageFromSourceSurface(aMask);
-  }
+  CGImageRef image = GetRetainedImageFromSourceSurface(aMask);
 
   // use a negative-y so that the mask image draws right ways up
   CGContextScaleCTM(cg, 1, -1);
@@ -1926,7 +1846,7 @@ bool
 DrawTargetCG::Init(BackendType aType, const IntSize &aSize, SurfaceFormat &aFormat)
 {
   int32_t stride = GetAlignedStride<16>(aSize.width, BytesPerPixel(aFormat));
-
+  
   // Calling Init with aData == nullptr will allocate.
   return Init(aType, nullptr, aSize, stride, aFormat);
 }
