@@ -941,6 +941,7 @@ DrawTargetCG::MaskSurface(const Pattern &aSource,
   CGContextScaleCTM(cg, 1, -1);
   if (isGradient(aSource)) {
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+    fprintf(stderr, "gradient mask: fmt=%d ctx=%d\n", int(mFormat), GetContextType(cg));
     if (mFormat == SurfaceFormat::A8 && GetContextType(cg) == CG_CONTEXT_TYPE_BITMAP) {
       fprintf(stderr, "hit a8 gradient mask\n");
       CGRect clipBounds = CGContextGetClipBoundingBox(cg);
