@@ -471,7 +471,7 @@ PaintMaskSurface(const PaintFramesParams& aParams,
         fprintf(stderr, "debug: gradient masks are not supported\n");
         IntSize maskSize = aMaskDT->GetSize();
         aMaskDT->FillRect(Rect(0, 0, maskSize.width, maskSize.height),
-                          ColorPattern(Color(1.0, 1.0, 1.0, 1.0)));
+                          ColorPattern(Color(0.0, 0.0, 0.0, 0.0)));
         continue;
       }
 #endif
