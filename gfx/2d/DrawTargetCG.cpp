@@ -987,6 +987,53 @@ DrawTargetCG::FillRect(const Rect &aRect,
   CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
 
   if (isGradient(aPattern)) {
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+    if (mFormat == SurfaceFormat::A8 && GetContextType(cg) == CG_CONTEXT_TYPE_BITMAP) {
+      fprintf(stderr, "a8 gradient, this is slow\n");
+
+      CGContextClipToRect(cg, RectToCGRect(aRect));
+      CGRect clipBounds = CGContextGetClipBoundingBox(cg);
+      if (!CGRectIsEmpty(clipBounds)) {
+        int32_t w = static_cast<int32_t>(ceil(clipBounds.size.width));
+        int32_t h = static_cast<int32_t>(ceil(clipBounds.size.height));
+        if (w > 0 && h > 0) {
+          CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+          CGContextRef temp = CGBitmapContextCreate(nullptr, w, h, 8,
+                                                    w * 4, rgb,
+                                                    kCGBitmapByteOrder32Host | kCGImageAlphaPremultipliedFirst);
+          if (temp) {
+            CGContextTranslateCTM(temp, -clipBounds.origin.x, -clipBounds.origin.y);
+            CGContextConcatCTM(temp, CGContextGetCTM(cg));
+            DrawGradient(rgb, temp, aPattern, clipBounds);
+            unsigned char* srcData = static_cast<unsigned char*>(CGBitmapContextGetData(temp));
+            unsigned char* dstData = static_cast<unsigned char*>(CGBitmapContextGetData(cg));
+            size_t srcStride = CGBitmapContextGetBytesPerRow(temp);
+            size_t dstStride = CGBitmapContextGetBytesPerRow(cg);
+            int32_t dstX = static_cast<int32_t>(floor(clipBounds.origin.x));
+            int32_t dstY = static_cast<int32_t>(floor(clipBounds.origin.y));
+            for (int32_t y = 0; y < h; ++y) {
+              const unsigned char* srcRow = srcData + y * srcStride;
+              unsigned char* dstRow = dstData + (dstY + y) * dstStride + dstX;
+              for (int32_t x = 0; x < w; ++x) {
+                const uint8_t b = srcRow[x * 4 + 0];
+                const uint8_t g = srcRow[x * 4 + 1];
+                const uint8_t r = srcRow[x * 4 + 2];
+                const uint8_t a = srcRow[x * 4 + 3];
+                const uint8_t luma = static_cast<uint8_t>((54 * r + 183 * g + 19 * b + 128) >> 8);
+                dstRow[x] = static_cast<uint8_t>((luma * a + 127) / 255);
+              }
+            }
+            CGContextRelease(temp);
+            CGColorSpaceRelease(rgb);
+            fixer.Fix(this);
+            CGContextRestoreGState(mCg);
+            return;
+          }
+          CGColorSpaceRelease(rgb);
+        }
+      }
+    }
+#endif
     CGContextClipToRect(cg, RectToCGRect(aRect));
     CGRect clipBounds = CGContextGetClipBoundingBox(cg);
     DrawGradient(mColorSpace, cg, aPattern, clipBounds);
@@ -1846,7 +1893,7 @@ bool
 DrawTargetCG::Init(BackendType aType, const IntSize &aSize, SurfaceFormat &aFormat)
 {
   int32_t stride = GetAlignedStride<16>(aSize.width, BytesPerPixel(aFormat));
-  
+
   // Calling Init with aData == nullptr will allocate.
   return Init(aType, nullptr, aSize, stride, aFormat);
 }
