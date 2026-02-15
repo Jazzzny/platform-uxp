@@ -417,9 +417,7 @@ PaintMaskSurface(const PaintFramesParams& aParams,
                  const nsPoint& aOffsetToUserSpace)
 {
   MOZ_ASSERT(aMaskFrames.Length() > 0);
-  MOZ_ASSERT(aMaskDT->GetFormat() == SurfaceFormat::A8 ||
-             aMaskDT->GetFormat() == SurfaceFormat::B8G8R8A8 ||
-             aMaskDT->GetFormat() == SurfaceFormat::B8G8R8X8);
+  MOZ_ASSERT(aMaskDT->GetFormat() == SurfaceFormat::A8);
 
   const nsStyleSVGReset *svgReset = aSC->StyleSVGReset();
   gfxMatrix cssPxToDevPxMatrix =
@@ -544,7 +542,7 @@ CreateAndPaintMaskSurface(const PaintFramesParams& aParams,
                                        SurfaceFormat::A8);
 #else
     maskDT = Factory::CreateDrawTarget(BackendType::COREGRAPHICS, maskSurfaceRect.Size(),
-                                       SurfaceFormat::B8G8R8A8);
+                                       SurfaceFormat::A8);
 #endif
   } else {
     maskDT = ctx.GetDrawTarget()->CreateSimilarDrawTarget(maskSurfaceRect.Size(),
