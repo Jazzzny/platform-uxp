@@ -988,8 +988,10 @@ DrawTargetCG::FillRect(const Rect &aRect,
 
   if (isGradient(aPattern)) {
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
-    fprintf(stderr, "cg FillRect gradient fmt=%d ctx=%d\n", int(mFormat), GetContextType(cg));
-    if (mFormat == SurfaceFormat::A8 && GetContextType(cg) == CG_CONTEXT_TYPE_BITMAP) {
+    const int ctxType = GetContextType(cg);
+    unsigned char* dstPtr = static_cast<unsigned char*>(CGBitmapContextGetData(cg));
+    fprintf(stderr, "cg FillRect gradient fmt=%d ctx=%d hasData=%s\n", int(mFormat), ctxType, dstPtr ? "y" : "n");
+    if (mFormat == SurfaceFormat::A8 && dstPtr) {
       CGContextClipToRect(cg, RectToCGRect(aRect));
       CGRect clipBounds = CGContextGetClipBoundingBox(cg);
       if (!CGRectIsEmpty(clipBounds)) {
