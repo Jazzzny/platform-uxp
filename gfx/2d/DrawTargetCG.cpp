@@ -1046,11 +1046,9 @@ DrawTargetCG::FillRect(const Rect &aRect,
                                                       tempStride, rgb,
                                                       kCGBitmapByteOrder32Host | kCGImageAlphaPremultipliedFirst);
             if (temp) {
-              // Render in local temp-space (0,0)-(w,h) to avoid applying the parent CTM.
-
-              CGRect localBounds = CGRectMake(0, 0, w, h);
+              CGRect hugeRect = CGRectMake(-10000, -10000, 20000, 20000);
               CGContextSetRGBFillColor(temp, 1.0, 0.0, 0.0, 1.0);
-              CGContextFillRect(temp, localBounds);
+              CGContextFillRect(temp, hugeRect);
 
               // DrawGradient(rgb, temp, aPattern, localBounds);
 
