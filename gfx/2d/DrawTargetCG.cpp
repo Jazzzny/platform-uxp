@@ -310,6 +310,22 @@ CreateGrayMaskImage(SourceSurface* aSurface)
     }
   };
 
+  auto copyLumaTimesAlpha = [&](bool aHasAlpha) {
+    for (int32_t y = 0; y < size.height; ++y) {
+      const uint8_t* row = src + y * srcStride;
+      uint8_t* dst = alphaBuf + y * dstStride;
+      for (int32_t x = 0; x < size.width; ++x) {
+        const uint8_t b = row[x * 4 + 0];
+        const uint8_t g = row[x * 4 + 1];
+        const uint8_t r = row[x * 4 + 2];
+        const uint8_t a = aHasAlpha ? row[x * 4 + 3] : 0xFF;
+        // luma approximation: 0.2126 R + 0.7152 G + 0.0722 B
+        const uint8_t luma = static_cast<uint8_t>((54 * r + 183 * g + 19 * b + 128) >> 8);
+        dst[x] = static_cast<uint8_t>((luma * a + 127) / 255);
+      }
+    }
+  };
+
   switch (data->GetFormat()) {
     case SurfaceFormat::A8:
       for (int32_t y = 0; y < size.height; ++y) {
@@ -318,13 +334,11 @@ CreateGrayMaskImage(SourceSurface* aSurface)
       break;
     case SurfaceFormat::B8G8R8A8:
     case SurfaceFormat::R8G8B8A8:
-      copyAlpha(3);
+      copyLumaTimesAlpha(true);
       break;
     case SurfaceFormat::B8G8R8X8:
     case SurfaceFormat::R8G8B8X8:
-      for (int32_t y = 0; y < size.height; ++y) {
-        memset(alphaBuf + y * dstStride, 0xFF, dstStride);
-      }
+      copyLumaTimesAlpha(false);
       break;
     default:
       free(alphaBuf);
