@@ -1046,9 +1046,13 @@ DrawTargetCG::FillRect(const Rect &aRect,
                                                       tempStride, rgb,
                                                       kCGBitmapByteOrder32Host | kCGImageAlphaPremultipliedFirst);
             if (temp) {
-              // Draw in local coords to avoid inherited CTM flipping/offset issues on 10.5.
-              CGRect localBounds = CGRectMake(0, 0, w, h);
-              DrawGradient(rgb, temp, aPattern, localBounds);
+              CGContextTranslateCTM(temp, 0, h);
+              CGContextScaleCTM(temp, 1.0, -1.0);
+
+              CGContextTranslateCTM(temp, -writeBounds.origin.x, -writeBounds.origin.y);
+
+              DrawGradient(rgb, temp, aPattern, writeBounds);
+
               unsigned char* srcData = static_cast<unsigned char*>(CGBitmapContextGetData(temp));
               unsigned char* dstData = static_cast<unsigned char*>(CGBitmapContextGetData(cg));
               size_t srcStride = CGBitmapContextGetBytesPerRow(temp);
