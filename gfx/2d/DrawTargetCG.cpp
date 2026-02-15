@@ -1047,14 +1047,12 @@ DrawTargetCG::FillRect(const Rect &aRect,
                                                       kCGBitmapByteOrder32Host | kCGImageAlphaPremultipliedFirst);
             if (temp) {
               // Render in local temp-space (0,0)-(w,h) to avoid applying the parent CTM.
-              CGContextTranslateCTM(temp, 0, h);
-              CGContextScaleCTM(temp, 1.0, -1.0);
 
               CGRect localBounds = CGRectMake(0, 0, w, h);
               CGContextSetRGBFillColor(temp, 1.0, 0.0, 0.0, 1.0);
               CGContextFillRect(temp, localBounds);
 
-              DrawGradient(rgb, temp, aPattern, localBounds);
+              // DrawGradient(rgb, temp, aPattern, localBounds);
 
               unsigned char* srcData = static_cast<unsigned char*>(CGBitmapContextGetData(temp));
               unsigned char* dstData = static_cast<unsigned char*>(CGBitmapContextGetData(cg));
