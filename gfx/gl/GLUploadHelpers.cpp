@@ -589,7 +589,7 @@ CanUploadNonPowerOfTwo(GLContext* gl)
 #ifdef XP_MACOSX
     if (gl->Vendor() == GLVendor::NVIDIA) {
        const char* renderer = (const char*)gl->fGetString(LOCAL_GL_RENDERER);
-       if (renderer && strstr(renderer, "NV34")) {
+       if (renderer && strstr(renderer, "NV3")) {
            return false;
        }
     }
