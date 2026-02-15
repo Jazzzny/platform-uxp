@@ -1032,8 +1032,17 @@ DrawTargetCG::FillRect(const Rect &aRect,
                   w, h, dstWidth, dstHeight, dstX, dstY, cgStride);
           if (w > 0 && h > 0) {
             CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-            CGContextRef temp = CGBitmapContextCreate(nullptr, w, h, 8,
-                                                      w * 4, rgb,
+            const size_t tempStride = static_cast<size_t>(w) * 4;
+            std::unique_ptr<uint8_t[]> tempBuf(new (std::nothrow) uint8_t[tempStride * static_cast<size_t>(h)]);
+            if (!tempBuf) {
+              fprintf(stderr, "cg A8 gradient fallback failed to alloc temp buffer bytes=%zu\n",
+                      tempStride * static_cast<size_t>(h));
+              CGColorSpaceRelease(rgb);
+              return;
+            }
+            memset(tempBuf.get(), 0, tempStride * static_cast<size_t>(h));
+            CGContextRef temp = CGBitmapContextCreate(tempBuf.get(), w, h, 8,
+                                                      tempStride, rgb,
                                                       kCGBitmapByteOrder32Host | kCGImageAlphaPremultipliedFirst);
             if (temp) {
               CGContextTranslateCTM(temp, -writeBounds.origin.x, -writeBounds.origin.y);
@@ -1069,7 +1078,7 @@ DrawTargetCG::FillRect(const Rect &aRect,
                   }
                 }
                 fprintf(stderr, "cg A8 gradient fallback src alpha min=%u max=%u src luma min=%u max=%u dst alpha min=%u max=%u srcStride=%zu dstStride=%zu\n",
-                        minSrcA, maxSrcA, minSrcLum, maxSrcLum, minA, maxA, srcStride, dstStride);
+                  minSrcA, maxSrcA, minSrcLum, maxSrcLum, minA, maxA, srcStride, dstStride);
                 CGContextRelease(temp);
                 CGColorSpaceRelease(rgb);
                 fixer.Fix(this);
