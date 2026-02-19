@@ -3734,7 +3734,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
     if (!mDidForceRefreshOpenGL) {
       [self performSelector:@selector(forceRefreshOpenGL) withObject:nil afterDelay:0];
       mDidForceRefreshOpenGL = YES;
-      [self setNeedsDisplay:YES];
+      [self display];
       return;
     }
 
