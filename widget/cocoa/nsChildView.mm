@@ -3726,6 +3726,18 @@ NSEvent* gLastDragMouseDownEvent = nil;
     // So we need to clear the pixel buffer contents in these areas.
     [self clearCorners];
 
+    // This is for 603134
+    // Force OpenGL to refresh the very first time we draw. This works around a
+    // Mac OS X bug that stops windows updating on OS X when we use OpenGL.
+    // This needs to be done before we do the first update, otherwise the context
+    // may be put into a very bad state that can crash the GPU driver.
+    if (!mDidForceRefreshOpenGL) {
+      [self performSelector:@selector(forceRefreshOpenGL) withObject:nil afterDelay:0];
+      mDidForceRefreshOpenGL = YES;
+      [self setNeedsDisplay:YES];
+      return;
+    }
+
     if (mNeedsGLUpdate) {
         [mGLContext setView:mPixelHostingView];
         [mGLContext update];
@@ -3737,14 +3749,6 @@ NSEvent* gLastDragMouseDownEvent = nil;
     LayoutDeviceIntRegion region(geckoBounds);
 
     mGeckoChild->PaintWindow(region);
-
-    // This is for 603134
-    // Force OpenGL to refresh the very first time we draw. This works around a
-    // Mac OS X bug that stops windows updating on OS X when we use OpenGL.
-    if (!mDidForceRefreshOpenGL) {
-      [self performSelector:@selector(forceRefreshOpenGL) withObject:nil afterDelay:0];
-      mDidForceRefreshOpenGL = YES;
-    }
 
     return;
   }
