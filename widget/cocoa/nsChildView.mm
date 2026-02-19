@@ -3734,10 +3734,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
     if (!mDidForceRefreshOpenGL) {
       [self performSelector:@selector(forceRefreshOpenGL) withObject:nil afterDelay:0];
       mDidForceRefreshOpenGL = YES;
-      LayoutDeviceIntRect geckoBounds = mGeckoChild->GetBounds();
-      LayoutDeviceIntRegion region(geckoBounds);
-
-      mGeckoChild->PaintWindow(region);
+      [self display];
     }
 
     if (mNeedsGLUpdate) {
