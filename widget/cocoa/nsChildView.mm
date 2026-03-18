@@ -3996,7 +3996,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
 
     [self setFocusRingType:NSFocusRingTypeNone];
 
-#ifdef __LP64__
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     mCancelSwipeAnimation = nil;
 #endif
 

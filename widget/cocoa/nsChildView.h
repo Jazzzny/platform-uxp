@@ -255,7 +255,7 @@ typedef NSInteger NSEventGestureAxis;
   BOOL mDidForceRefreshOpenGL;
 
   // Support for fluid swipe tracking.
-#ifdef __LP64__
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   BOOL* mCancelSwipeAnimation;
 #endif
 
