@@ -931,6 +931,7 @@ gfxMacFontFamily::EliminateDuplicateFaces()
 			   italic->GetATSFontRef() == kInvalidFont ||
                            italic->GetATSFontRef() == nonitalic->GetATSFontRef())) {
                 mAvailableFonts.RemoveElementAt(italicIndex);
+                mIsSimpleFamily = false;
             }
         }
     }

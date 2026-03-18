@@ -28,8 +28,6 @@ gfxFontFeatureValueSet::GetFontFeatureValuesFor(const nsAString& aFamily,
     aValues.Clear();
     FeatureValueHashEntry *entry = mFontFeatureValues.GetEntry(key);
     if (entry) {
-        NS_ASSERTION(entry->mValues.Length() > 0,
-                     "null array of font feature values");
         aValues.AppendElements(entry->mValues);
         return true;
     }
