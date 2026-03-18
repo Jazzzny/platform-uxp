@@ -380,6 +380,16 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
       }
     }
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+    // 10.4 OpenGL is too old for OMTC!
+    if (aFeature == nsIGfxInfo::FEATURE_OPENGL_LAYERS &&
+        !nsCocoaFeatures::OnLeopardOrLater()) {
+      *aStatus = nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION;
+      aFailureId = "FEATURE_FAILURE_LAYERS_OSX_VERSION";
+      return NS_OK;
+    }
+#endif
+
     // Many WebGL issues on 10.5, especially:
     //   * bug 631258: WebGL shader paints using textures belonging to other processes on Mac OS 10.5
     //   * bug 618848: Post process shaders and texture mapping crash OS X 10.5
