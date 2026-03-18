@@ -28,8 +28,63 @@ using namespace std;
 
 //CG_EXTERN void CGContextSetCompositeOperation (CGContextRef, PrivateCGCompositeMode);
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+extern "C" {
+// This is for 10.4, because it doesn't properly support this in CGContext.h.
+// These private methods have existed since at least 10.3.9.
+
+enum PrivateCGCompositeMode {
+    kPrivateCGCompositeClear            = 0,
+    kPrivateCGCompositeCopy             = 1,
+    kPrivateCGCompositeSourceOver       = 2,
+    kPrivateCGCompositeSourceIn         = 3,
+    kPrivateCGCompositeSourceOut        = 4,
+    kPrivateCGCompositeSourceAtop       = 5,
+    kPrivateCGCompositeDestinationOver  = 6,
+    kPrivateCGCompositeDestinationIn    = 7,
+    kPrivateCGCompositeDestinationOut   = 8,
+    kPrivateCGCompositeDestinationAtop  = 9,
+    kPrivateCGCompositeXOR              = 10,
+    kPrivateCGCompositePlusDarker       = 11, // (max (0, (1-d) + (1-s)))
+    kPrivateCGCompositePlusLighter      = 12, // (min (1, s + d))
+
+    // Although these exist in CGContext.h in 10.4, 10.4 requires these
+    // blend modes be handled differently, so we import them in here.
+    // These must be in the same order!
+    kPrivateCGBlendModeNormal,
+    kPrivateCGBlendModesStartHere = kPrivateCGBlendModeNormal,
+    kPrivateCGBlendModeMultiply,
+    kPrivateCGBlendModeScreen,
+    kPrivateCGBlendModeOverlay,
+    kPrivateCGBlendModeDarken,
+    kPrivateCGBlendModeLighten,
+    kPrivateCGBlendModeColorDodge,
+    kPrivateCGBlendModeColorBurn,
+    kPrivateCGBlendModeSoftLight,
+    kPrivateCGBlendModeHardLight,
+    kPrivateCGBlendModeDifference,
+    kPrivateCGBlendModeExclusion,
+    kPrivateCGBlendModeHue,
+    kPrivateCGBlendModeSaturation,
+    kPrivateCGBlendModeColor,
+    kPrivateCGBlendModeLuminosity
+};
+typedef enum PrivateCGCompositeMode PrivateCGCompositeMode;
+extern "C" void CGContextSetCompositeOperation (CGContextRef, PrivateCGCompositeMode);
+extern "C" void CGContextSetCTM(CGContextRef, CGAffineTransform);
+
+}
+
+// Finally include 10.4's hidden CoreText support
+#include "../thebes/PhonyCoreText.h"
+// and dlsym() so that we can find secret functions with variable names
+#include <dlfcn.h>
+// and our CTGradient library, through the CTGradientCPP C++ bridge object
+#include "CTGradientCPP.h"
+#else
 // A private API that Cairo has been using for a long time
 CG_EXTERN void CGContextSetCTM(CGContextRef, CGAffineTransform);
+#endif
 
 namespace mozilla {
 namespace gfx {
@@ -39,6 +94,54 @@ static CGRect RectToCGRect(const T& r)
 {
   return CGRectMake(r.x, r.y, r.width, r.height);
 }
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+
+// in same order as gfx/2d/Types.h
+PrivateCGCompositeMode BlendModes[] = {
+  kPrivateCGBlendModeNormal,
+  kPrivateCGCompositePlusLighter,
+  kPrivateCGCompositeSourceAtop,
+  kPrivateCGCompositeSourceOut,
+  kPrivateCGCompositeSourceIn,
+  kPrivateCGCompositeCopy,
+  kPrivateCGCompositeDestinationIn,
+  kPrivateCGCompositeDestinationOut,
+  kPrivateCGCompositeDestinationOver,
+  kPrivateCGCompositeSourceAtop,
+  kPrivateCGCompositeXOR,
+  kPrivateCGBlendModeMultiply,
+  kPrivateCGBlendModeScreen,
+  kPrivateCGBlendModeOverlay,
+  kPrivateCGBlendModeDarken,
+  kPrivateCGBlendModeLighten,
+  kPrivateCGBlendModeColorDodge,
+  kPrivateCGBlendModeColorBurn,
+  kPrivateCGBlendModeHardLight,
+  kPrivateCGBlendModeSoftLight,
+  kPrivateCGBlendModeDifference,
+  kPrivateCGBlendModeExclusion,
+  kPrivateCGBlendModeHue,
+  kPrivateCGBlendModeSaturation,
+  kPrivateCGBlendModeColor,
+  kPrivateCGBlendModeLuminosity,
+  kPrivateCGBlendModeNormal };
+
+// Stub SetBlendMode to SetCompositeOperation. This works on 10.4 and 10.5.
+// However, we must account for the case where we get a documented (supported)
+// blend mode.
+static void inline this_CGContextSetBlendMode(CGContextRef cg, CompositionOp op) {
+  PrivateCGCompositeMode pcm = BlendModes[(int)op];
+  if (MOZ_LIKELY(pcm < kPrivateCGBlendModesStartHere))
+	// This is a private composite operator.
+  	CGContextSetCompositeOperation(cg, pcm);
+  else
+	// This is a supported blend operator.
+	CGContextSetBlendMode(cg,
+		(CGBlendMode)(pcm - kPrivateCGBlendModesStartHere));
+}
+
+#else
 
 CGBlendMode ToBlendMode(CompositionOp op)
 {
@@ -132,6 +235,12 @@ CGBlendMode ToBlendMode(CompositionOp op)
   return mode;
 }
 
+static void inline this_CGContextSetBlendMode(CGContextRef cg, CompositionOp m) {
+  CGContextSetBlendMode(cg, ToBlendMode(m));
+}
+
+#endif
+
 static CGInterpolationQuality
 InterpolationQualityFromSamplingFilter(SamplingFilter aSamplingFilter)
 {
@@ -146,12 +255,41 @@ InterpolationQualityFromSamplingFilter(SamplingFilter aSamplingFilter)
   }
 }
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+// TenFourFox issue 453
+// There is no bounds-checking on CoreGraphics paths.
+// Also, Facebook can suck me.
+static inline bool this_CGContextAddPath(CGContextRef aContext, CGPathRef aPath)
+{
+  // Empty paths are always acceptable (and shouldn't be added anyway).
+  if (CGPathIsEmpty(aPath)) return true;
+
+  // Non-empty paths need to be bounds-checked.
+  CGRect r = CGPathGetBoundingBox(aPath);
+  if (MOZ_UNLIKELY(CGRectIsNull(r))) return true; // should have been caught above?
+  if (MOZ_UNLIKELY(r.origin.x >= INT_MAX || r.origin.x <= INT_MIN)) return false;
+  if (MOZ_UNLIKELY(r.origin.y >= INT_MAX || r.origin.y <= INT_MIN)) return false;
+  if (MOZ_UNLIKELY(r.size.height >= INT_MAX)) return false;
+  if (MOZ_UNLIKELY(r.size.width >= INT_MAX)) return false;
+
+  CGContextAddPath(aContext, aPath);
+  return true;
+}
+#endif
 
 DrawTargetCG::DrawTargetCG()
   : mColorSpace(nullptr)
   , mCg(nullptr)
   , mMayContainInvalidPremultipliedData(false)
 {
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  // Figure out which pointer we use for bounding boxes. Try 10.5 first.
+  CGFontGetGlyphBBoxesPtr = reinterpret_cast<CGFontGetGlyphBBoxesFunc>(dlsym(RTLD_DEFAULT, "CGFontGetGlyphBBoxes"));
+  if (!CGFontGetGlyphBBoxesPtr) { // 10.4
+    CGFontGetGlyphBBoxesPtr = reinterpret_cast<CGFontGetGlyphBBoxesFunc>(dlsym(RTLD_DEFAULT, "CGFontGetGlyphBoundingBoxes"));
+  }
+  MOZ_ASSERT(CGFontGetGlyphBBoxesPtr, "can't find bounding box function");
+#endif
 }
 
 DrawTargetCG::~DrawTargetCG()
@@ -358,7 +496,7 @@ DrawTargetCG::DrawSurface(SourceSurface *aSurface,
 
   CGContextSaveGState(mCg);
 
-  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
+  this_CGContextSetBlendMode(mCg, aDrawOptions.mCompositionOp);
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(this, aDrawOptions.mCompositionOp, &aDest);
   if (MOZ2D_ERROR_IF(!cg)) {
@@ -451,16 +589,24 @@ class GradientStopsCG : public GradientStops
         offsets.push_back(aStops[i].offset);
       }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
       mGradient = CGGradientCreateWithColorComponents(aColorSpace,
                                                       &colors.front(),
                                                       &offsets.front(),
                                                       offsets.size());
+#else
+      // 10.4 does not have the CGGradient convenience functions, so we use a
+      // modified version of the very convenient CTGradient by Chad Weider
+      // (hat tip) and wrap it in a bridge class to make C++ calls to it.
+      mGradient = new CTGradientCPP(aColorSpace, &colors.front(), &offsets.front(), offsets.size());
+#endif
     } else {
       mStops = aStops;
     }
 
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   virtual ~GradientStopsCG() {
     // CGGradientRelease is OK with nullptr argument
     CGGradientRelease(mGradient);
@@ -471,9 +617,26 @@ class GradientStopsCG : public GradientStops
   BackendType GetBackendType() const { return BackendType::COREGRAPHICS; }
   // XXX this should be a union
   CGGradientRef mGradient;
+#else
+  virtual ~GradientStopsCG() {
+    if(mGradient) delete mGradient;
+  }
+  void DrawTigerAxialGradient(CGContextRef cg,
+        CGPoint startPoint, CGPoint endPoint) {
+        mGradient->DrawAxial(cg, startPoint, endPoint);
+  }
+  void DrawTigerRadialGradient(CGContextRef cg, CGPoint startCenter,
+        CGFloat startRadius, CGPoint endCenter, CGFloat endRadius) {
+        mGradient->DrawRadial(cg, startCenter, startRadius,
+                endCenter, endRadius);
+  }
+  BackendType GetBackendType() const { return BackendType::COREGRAPHICS; }
+  CTGradientCPP *mGradient; // This is the bridge class.
+#endif
   std::vector<GradientStop> mStops;
   ExtendMode mExtend;
 };
+
 
 already_AddRefed<GradientStops>
 DrawTargetCG::CreateGradientStops(GradientStop *aStops, uint32_t aNumStops,
@@ -568,7 +731,11 @@ CalculateRepeatingGradientParams(CGPoint *aStart, CGPoint *aEnd,
   *aRepeatEndFactor = t_max;
 }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 static CGGradientRef
+#else
+static CTGradientCPP *
+#endif
 CreateRepeatingGradient(CGColorSpaceRef aColorSpace,
                         CGContextRef cg, GradientStopsCG* aStops,
                         int aRepeatStartFactor, int aRepeatEndFactor,
@@ -600,11 +767,15 @@ CreateRepeatingGradient(CGColorSpaceRef aColorSpace,
     }
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   CGGradientRef gradient = CGGradientCreateWithColorComponents(aColorSpace,
                                                                &colors.front(),
                                                                &offsets.front(),
                                                                repeatCount*stopCount);
   return gradient;
+#else
+  return new CTGradientCPP(aColorSpace, &colors.front(), &offsets.front(), repeatCount*stopCount);
+#endif
 }
 
 static void
@@ -624,11 +795,16 @@ DrawLinearRepeatingGradient(CGColorSpaceRef aColorSpace, CGContextRef cg,
                                      &repeatStartFactor, &repeatEndFactor);
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   CGGradientRef gradient = CreateRepeatingGradient(aColorSpace, cg, stops, repeatStartFactor, repeatEndFactor, aReflect);
 
   CGContextDrawLinearGradient(cg, gradient, startPoint, endPoint,
                               kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
   CGGradientRelease(gradient);
+#else
+  CTGradientCPP *gradient = CreateRepeatingGradient(aColorSpace, cg, stops, repeatStartFactor, repeatEndFactor, aReflect);
+  gradient->DrawAxial(cg, startPoint, endPoint);
+#endif
 }
 
 static CGPoint CGRectTopLeft(CGRect a)
@@ -676,12 +852,17 @@ DrawRadialRepeatingGradient(CGColorSpaceRef aColorSpace, CGContextRef cg,
     repeatStartFactor--;
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   CGGradientRef gradient = CreateRepeatingGradient(aColorSpace, cg, stops, repeatStartFactor, repeatEndFactor, aReflect);
 
   //XXX: are there degenerate radial gradients that we should avoid drawing?
   CGContextDrawRadialGradient(cg, gradient, startCenter, startRadius, endCenter, endRadius,
                               kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
   CGGradientRelease(gradient);
+#else
+  CTGradientCPP *gradient = CreateRepeatingGradient(aColorSpace, cg, stops, repeatStartFactor, repeatEndFactor, aReflect);
+  gradient->DrawRadial(cg, startCenter, startRadius, endCenter, endRadius);
+#endif
 }
 
 static void
@@ -712,8 +893,13 @@ DrawGradient(CGColorSpaceRef aColorSpace,
       //if (startPoint.x == endPoint.x && startPoint.y == endPoint.y)
       //  return;
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
       CGContextDrawLinearGradient(cg, stops->mGradient, startPoint, endPoint,
                                   kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+#else
+      MOZ_ASSERT(stops->mGradient);
+      stops->mGradient->DrawAxial(cg, startPoint, endPoint);
+#endif
     } else {
       DrawLinearRepeatingGradient(aColorSpace, cg, pat, extents, stops->mExtend == ExtendMode::REFLECT);
     }
@@ -731,9 +917,14 @@ DrawGradient(CGColorSpaceRef aColorSpace,
       CGPoint endCenter   = { pat.mCenter2.x, pat.mCenter2.y };
       CGFloat endRadius   = pat.mRadius2;
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
       //XXX: are there degenerate radial gradients that we should avoid drawing?
       CGContextDrawRadialGradient(cg, stops->mGradient, startCenter, startRadius, endCenter, endRadius,
                                   kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+#else
+      MOZ_ASSERT(stops->mGradient);
+      stops->mGradient->DrawRadial(cg, startCenter, startRadius, endCenter, endRadius);
+#endif
     } else {
       DrawRadialRepeatingGradient(aColorSpace, cg, pat, extents, stops->mExtend == ExtendMode::REFLECT);
     }
@@ -856,7 +1047,9 @@ SetFillFromPattern(CGContextRef cg, CGColorSpaceRef aColorSpace, const Pattern &
     return;
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   assert(!isGradient(aPattern));
+#endif
   if (aPattern.GetType() == PatternType::COLOR) {
 
     const Color& color = static_cast<const ColorPattern&>(aPattern).mColor;
@@ -883,7 +1076,9 @@ SetFillFromPattern(CGContextRef cg, CGColorSpaceRef aColorSpace, const Pattern &
 static void
 SetStrokeFromPattern(CGContextRef cg, CGColorSpaceRef aColorSpace, const Pattern &aPattern)
 {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   assert(!isGradient(aPattern));
+#endif
   if (aPattern.GetType() == PatternType::COLOR) {
     const Color& color = static_cast<const ColorPattern&>(aPattern).mColor;
     //XXX: we should cache colors
@@ -920,7 +1115,7 @@ DrawTargetCG::MaskSurface(const Pattern &aSource,
 
   CGContextSaveGState(mCg);
 
-  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
+  this_CGContextSetBlendMode(mCg, aDrawOptions.mCompositionOp);
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(this, aDrawOptions.mCompositionOp);
   if (MOZ2D_ERROR_IF(!cg)) {
@@ -985,7 +1180,7 @@ DrawTargetCG::FillRect(const Rect &aRect,
 
   CGContextSetAlpha(mCg, aDrawOptions.mAlpha);
   CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AntialiasMode::NONE);
-  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
+  this_CGContextSetBlendMode(mCg, aDrawOptions.mCompositionOp);
 
   if (isGradient(aPattern)) {
     CGContextClipToRect(cg, RectToCGRect(aRect));
@@ -1206,7 +1401,7 @@ DrawTargetCG::StrokeLine(const Point &aP1, const Point &aP2, const Pattern &aPat
   }
   CGContextSetAlpha(mCg, aDrawOptions.mAlpha);
   CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AntialiasMode::NONE);
-  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
+  this_CGContextSetBlendMode(mCg, aDrawOptions.mCompositionOp);
 
   CGContextBeginPath(cg);
   CGContextMoveToPoint(cg, p1.x, p1.y);
@@ -1282,7 +1477,7 @@ DrawTargetCG::StrokeRect(const Rect &aRect,
   }
 
   CGContextSetAlpha(mCg, aDrawOptions.mAlpha);
-  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
+  this_CGContextSetBlendMode(mCg, aDrawOptions.mCompositionOp);
 
   // Work around Quartz bug where antialiasing causes corner pixels to be off by
   // 1 channel value (e.g. rgb(1,1,1) values appear at the corner of solid
@@ -1363,14 +1558,25 @@ DrawTargetCG::Stroke(const Path *aPath, const Pattern &aPattern, const StrokeOpt
 
   CGContextSetAlpha(mCg, aDrawOptions.mAlpha);
   CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AntialiasMode::NONE);
-  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
+  this_CGContextSetBlendMode(mCg, aDrawOptions.mCompositionOp);
 
 
   CGContextBeginPath(cg);
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   assert(aPath->GetBackendType() == BackendType::COREGRAPHICS);
+#endif
   const PathCG *cgPath = static_cast<const PathCG*>(aPath);
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  if (MOZ_UNLIKELY(!this_CGContextAddPath(cg, cgPath->GetPath()))) {
+    fprintf(stderr, "Warning: TenFourFox DrawTargetCG::Stroke received an illegal path coordinate.\n");
+    fixer.Fix(this);
+    CGContextRestoreGState(mCg);
+    return;
+  }
+#else
   CGContextAddPath(cg, cgPath->GetPath());
+#endif
 
   SetStrokeOptions(cg, aStrokeOptions);
 
@@ -1400,11 +1606,13 @@ DrawTargetCG::Fill(const Path *aPath, const Pattern &aPattern, const DrawOptions
 
   MarkChanged();
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   assert(aPath->GetBackendType() == BackendType::COREGRAPHICS);
+#endif
 
   CGContextSaveGState(mCg);
 
-  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
+  this_CGContextSetBlendMode(mCg, aDrawOptions.mCompositionOp);
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(this, aDrawOptions.mCompositionOp);
   if (MOZ2D_ERROR_IF(!cg)) {
@@ -1427,7 +1635,16 @@ DrawTargetCG::Fill(const Path *aPath, const Pattern &aPattern, const DrawOptions
       CGContextClipToRect(mCg, CGRectZero);
       extents = CGRectZero;
     } else {
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+      if (MOZ_UNLIKELY(!this_CGContextAddPath(cg, cgPath->GetPath()))) {
+        fprintf(stderr, "Warning: TenFourFox DrawTargetCG::Fill received an illegal path coordinate.\n");
+        fixer.Fix(this);
+        CGContextRestoreGState(mCg);
+        return;
+      }
+#else
       CGContextAddPath(cg, cgPath->GetPath());
+#endif
       extents = CGContextGetPathBoundingBox(cg);
       if (cgPath->GetFillRule() == FillRule::FILL_EVEN_ODD)
         CGContextEOClip(mCg);
@@ -1437,7 +1654,16 @@ DrawTargetCG::Fill(const Path *aPath, const Pattern &aPattern, const DrawOptions
 
     DrawGradient(mColorSpace, cg, aPattern, extents);
   } else {
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+    if (MOZ_UNLIKELY(!this_CGContextAddPath(cg, cgPath->GetPath()))) {
+      fprintf(stderr, "Warning: TenFourFox DrawTargetCG::Fill received an illegal path coordinate.\n");
+      fixer.Fix(this);
+      CGContextRestoreGState(mCg);
+      return;
+    }
+#else
     CGContextAddPath(cg, cgPath->GetPath());
+#endif
 
     SetFillFromPattern(cg, mColorSpace, aPattern);
 
@@ -1461,7 +1687,9 @@ DrawTargetCG::FillGlyphs(ScaledFont *aFont, const GlyphBuffer &aBuffer, const Pa
 
   MarkChanged();
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   assert(aBuffer.mNumGlyphs);
+#endif
   CGContextSaveGState(mCg);
 
   if (SetFontSmoothingBackgroundColor(mCg, mColorSpace, aGlyphRenderingOptions)) {
@@ -1481,7 +1709,7 @@ DrawTargetCG::FillGlyphs(ScaledFont *aFont, const GlyphBuffer &aBuffer, const Pa
     mMayContainInvalidPremultipliedData = true;
   }
 
-  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
+  this_CGContextSetBlendMode(mCg, aDrawOptions.mCompositionOp);
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(this, aDrawOptions.mCompositionOp);
   if (MOZ2D_ERROR_IF(!cg)) {
@@ -1496,6 +1724,7 @@ DrawTargetCG::FillGlyphs(ScaledFont *aFont, const GlyphBuffer &aBuffer, const Pa
 
   ScaledFontMac* macFont = static_cast<ScaledFontMac*>(aFont);
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   // This code can execute millions of times in short periods, so we want to
   // avoid heap allocation whenever possible. So we use an inline vector
   // capacity of 64 elements, which is enough to typically avoid heap
@@ -1566,6 +1795,68 @@ DrawTargetCG::FillGlyphs(ScaledFont *aFont, const GlyphBuffer &aBuffer, const Pa
                                      aBuffer.mNumGlyphs);
     }
   }
+#else
+  CGGlyph it[1];
+
+  // Set up the mirrored text matrix. (WTF, Apple.)
+  CGAffineTransform xform = CGAffineTransformMake(1, 0, 0, -1, 0, 0);
+  CGContextSetTextMatrix(cg, xform);
+
+  // Set the font. We don't use CoreText, so ScaledFontMac::CTFontDrawGlyphsPtr
+  // is always null.
+  CGContextSetFont(cg, macFont->mFont);
+  CGContextSetFontSize(cg, macFont->mSize);
+
+  // So we have glyphs and positions. So let's dump them where they are.
+  // We use two different loops so that we can speed up regular text and
+  // avoid branching inside the loop. Make the fast path the typical path.
+  if (MOZ_LIKELY(!isGradient(aPattern))) {
+        CGContextSetTextDrawingMode(cg, kCGTextFill);
+        SetFillFromPattern(cg, mColorSpace, aPattern);
+        for (unsigned int i = 0; i < aBuffer.mNumGlyphs; i++) {
+		// CGContextShowGlyphsWithAdvances requires too much setup
+		// and most runs are below 200 characters. There is no
+		// particular size pattern which lends itself to unrolling.
+                it[0] = aBuffer.mGlyphs[i].mIndex;
+                CGContextShowGlyphsAtPoint(cg,
+                        aBuffer.mGlyphs[i].mPosition.x,
+                        aBuffer.mGlyphs[i].mPosition.y,
+                        it, 1);
+        }
+  } else {
+  // XXX: Fix these to use the same Vector code as above to avoid
+  // heap allocations, but this situation is much less common.
+        std::vector<CGGlyph> glyphs;
+        std::vector<CGPoint> positions;
+        CGRect extents;
+
+        glyphs.resize(aBuffer.mNumGlyphs);
+        positions.resize(aBuffer.mNumGlyphs);
+
+        for (unsigned int i = 0; i < aBuffer.mNumGlyphs; i++) {
+                glyphs[i] = aBuffer.mGlyphs[i].mIndex;
+                // XXX: CGPointMake might not be inlined
+                positions[i] = CGPointMake(aBuffer.mGlyphs[i].mPosition.x,
+                              -aBuffer.mGlyphs[i].mPosition.y);
+        }
+        CGRect *bboxes = new CGRect[aBuffer.mNumGlyphs];
+        CGFontGetGlyphBBoxesPtr(macFont->mFont, &glyphs.front(),
+                aBuffer.mNumGlyphs, bboxes);
+        extents = ComputeGlyphsExtents(bboxes, &positions.front(),
+                aBuffer.mNumGlyphs, macFont->mSize);
+        for (unsigned int i = 0; i < aBuffer.mNumGlyphs; i++) {
+                CGContextSaveGState(cg); // push the "non-clip" on the stack
+                CGContextSetTextDrawingMode(cg, kCGTextClip);
+                it[0] = aBuffer.mGlyphs[i].mIndex;
+                CGContextShowGlyphsAtPoint(cg,
+                        aBuffer.mGlyphs[i].mPosition.x,
+                        aBuffer.mGlyphs[i].mPosition.y,
+                        it, 1);
+                DrawGradient(mColorSpace, cg, aPattern, extents);
+                CGContextRestoreGState(cg); // pop the clip off
+        }
+  }
+#endif
 
   fixer.Fix(this);
   CGContextRestoreGState(cg);
@@ -1600,7 +1891,7 @@ DrawTargetCG::CopySurface(SourceSurface *aSurface,
                                aSourceRect.width, aSourceRect.height);
   CGContextClipToRect(mCg, destRect);
 
-  CGContextSetBlendMode(mCg, kCGBlendModeCopy);
+  this_CGContextSetBlendMode(mCg, CompositionOp::OP_SOURCE);
 
   CGContextScaleCTM(mCg, 1, -1);
 
@@ -1633,7 +1924,7 @@ DrawTargetCG::DrawSurfaceWithShadow(SourceSurface *aSurface, const Point &aDest,
   CGContextSaveGState(mCg);
   CGContextSetCTM(mCg, mOriginalTransform);
   //XXX do we need to do the fixup here?
-  CGContextSetBlendMode(mCg, ToBlendMode(aOperator));
+  this_CGContextSetBlendMode(mCg, aOperator);
 
   CGContextScaleCTM(mCg, 1, -1);
 
@@ -1693,7 +1984,7 @@ DrawTargetCG::Init(BackendType aType,
 
   mSize = aSize;
 
-#ifdef MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   if (aType == BackendType::COREGRAPHICS_ACCELERATED) {
     RefPtr<MacIOSurface> ioSurface = MacIOSurface::CreateIOSurface(aSize.width, aSize.height);
     mCg = ioSurface->CreateIOSurfaceContext();
@@ -1733,7 +2024,9 @@ DrawTargetCG::Init(BackendType aType,
                                  bitinfo);
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   assert(mCg);
+#endif
   if (!mCg) {
     gfxCriticalError() << "Failed to create CG context" << mSize << ", " << aStride;
     return false;
@@ -1767,7 +2060,7 @@ DrawTargetCG::Init(BackendType aType,
 void
 DrawTargetCG::Flush()
 {
-#ifdef MOZ_WIDGET_COCOA
+#if defined(MOZ_WIDGET_COCOA) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   if (GetContextType(mCg) == CG_CONTEXT_TYPE_IOSURFACE) {
     CGContextFlush(mCg);
   } else if (GetContextType(mCg) == CG_CONTEXT_TYPE_BITMAP &&
@@ -1809,7 +2102,9 @@ DrawTargetCG::Init(CGContextRef cgContext, const IntSize &aSize)
   mCg = cgContext;
   CGContextRetain(mCg);
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   assert(mCg);
+#endif
   if (!mCg) {
     gfxCriticalError() << "Invalid CG context at Init " << aSize;
     return false;
@@ -1825,6 +2120,7 @@ DrawTargetCG::Init(CGContextRef cgContext, const IntSize &aSize)
   mOriginalTransform = CGContextGetCTM(mCg);
 
   mFormat = SurfaceFormat::B8G8R8A8;
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #ifdef MOZ_WIDGET_COCOA
   if (GetContextType(mCg) == CG_CONTEXT_TYPE_BITMAP) {
 #endif
@@ -1838,6 +2134,7 @@ DrawTargetCG::Init(CGContextRef cgContext, const IntSize &aSize)
     }
 #ifdef MOZ_WIDGET_COCOA
   }
+#endif
 #endif
 
   return true;
@@ -1921,7 +2218,9 @@ DrawTargetCG::PushClip(const Path *aPath)
   }
 
   CGContextSaveGState(mCg);
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   assert(aPath->GetBackendType() == BackendType::COREGRAPHICS);
+#endif
 
   const PathCG *cgPath = static_cast<const PathCG*>(aPath);
 

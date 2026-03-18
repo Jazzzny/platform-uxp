@@ -77,6 +77,7 @@ static OutStringType STLStringToSTLStringWithEncodingsT(
   if (in_length == 0)
     return OutStringType();
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   scoped_cftyperef<CFStringRef> cfstring(
       CFStringCreateWithBytesNoCopy(NULL,
                                     reinterpret_cast<const UInt8*>(in.data()),
@@ -85,6 +86,16 @@ static OutStringType STLStringToSTLStringWithEncodingsT(
                                     in_encoding,
                                     false,
                                     kCFAllocatorNull));
+#else
+  scoped_cftyperef<CFStringRef> cfstring(
+    CFStringCreateWithBytes(NULL,
+                            reinterpret_cast<const UInt8*>(in.data()),
+                            in_length *
+                              sizeof(typename InStringType::value_type),
+                            in_encoding,
+                            false));
+#endif
+
   if (!cfstring)
     return OutStringType();
 

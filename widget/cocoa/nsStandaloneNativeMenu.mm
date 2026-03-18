@@ -5,6 +5,12 @@
 
 #import <Cocoa/Cocoa.h>
 
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
+#import <Carbon/Carbon.h>
+typedef uint32_t NSUInteger;
+typedef int32_t NSInteger;
+#endif
+
 #include "nsStandaloneNativeMenu.h"
 #include "nsMenuUtilsX.h"
 #include "nsIDOMElement.h"
@@ -107,7 +113,7 @@ NativeMenuItemWithLocation(NSMenu * currentSubmenu, NSString * locationString)
     return nil;
 
   for (NSUInteger i = 0; i < indexCount; i++) {
-    NSInteger targetIndex = [[indexes objectAtIndex:i] integerValue];
+    NSInteger targetIndex = [[indexes objectAtIndex:i] intValue];
     NSInteger itemCount = [currentSubmenu numberOfItems];
     if (targetIndex < itemCount) {
       NSMenuItem* menuItem = [currentSubmenu itemAtIndex:targetIndex];

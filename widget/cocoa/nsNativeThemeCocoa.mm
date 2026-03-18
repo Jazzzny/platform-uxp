@@ -36,6 +36,11 @@
 #include "nsLookAndFeel.h"
 #include "VibrancyManager.h"
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+// cgfloat
+#include "nsCocoaUtils.h"
+#endif
+
 #include "gfxContext.h"
 #include "gfxQuartzSurface.h"
 #include "gfxQuartzNativeDrawing.h"
@@ -238,6 +243,24 @@ DrawCellIncludingFocusRing(NSCell* aCell, NSRect aWithFrame, NSView* aInView)
 {
   return mIsHorizontal;
 }
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+// 10.4 doesn't have this.
+static inline CGRect NSRectToCGRect(NSRect nsRect)
+{
+      return *(CGRect*)&nsRect;
+}
+
+static inline NSRect NSRectFromCGRect( CGRect cgrect )
+{
+    union ConversionUnion
+    {
+        NSRect ns;
+        CGRect cg;
+    };
+    return ((union ConversionUnion *)&cgrect)->ns;
+}
+#endif
 
 - (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView
 {
@@ -932,6 +955,7 @@ GetAquaAppearance()
 static void
 RenderWithCoreUI(CGRect aRect, CGContextRef cgContext, NSDictionary* aOptions, bool aSkipAreaCheck = false)
 {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   id appearance = GetAquaAppearance();
 
   if (!aSkipAreaCheck && aRect.size.width * aRect.size.height > BITMAP_MAX_AREA) {
@@ -950,6 +974,9 @@ RenderWithCoreUI(CGRect aRect, CGContextRef cgContext, NSDictionary* aOptions, b
       ? [NSWindow coreUIRenderer] : nil;
     CUIDraw(renderer, aRect, cgContext, (CFDictionaryRef)aOptions, NULL);
   }
+#else
+  // this shouldn't be called on 10.4 :)
+#endif
 }
 
 static float VerticalAlignFactor(nsIFrame *aFrame)
@@ -2044,19 +2071,58 @@ nsNativeThemeCocoa::DrawSegment(CGContextRef cgContext, const HIRect& inBoxRect,
   BOOL drawRightSeparator = SeparatorResponsibility(aFrame, right) == aFrame;
   NSControlSize controlSize = FindControlSize(drawRect.size.height, aSettings.heights, 4.0f);
 
-  RenderWithCoreUI(drawRect, cgContext, [NSDictionary dictionaryWithObjectsAndKeys:
-            aSettings.widgetName, @"widget",
-            (isActive ? @"kCUIPresentationStateActiveKey" : @"kCUIPresentationStateInactive"), @"kCUIPresentationStateKey",
-            ToolbarButtonPosition(!left, !right), @"kCUIPositionKey",
-            [NSNumber numberWithBool:drawLeftSeparator], @"kCUISegmentLeadingSeparatorKey",
-            [NSNumber numberWithBool:drawRightSeparator], @"kCUISegmentTrailingSeparatorKey",
-            [NSNumber numberWithBool:isSelected], @"value",
-            (isPressed ? @"pressed" : (isActive ? @"normal" : @"inactive")), @"state",
-            [NSNumber numberWithBool:isFocused], @"focus",
-            CUIControlSizeForCocoaSize(controlSize), @"size",
-            [NSNumber numberWithBool:YES], @"is.flipped",
-            @"up", @"direction",
-            nil]);
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+  if (nsCocoaFeatures::OnLeopardOrLater()) {
+    RenderWithCoreUI(drawRect, cgContext, [NSDictionary dictionaryWithObjectsAndKeys:
+              aSettings.widgetName, @"widget",
+              (isActive ? @"kCUIPresentationStateActiveKey" : @"kCUIPresentationStateInactive"), @"kCUIPresentationStateKey",
+              ToolbarButtonPosition(!left, !right), @"kCUIPositionKey",
+              [NSNumber numberWithBool:drawLeftSeparator], @"kCUISegmentLeadingSeparatorKey",
+              [NSNumber numberWithBool:drawRightSeparator], @"kCUISegmentTrailingSeparatorKey",
+              [NSNumber numberWithBool:isSelected], @"value",
+              (isPressed ? @"pressed" : (isActive ? @"normal" : @"inactive")), @"state",
+              [NSNumber numberWithBool:isFocused], @"focus",
+              CUIControlSizeForCocoaSize(controlSize), @"size",
+              [NSNumber numberWithBool:YES], @"is.flipped",
+              @"up", @"direction",
+              nil]);
+    return;
+  }
+#else
+  HIThemeSegmentDrawInfo sdi;
+  sdi.version = 0;
+
+  if (!isActive)
+    sdi.state = kThemeStateInactive;
+  else if (isPressed)
+    sdi.state = kThemeStatePressed;
+  else
+    sdi.state = kThemeStateActive;
+
+  sdi.value = isSelected ? kThemeButtonOn : kThemeButtonOff;
+
+  sdi.size = kHIThemeSegmentSizeNormal;
+  if (controlSize == NSSmallControlSize) sdi.size = kHIThemeSegmentSizeSmall;
+  else if (controlSize == NSMiniControlSize) sdi.size = kHIThemeSegmentSizeMini;
+
+  sdi.kind = aSettings.isToolbarControl ? kHIThemeSegmentKindInset : kHIThemeSegmentKindNormal;
+
+  if (!left && !right)
+    sdi.position = kHIThemeSegmentPositionOnly;
+  else if (!left)
+    sdi.position = kHIThemeSegmentPositionFirst;
+  else if (!right)
+    sdi.position = kHIThemeSegmentPositionLast;
+  else
+    sdi.position = kHIThemeSegmentPositionMiddle;
+
+  sdi.adornment = kHIThemeSegmentAdornmentNone;
+  if (isFocused) sdi.adornment |= kHIThemeSegmentAdornmentFocus;
+  if (drawLeftSeparator) sdi.adornment |= kHIThemeSegmentAdornmentLeadingSeparator;
+  if (drawRightSeparator) sdi.adornment |= kHIThemeSegmentAdornmentTrailingSeparator;
+
+  HIThemeDrawSegment(&drawRect, &sdi, cgContext, kHIThemeOrientationNormal);
+#endif
 }
 
 static inline UInt8
@@ -2230,6 +2296,7 @@ static void
 DrawNativeTitlebarToolbarWithSquareCorners(CGContextRef aContext, const CGRect& aRect,
                                            CGFloat aUnifiedHeight, BOOL aIsMain, BOOL aIsFlipped)
 {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   // We extend the draw rect horizontally and clip away the rounded corners.
   const CGFloat extendHorizontal = 10;
   CGRect drawRect = CGRectInset(aRect, -extendHorizontal, 0);
@@ -2247,6 +2314,16 @@ DrawNativeTitlebarToolbarWithSquareCorners(CGContextRef aContext, const CGRect& 
             nil]);
 
   CGContextRestoreGState(aContext);
+#else
+  // No CoreUI here.
+  // Instead, use HIThemeDrawBackground to paint brushed metal.
+  HIThemeBackgroundDrawInfo bdi;
+  bdi.version = 0;
+  bdi.state = aIsMain ? kThemeStateActive : kThemeStateInactive;
+  bdi.kind = kThemeBackgroundMetal;
+
+  HIThemeDrawBackground(&aRect, &bdi, aContext, HITHEME_ORIENTATION);
+#endif
 }
 
 void
@@ -3091,21 +3168,40 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
         ThemeGeometryType type = ThemeGeometryTypeForWidget(aFrame, aWidgetType);
         DrawVibrancyBackground(cgContext, macRect, aFrame, type);
       } else {
-        CGGradientRef backgroundGradient;
+        static const CGFloat kActiveColors[8]   = { 0.9137, 0.9294, 0.9490, 1.0,
+                                                     0.8196, 0.8471, 0.8784, 1.0 };
+        static const CGFloat kInactiveColors[8] = { 0.9686, 0.9686, 0.9686, 1.0,
+                                                     0.9216, 0.9216, 0.9216, 1.0 };
         CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-        CGFloat activeGradientColors[8] = { 0.9137, 0.9294, 0.9490, 1.0,
-                                            0.8196, 0.8471, 0.8784, 1.0 };
-        CGFloat inactiveGradientColors[8] = { 0.9686, 0.9686, 0.9686, 1.0,
-                                              0.9216, 0.9216, 0.9216, 1.0 };
         CGPoint start = macRect.origin;
         CGPoint end = CGPointMake(macRect.origin.x,
                                   macRect.origin.y + macRect.size.height);
         BOOL isActive = FrameIsInActiveWindow(aFrame);
-        backgroundGradient =
-          CGGradientCreateWithColorComponents(rgb, isActive ? activeGradientColors
-                                                            : inactiveGradientColors, NULL, 2);
+        const CGFloat* colors = isActive ? kActiveColors : kInactiveColors;
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+        CGGradientRef backgroundGradient =
+          CGGradientCreateWithColorComponents(rgb, colors, NULL, 2);
         CGContextDrawLinearGradient(cgContext, backgroundGradient, start, end, 0);
         CGGradientRelease(backgroundGradient);
+#else
+        static const CGFunctionCallbacks kCB = {
+          0,
+          +[](void* info, const CGFloat* in, CGFloat* out) {
+            const CGFloat* c = (const CGFloat*)info;
+            CGFloat t = in[0];
+            for (int i = 0; i < 4; i++)
+              out[i] = c[i] + t * (c[i + 4] - c[i]);
+          },
+          nullptr
+        };
+        static const CGFloat kDomain[2] = { 0.0, 1.0 };
+        static const CGFloat kRange[8]  = { 0, 1, 0, 1, 0, 1, 0, 1 };
+        CGFunctionRef fn = CGFunctionCreate((void*)colors, 1, kDomain, 4, kRange, &kCB);
+        CGShadingRef shading = CGShadingCreateAxial(rgb, start, end, fn, false, false);
+        CGContextDrawShading(cgContext, shading);
+        CGShadingRelease(shading);
+        CGFunctionRelease(fn);
+#endif
         CGColorSpaceRelease(rgb);
       }
     }

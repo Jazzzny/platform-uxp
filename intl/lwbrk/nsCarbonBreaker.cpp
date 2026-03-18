@@ -16,6 +16,10 @@ NS_GetComplexLineBreaks(const char16_t* aText, uint32_t aLength,
 
   memset(aBreakBefore, 0, aLength * sizeof(uint8_t));
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  // CFStringTokenizer is not available on 10.4; no complex line breaking.
+  return;
+#else
   CFStringRef str = ::CFStringCreateWithCharactersNoCopy(kCFAllocatorDefault, reinterpret_cast<const UniChar*>(aText), aLength, kCFAllocatorNull);
   if (!str) {
     return;
@@ -41,4 +45,5 @@ NS_GetComplexLineBreaks(const char16_t* aText, uint32_t aLength,
 
   ::CFRelease(st);
   ::CFRelease(str);
+#endif
 }

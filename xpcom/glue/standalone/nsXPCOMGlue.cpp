@@ -98,7 +98,7 @@ GetLibHandle(pathstr_t aDependentLib)
 {
   LibHandleType libHandle = dlopen(aDependentLib,
                                    RTLD_GLOBAL | RTLD_LAZY
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
                                    | RTLD_FIRST
 #endif
                                    );

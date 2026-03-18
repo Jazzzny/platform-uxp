@@ -146,9 +146,13 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
         '-framework SystemConfiguration',
         '-framework IOKit',
         '-F%s' % CONFIG['MACOS_PRIVATE_FRAMEWORKS_DIR'],
-        '-framework CoreUI',
         'cups',
     ]
+    if [int(x) for x in CONFIG['MACOSX_DEPLOYMENT_TARGET'].split('.')] >= [10, 5]:
+        OS_LIBS += [
+            '-framework CoreUI',
+        ]
+
     if [int(x) for x in CONFIG['MACOSX_DEPLOYMENT_TARGET'].split('.')] >= [10, 7]:
         OS_LIBS += [
             '-framework AVFoundation',

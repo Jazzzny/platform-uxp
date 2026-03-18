@@ -63,6 +63,11 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('cocoa', 'uikit'):
         'MacIOSurface.h',
         'SourceSurfaceCG.h',
     ]
+    if [int(x) for x in CONFIG['MACOSX_DEPLOYMENT_TARGET'].split('.')] < [10, 5]:
+        SOURCES += [
+            'CTGradient.m',
+            'CTGradientCPP.mm',
+        ]
     UNIFIED_SOURCES += [
         'DrawTargetCG.cpp',
         'NativeFontResourceMac.cpp',

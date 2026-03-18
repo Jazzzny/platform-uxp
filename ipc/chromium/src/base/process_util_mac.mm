@@ -7,7 +7,9 @@
 
 #import <Cocoa/Cocoa.h>
 #include <crt_externs.h>
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include <spawn.h>
+#endif
 #include <sys/wait.h>
 
 #include <string>
@@ -57,6 +59,10 @@ bool LaunchApp(const std::vector<std::string>& argv,
                ChildPrivileges privs,
                bool wait, ProcessHandle* process_handle,
                ProcessArchitecture arch) {
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  perror("LaunchApp not supported");
+  return false;
+#else
   bool retval = true;
 
   char* argv_copy[argv.size() + 1];
@@ -186,6 +192,7 @@ bool LaunchApp(const std::vector<std::string>& argv,
   }
 
   return retval;
+#endif // #if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
 }
 
 bool LaunchApp(const CommandLine& cl,

@@ -25,6 +25,10 @@
 #define MOZ_REFCOUNTED_LEAK_CHECKING
 #endif
 
+#if defined(XP_MACOSX) && (!defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5))
+#undef MOZ_REFCOUNTED_LEAK_CHECKING
+#endif
+
 namespace mozilla {
 
 /**

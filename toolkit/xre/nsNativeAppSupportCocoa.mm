@@ -91,7 +91,7 @@ NS_IMETHODIMP nsNativeAppSupportCocoa::Start(bool *_retval)
   // alert here.  But the alert's message and buttons would require custom
   // localization.  So (for now at least) we just log an English message
   // to the console before quitting.
-  if (major < 10 || (major == 10 && minor < 5)) {
+  if (major < 10 || (major == 10 && minor < 4)) {
     NSLog(@"Minimum OS version requirement not met!");
     return NS_OK;
   }
@@ -113,12 +113,12 @@ nsNativeAppSupportCocoa::ReOpen()
   bool haveNonMiniaturized = false;
   bool haveOpenWindows = false;
   bool done = false;
-  
-  nsCOMPtr<nsIWindowMediator> 
+
+  nsCOMPtr<nsIWindowMediator>
     wm(do_GetService(NS_WINDOWMEDIATOR_CONTRACTID));
   if (!wm) {
     return NS_ERROR_FAILURE;
-  } 
+  }
   else {
     nsCOMPtr<nsISimpleEnumerator> windowList;
     wm->GetXULWindowEnumerator(nullptr, getter_AddRefs(windowList));
@@ -180,7 +180,7 @@ nsNativeAppSupportCocoa::ReOpen()
 
       return cmdLine->Run();
     }
-    
+
   } // got window mediator
   return NS_OK;
 

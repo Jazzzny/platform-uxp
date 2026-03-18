@@ -13,6 +13,13 @@
 #include <CoreText/CoreText.h>
 #endif
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+// For 10.4
+typedef unsigned int PRUint32;
+typedef int PRInt32;
+#include "../thebes/PhonyCoreText.h"
+#endif
+
 #include "2D.h"
 
 #include "ScaledFontBase.h"

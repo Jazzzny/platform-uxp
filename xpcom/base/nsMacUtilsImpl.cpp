@@ -31,6 +31,7 @@ nsMacUtilsImpl::GetArchString(nsAString& aArchString)
     return NS_ERROR_FAILURE;
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   CFArrayRef archList = ::CFBundleCopyExecutableArchitectures(mainBundle);
   if (!archList) {
     return NS_ERROR_FAILURE;
@@ -59,6 +60,17 @@ nsMacUtilsImpl::GetArchString(nsAString& aArchString)
   }
 
   ::CFRelease(archList);
+#else
+#if defined(__ppc64__)
+  foundPPC64 = true;
+#elif defined(__ppc__)
+  foundPPC = true;
+#elif defined(__x86_64__)
+  foundX86_64 = true;
+#elif defined(__i386__)
+  foundX86 = true;
+#endif
+#endif
 
   // The order in the string must always be the same so
   // don't do this in the loop.

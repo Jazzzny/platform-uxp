@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+
 #include "gfxMacFont.h"
 
 #include "mozilla/MemoryReporting.h"
@@ -30,7 +31,9 @@ gfxMacFont::gfxMacFont(MacOSFontEntry *aFontEntry, const gfxFontStyle *aFontStyl
                        bool aNeedsBold)
     : gfxFont(aFontEntry, aFontStyle),
       mCGFont(nullptr),
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
       mCTFont(nullptr),
+#endif
       mFontFace(nullptr),
       mVariationFont(aFontEntry->HasVariations())
 {
@@ -131,9 +134,11 @@ gfxMacFont::~gfxMacFont()
     if (mCGFont) {
         ::CFRelease(mCGFont);
     }
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     if (mCTFont) {
         ::CFRelease(mCTFont);
     }
+#endif
     if (mScaledFont) {
         cairo_scaled_font_destroy(mScaledFont);
     }
@@ -521,6 +526,7 @@ gfxMacFont::GetCharWidth(CFDataRef aCmap, char16_t aUniChar,
     return 0;
 }
 
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
 /* static */
 CTFontRef
 gfxMacFont::CreateCTFontFromCGFontWithVariations(CGFontRef aCGFont,
@@ -550,6 +556,8 @@ gfxMacFont::CreateCTFontFromCGFontWithVariations(CGFontRef aCGFont,
     }
     return ctFont;
 }
+
+#endif
 
 int32_t
 gfxMacFont::GetGlyphWidth(DrawTarget& aDrawTarget, uint16_t aGID)

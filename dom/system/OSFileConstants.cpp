@@ -17,14 +17,16 @@
 #include "sys/stat.h"
 #include "sys/statvfs.h"
 #include "sys/wait.h"
+#if (defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5) || !defined(XP_MACOSX)
 #include <spawn.h>
+#endif
 #endif // defined(XP_UNIX)
 
 #if defined(XP_LINUX)
 #include <linux/fadvise.h>
 #endif // defined(XP_LINUX)
 
-#if defined(XP_MACOSX)
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include "copyfile.h"
 #endif // defined(XP_MACOSX)
 
@@ -622,8 +624,9 @@ static const dom::ConstantSpec gLibcProperties[] =
   // The size of |fsblkcnt_t|.
   { "OSFILE_SIZEOF_FSBLKCNT_T", JS::Int32Value(sizeof (fsblkcnt_t)) },
 
-  // The size of |posix_spawn_file_actions_t|.
+#if (defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5) || !defined(XP_MACOSX)
   { "OSFILE_SIZEOF_POSIX_SPAWN_FILE_ACTIONS_T", JS::Int32Value(sizeof (posix_spawn_file_actions_t)) },
+#endif
 
   // Defining |dirent|.
   // Size
@@ -661,7 +664,11 @@ static const dom::ConstantSpec gLibcProperties[] =
 #if defined(dirfd)
   { "OSFILE_SIZEOF_DIR", JS::Int32Value(sizeof (DIR)) },
 
+#if !(defined(XP_MACOSX)) || (defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
   { "OSFILE_OFFSETOF_DIR_DD_FD", JS::Int32Value(offsetof (DIR, __dd_fd)) },
+#else
+  { "OSFILE_OFFSETOF_DIR_DD_FD", JS::Int32Value(offsetof (DIR, dd_fd)) },
+#endif
 #endif
 
   // Defining |stat|

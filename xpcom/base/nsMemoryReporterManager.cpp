@@ -423,7 +423,9 @@ ResidentFastDistinguishedAmount(int64_t* aN)
 
 #include <mach/mach_init.h>
 #include <mach/mach_vm.h>
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include <mach/shared_region.h>
+#endif
 #include <mach/task.h>
 #include <sys/sysctl.h>
 
@@ -494,6 +496,23 @@ InSharedRegion(mach_vm_address_t aAddr, cpu_type_t aType)
 {
   mach_vm_address_t base;
   mach_vm_address_t size;
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  #define SHARED_REGION_BASE_I386			0x90000000ULL
+  #define SHARED_REGION_SIZE_I386			0x20000000ULL
+
+  #define SHARED_REGION_BASE_X86_64		0x00007FFF70000000ULL
+  #define SHARED_REGION_SIZE_X86_64		0x000000008FE00000ULL
+
+  #define SHARED_REGION_BASE_PPC			0x90000000ULL
+  #define SHARED_REGION_SIZE_PPC			0x20000000ULL
+
+//  #define SHARED_REGION_BASE_PPC64		0x00007FFF60000000ULL
+//  #define SHARED_REGION_SIZE_PPC64		0x00000000A0000000ULL
+
+  #define SHARED_REGION_BASE_ARM			0x30000000ULL
+  #define SHARED_REGION_SIZE_ARM			0x10000000ULL
+#endif
 
   switch (aType) {
     case CPU_TYPE_ARM:
@@ -1180,7 +1199,7 @@ ResidentPeakDistinguishedAmount(int64_t* aN)
 #ifdef XP_MACOSX
     *aN = usage.ru_maxrss;
 #elif defined(XP_SOLARIS)
-    *aN = usage.ru_maxrss * getpagesize();    
+    *aN = usage.ru_maxrss * getpagesize();
 #else
     *aN = usage.ru_maxrss * 1024;
 #endif

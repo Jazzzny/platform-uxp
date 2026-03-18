@@ -355,7 +355,7 @@ private:
     static LONG_PTR WINAPI SetWindowLongPtrWHook(HWND hWnd,
                                                  int nIndex,
                                                  LONG_PTR newLong);
-                      
+
 #else
     static LONG WINAPI SetWindowLongAHook(HWND hWnd,
                                           int nIndex,
@@ -378,7 +378,7 @@ private:
     {
       public:
         FlashThrottleAsyncMsg();
-        FlashThrottleAsyncMsg(PluginInstanceChild* aInst, 
+        FlashThrottleAsyncMsg(PluginInstanceChild* aInst,
                               HWND aWnd, UINT aMsg,
                               WPARAM aWParam, LPARAM aLParam,
                               bool isWindowed)
@@ -498,7 +498,9 @@ private:
 #endif
     CGColorSpaceRef               mShColorSpace;
     CGContextRef                  mShContext;
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     RefPtr<nsCARenderer> mCARenderer;
+#endif
     void                         *mCGLayer;
 
     // Core Animation drawing model requires a refresh timer.
@@ -508,7 +510,7 @@ public:
     const NPCocoaEvent* getCurrentEvent() {
         return mCurrentEvent;
     }
-  
+
     bool CGDraw(CGContextRef ref, nsIntRect aUpdateRect);
 
 #if defined(__i386__)
@@ -611,10 +613,10 @@ private:
     // surface which is on ParentProcess side
     RefPtr<gfxASurface> mBackSurface;
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     // Current IOSurface available for rendering
     // We can't use thebes gfxASurface like other platforms.
-    PluginUtilsOSX::nsDoubleBufferCARenderer mDoubleBufferCARenderer; 
+    PluginUtilsOSX::nsDoubleBufferCARenderer mDoubleBufferCARenderer;
 #endif
 
     // (Not to be confused with mBackSurface).  This is a recent copy

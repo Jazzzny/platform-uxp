@@ -29,6 +29,7 @@ void ReleaseCGLayer(void* cgLayer);
 void Repaint(void* cgLayer, nsIntRect aRect);
 
 bool SetProcessName(const char* aProcessName);
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 
 /*
  * Provides a wrapper around nsCARenderer to manage double buffering
@@ -83,6 +84,8 @@ private:
   RefPtr<MacIOSurface> mBackSurface;
   double mContentsScaleFactor;
 };
+
+#endif
 
 } // namespace PluginUtilsOSX
 } // namespace plugins

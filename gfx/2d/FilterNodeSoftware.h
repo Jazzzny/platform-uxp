@@ -683,7 +683,7 @@ template<typename LightType, typename LightingType>
 class FilterNodeLightingSoftware : public FilterNodeSoftware
 {
 public:
-#if defined(MOZILLA_INTERNAL_API) && (defined(DEBUG) || defined(FORCE_BUILD_REFCNT_LOGGING))
+#ifdef MOZ_REFCOUNTED_LEAK_CHECKING
   // Helpers for refcounted
   virtual const char* typeName() const override { return mTypeName; }
   virtual size_t typeSize() const override { return sizeof(*this); }

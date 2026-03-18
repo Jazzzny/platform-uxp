@@ -53,6 +53,21 @@ using namespace mozilla::layers;
 using namespace mozilla::widget;
 using namespace mozilla;
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#include <objc/objc-runtime.h>
+
+static inline IMP get_method_implementation(Class cls, SEL name) {
+    Method m = class_getInstanceMethod(cls, name);
+    return m ? m->method_imp : NULL;
+}
+#define class_getMethodImplementation(x,y) get_method_implementation(x,y)
+
+static inline CGRect NSRectToCGRect(NSRect nsrect) {
+  union _ { NSRect ns; CGRect cg; };
+  return ((union _ *)&nsrect)->cg;
+}
+#endif
+
 int32_t gXULModalLevel = 0;
 
 // In principle there should be only one app-modal window at any given time.
@@ -242,7 +257,7 @@ FitRectToVisibleAreaForScreen(DesktopIntRect& aRect, NSScreen* aScreen)
   if (aRect.height > screenBounds.height) {
     aRect.height = screenBounds.height;
   }
-  
+
   if (aRect.x - screenBounds.x + aRect.width > screenBounds.width) {
     aRect.x += screenBounds.width - (aRect.x - screenBounds.x + aRect.width);
   }
@@ -415,7 +430,7 @@ nsresult nsCocoaWindow::CreateNativeWindow(const NSRect &aRect,
   if (aRectIsFrameRect) {
     contentRect = [NSWindow contentRectForFrameRect:aRect styleMask:features];
   } else {
-    /* 
+    /*
      * We pass a content area rect to initialize the native Cocoa window. The
      * content rect we give is the same size as the size we're given by gecko.
      * The origin we're given for non-popup windows is moved down by the height
@@ -448,9 +463,9 @@ nsresult nsCocoaWindow::CreateNativeWindow(const NSRect &aRect,
   //       rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
 
   Class windowClass = [BaseWindow class];
-  // If we have a titlebar on a top-level window, we want to be able to control the 
-  // titlebar color (for unified windows), so use the special ToolbarWindow class. 
-  // Note that we need to check the window type because we mark sheets as 
+  // If we have a titlebar on a top-level window, we want to be able to control the
+  // titlebar color (for unified windows), so use the special ToolbarWindow class.
+  // Note that we need to check the window type because we mark sheets as
   // having titlebars.
   if ((mWindowType == eWindowType_toplevel || mWindowType == eWindowType_dialog) &&
       (features & NSTitledWindowMask))
@@ -464,7 +479,7 @@ nsresult nsCocoaWindow::CreateNativeWindow(const NSRect &aRect,
     windowClass = [BorderlessWindow class];
 
   // Create the window
-  mWindow = [[windowClass alloc] initWithContentRect:contentRect styleMask:features 
+  mWindow = [[windowClass alloc] initWithContentRect:contentRect styleMask:features
                                  backing:NSBackingStoreBuffered defer:YES];
 
   // Make sure the window does not have a resize thumb on 10.6 and below
@@ -505,12 +520,18 @@ nsresult nsCocoaWindow::CreateNativeWindow(const NSRect &aRect,
     [mWindow setOpaque:YES];
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   NSWindowCollectionBehavior newBehavior = [mWindow collectionBehavior];
   if (mAlwaysOnTop) {
     [mWindow setLevel:NSFloatingWindowLevel];
     newBehavior |= NSWindowCollectionBehaviorCanJoinAllSpaces;
   }
   [mWindow setCollectionBehavior:newBehavior];
+#else
+  if (mAlwaysOnTop) {
+    [mWindow setLevel:NSFloatingWindowLevel];
+  }
+#endif
 
   [mWindow setContentMinSize:NSMakeSize(60, 60)];
   [mWindow disableCursorRects];
@@ -622,7 +643,7 @@ void* nsCocoaWindow::GetNativeData(uint32_t aDataType)
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSNULL;
 
   void* retVal = nullptr;
-  
+
   switch (aDataType) {
     // to emulate how windows works, we always have to return a NSView
     // for NS_NATIVE_WIDGET
@@ -630,11 +651,11 @@ void* nsCocoaWindow::GetNativeData(uint32_t aDataType)
     case NS_NATIVE_DISPLAY:
       retVal = [mWindow contentView];
       break;
-      
+
     case NS_NATIVE_WINDOW:
       retVal = mWindow;
       break;
-      
+
     case NS_NATIVE_GRAPHIC:
       // There isn't anything that makes sense to return here,
       // and it doesn't matter so just return nullptr.
@@ -810,7 +831,7 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
         return NS_ERROR_FAILURE;
 
       NSWindow* topNonSheetWindow = nativeParentWindow;
-      
+
       // If this sheet is the child of another sheet, hide the parent so that
       // this sheet can be displayed. Leave the parent mSheetNeedsShow alone,
       // that is only used to handle sibling sheet contention. The parent will
@@ -939,10 +960,10 @@ NS_IMETHODIMP nsCocoaWindow::Show(bool bState)
       else {
         // get sheet's parent *before* hiding the sheet (which breaks the linkage)
         NSWindow* sheetParent = mSheetWindowParent;
-        
+
         // hide the sheet
         [NSApp endSheet:mWindow];
-        
+
         [TopLevelWindowData deactivateInWindow:mWindow];
 
         nsCOMPtr<nsIWidget> siblingSheetToShow;
@@ -1887,7 +1908,7 @@ NS_IMETHODIMP nsCocoaWindow::Invalidate(const LayoutDeviceIntRect& aRect)
 // Pass notification of some drag event to Gecko
 //
 // The drag manager has let us know that something related to a drag has
-// occurred in this window. It could be any number of things, ranging from 
+// occurred in this window. It could be any number of things, ranging from
 // a drop, to a drag enter/leave, or a drag over event. The actual event
 // is passed in |aMessage| and is passed along to our event hanlder so Gecko
 // knows about it.
@@ -1948,7 +1969,7 @@ NS_IMETHODIMP nsCocoaWindow::GetSheetWindowParent(NSWindow** sheetWindowParent)
 }
 
 // Invokes callback and ProcessEvent methods on Event Listener object
-NS_IMETHODIMP 
+NS_IMETHODIMP
 nsCocoaWindow::DispatchEvent(WidgetGUIEvent* event, nsEventStatus& aStatus)
 {
   aStatus = nsEventStatus_eIgnore;
@@ -2136,7 +2157,7 @@ nsCocoaWindow::CaptureRollupEvents(nsIRollupListener* aListener,
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   gRollupListener = nullptr;
-  
+
   if (aDoCapture) {
     if (![NSApp isActive]) {
       // We need to capture mouse event if we aren't
@@ -2169,7 +2190,7 @@ nsCocoaWindow::CaptureRollupEvents(nsIRollupListener* aListener,
     if (mWindow && (mWindowType == eWindowType_popup))
       [mWindow setLevel:NSModalPanelWindowLevel];
   }
-  
+
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
@@ -2240,6 +2261,7 @@ void nsCocoaWindow::SetShowsFullScreenButton(bool aShow)
     MakeFullScreen(false);
   }
 
+#if defined(MAC_OS_X_VERSION_10_7) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
   NSWindowCollectionBehavior newBehavior = [mWindow collectionBehavior];
   if (aShow) {
     newBehavior |= NSWindowCollectionBehaviorFullScreenPrimary;
@@ -2247,6 +2269,7 @@ void nsCocoaWindow::SetShowsFullScreenButton(bool aShow)
     newBehavior &= ~NSWindowCollectionBehaviorFullScreenPrimary;
   }
   [mWindow setCollectionBehavior:newBehavior];
+#endif
   mSupportsNativeFullScreen = aShow;
 
   if (wasFullScreen) {
@@ -2303,10 +2326,10 @@ nsCocoaWindow::SetWindowTitlebarColor(nscolor aColor, bool aActive)
   // If they pass a color with a complete transparent alpha component, use the
   // native titlebar appearance.
   if (NS_GET_A(aColor) == 0) {
-    [mWindow setTitlebarColor:nil forActiveWindow:(BOOL)aActive]; 
+    [mWindow setTitlebarColor:nil forActiveWindow:(BOOL)aActive];
   } else {
     // Transform from sRGBA to monitor RGBA. This seems like it would make trying
-    // to match the system appearance lame, so probably we just shouldn't color 
+    // to match the system appearance lame, so probably we just shouldn't color
     // correct chrome.
     if (gfxPlatform::GetCMSMode() == eCMSMode_All) {
       qcms_transform *transform = gfxPlatform::GetCMSRGBATransform();
@@ -2424,7 +2447,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
 
   nsCocoaWindow* geckoWidget = [windowDelegate geckoWidget];
   NS_ASSERTION(geckoWidget, "Window delegate not returning a gecko widget!");
-  
+
   nsMenuBarX* geckoMenuBar = geckoWidget->GetMenuBar();
   if (geckoMenuBar) {
     geckoMenuBar->Paint();
@@ -2472,7 +2495,7 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)proposedFrameSize
 {
   RollUpPopups();
-  
+
   return proposedFrameSize;
 }
 
@@ -2632,9 +2655,13 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
     static_cast<nsChildView*>([[(BaseWindow*)window mainChildView] widget]);
   if (mainChildView) {
     if (mainChildView->GetInputContext().IsPasswordEditor()) {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
       TextInputHandler::EnableSecureEventInput();
+#endif
     } else {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
       TextInputHandler::EnsureSecureEventInputDisabled();
+#endif
     }
   }
 
@@ -2654,7 +2681,9 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
   if ([window isSheet])
     [WindowDelegate paintMenubarForWindow:[NSApp mainWindow]];
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   TextInputHandler::EnsureSecureEventInputDisabled();
+#endif
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
@@ -2783,6 +2812,11 @@ nsCocoaWindow::ExecuteNativeKeyBinding(NativeKeyBindingsType aType,
 static float
 GetDPI(NSWindow* aWindow)
 {
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  // On 10.4, CGDirectDisplayID is a pointer type, and the display APIs
+  // are different enough that we just return the standard DPI.
+  return 96.0f;
+#else
   NSScreen* screen = [aWindow screen];
   if (!screen)
     return 96.0f;
@@ -2803,6 +2837,7 @@ GetDPI(NSWindow* aWindow)
   CGFloat backingScale = GetBackingScaleFactor(aWindow);
 
   return dpi * backingScale;
+#endif
 }
 
 @interface NSView(FrameViewMethodSwizzling)
@@ -2937,20 +2972,30 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
   if(![super contentView]) {
       [super setContentView:[[[NSView alloc] initWithFrame:aContentRect] autorelease]];
   }
+
+// start up childviewmousetracker
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  [self setAcceptsMouseMovedEvents:YES];
+#endif
+
   mState = nil;
   mActiveTitlebarColor = nil;
   mInactiveTitlebarColor = nil;
   mScheduledShadowInvalidation = NO;
   mDisabledNeedsDisplay = NO;
   mDPI = GetDPI(self);
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   mTrackingArea = nil;
+#endif
   mViewWithTrackingArea = nil;
   mDirtyRect = NSZeroRect;
   mBeingShown = NO;
   mDrawTitle = NO;
   mBrightTitlebarForeground = NO;
   mUseMenuStyle = NO;
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   [self updateTrackingArea];
+#endif
 
   return self;
 }
@@ -3057,7 +3102,9 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   [self setTitlebarColor:[aState objectForKey:kStateActiveTitlebarColorKey] forActiveWindow:YES];
   [self setTitlebarColor:[aState objectForKey:kStateInactiveTitlebarColorKey] forActiveWindow:NO];
   [self setShowsToolbarButton:[[aState objectForKey:kStateShowsToolbarButton] boolValue]];
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   [self setCollectionBehavior:[[aState objectForKey:kStateCollectionBehavior] unsignedIntValue]];
+#endif
 }
 
 - (NSMutableDictionary*)exportState
@@ -3076,8 +3123,10 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   }
   [state setObject:[NSNumber numberWithBool:[self showsToolbarButton]]
             forKey:kStateShowsToolbarButton];
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   [state setObject:[NSNumber numberWithUnsignedInt: [self collectionBehavior]]
             forKey:kStateCollectionBehavior];
+#endif
   return state;
 }
 
@@ -3175,10 +3224,12 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 
 - (void)removeTrackingArea
 {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   [mViewWithTrackingArea removeTrackingArea:mTrackingArea];
 
   [mTrackingArea release];
   mTrackingArea = nil;
+#endif
 
   [mViewWithTrackingArea release];
   mViewWithTrackingArea = nil;
@@ -3188,6 +3239,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 {
   [self removeTrackingArea];
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   mViewWithTrackingArea = [self.trackingAreaView retain];
   const NSTrackingAreaOptions options =
     NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveAlways;
@@ -3197,6 +3249,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
                                      owner:self
                                   userInfo:nil];
   [mViewWithTrackingArea addTrackingArea:mTrackingArea];
+#endif
 }
 
 - (void)mouseEntered:(NSEvent*)aEvent
@@ -3335,7 +3388,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 // area into the title bar. It works like this:
 // 1) We set the window's style to textured.
 // 2) Because of this, the background color applies to the entire window, including
-//     the titlebar area. For normal textured windows, the default pattern is a 
+//     the titlebar area. For normal textured windows, the default pattern is a
 //    "brushed metal" image on Tiger and a unified gradient on Leopard.
 // 3) We set the background color to a custom NSColor subclass that knows how tall the window is.
 //    When -set is called on it, it sets a pattern (with a draw callback) as the fill. In that callback,
@@ -3402,8 +3455,10 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
     }
 #endif
 
-    [self setAutorecalculatesContentBorderThickness:NO forEdge:NSMaxYEdge];
-    [self setContentBorderThickness:0.0f forEdge:NSMaxYEdge];
+    if ([self respondsToSelector:@selector(setAutorecalculatesContentBorderThickness:forEdge:)]) {
+      [self setAutorecalculatesContentBorderThickness:NO forEdge:NSMaxYEdge];
+      [self setContentBorderThickness:0.0f forEdge:NSMaxYEdge];
+    }
   }
   return self;
 
@@ -3704,7 +3759,7 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 - (void)sendEvent:(NSEvent *)anEvent
 {
   NSEventType type = [anEvent type];
-  
+
   switch (type) {
     case NSScrollWheel:
     case NSLeftMouseDown:
@@ -3796,7 +3851,7 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
   float patternWidth = [mWindow frame].size.width;
 
   CGPatternCallbacks callbacks = {0, &TitlebarDrawCallback, NULL};
-  CGPatternRef pattern = CGPatternCreate(mWindow, CGRectMake(0.0f, 0.0f, patternWidth, [mWindow frame].size.height), 
+  CGPatternRef pattern = CGPatternCreate(mWindow, CGRectMake(0.0f, 0.0f, patternWidth, [mWindow frame].size.height),
                                          CGAffineTransformIdentity, patternWidth, [mWindow frame].size.height,
                                          kCGPatternTilingConstantSpacing, true, &callbacks);
 
@@ -3871,7 +3926,7 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
 - (void)sendEvent:(NSEvent *)anEvent
 {
   NSEventType type = [anEvent type];
-  
+
   switch (type) {
     case NSScrollWheel:
     case NSLeftMouseDown:

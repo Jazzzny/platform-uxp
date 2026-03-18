@@ -575,15 +575,15 @@ GetPrefersColorScheme(nsPresContext* aPresContext, const nsMediaFeature* aFeatur
 {
   switch(Preferences::GetInt("browser.display.prefers_color_scheme", 1)) {
     case 1:
-      aResult.SetIntValue(NS_STYLE_PREFERS_COLOR_SCHEME_LIGHT, 
+      aResult.SetIntValue(NS_STYLE_PREFERS_COLOR_SCHEME_LIGHT,
                           eCSSUnit_Enumerated);
       break;
     case 2:
-      aResult.SetIntValue(NS_STYLE_PREFERS_COLOR_SCHEME_DARK, 
+      aResult.SetIntValue(NS_STYLE_PREFERS_COLOR_SCHEME_DARK,
                           eCSSUnit_Enumerated);
       break;
     case 3:
-      // If the pref is 3, we follow ui.color_scheme instead. When following 
+      // If the pref is 3, we follow ui.color_scheme instead. When following
       // ui.color_scheme, light theme is the fallback behavior.
       switch(Preferences::GetInt("ui.color_scheme", 1)) {
         case 2:
@@ -608,7 +608,7 @@ GetPrefersMotion(nsPresContext* aPresContext, const nsMediaFeature* aFeature,
 {
   switch(Preferences::GetInt("ui.prefersReducedMotion", 0)) {
     case 1:
-      aResult.SetIntValue(NS_STYLE_PREFERS_REDUCED_MOTION, 
+      aResult.SetIntValue(NS_STYLE_PREFERS_REDUCED_MOTION,
                           eCSSUnit_Enumerated);
       break;
     default:
@@ -967,6 +967,14 @@ nsMediaFeatures::features[] = {
     nsMediaFeature::eBoolInteger,
     nsMediaFeature::eNoRequirements,
     { &nsGkAtoms::mac_yosemite_theme },
+    GetSystemMetric
+  },
+  {
+    &nsGkAtoms::_moz_mac_tiger_theme,
+    nsMediaFeature::eMinMaxNotAllowed,
+    nsMediaFeature::eBoolInteger,
+    nsMediaFeature::eNoRequirements,
+    { &nsGkAtoms::mac_tiger_theme },
     GetSystemMetric
   },
   {

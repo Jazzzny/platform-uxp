@@ -14,6 +14,11 @@
 #include "nsIAtom.h"
 #include "nsNativeTheme.h"
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+// cgfloat
+#include "nsCocoaUtils.h"
+#endif
+
 @class CellDrawView;
 @class NSProgressBarCell;
 @class ContextAwareSearchFieldCell;
@@ -55,7 +60,7 @@ public:
                                   uint8_t aWidgetType,
                                   const nsRect& aRect,
                                   const nsRect& aDirtyRect) override;
-  NS_IMETHOD GetWidgetBorder(nsDeviceContext* aContext, 
+  NS_IMETHOD GetWidgetBorder(nsDeviceContext* aContext,
                              nsIFrame* aFrame,
                              uint8_t aWidgetType,
                              nsIntMargin* aResult) override;
@@ -71,7 +76,7 @@ public:
   NS_IMETHOD GetMinimumWidgetSize(nsPresContext* aPresContext, nsIFrame* aFrame,
                                   uint8_t aWidgetType,
                                   mozilla::LayoutDeviceIntSize* aResult, bool* aIsOverridable) override;
-  NS_IMETHOD WidgetStateChanged(nsIFrame* aFrame, uint8_t aWidgetType, 
+  NS_IMETHOD WidgetStateChanged(nsIFrame* aFrame, uint8_t aWidgetType,
                                 nsIAtom* aAttribute, bool* aShouldRepaint,
                                 const nsAttrValue* aOldValue) override;
   NS_IMETHOD ThemeChanged() override;
@@ -131,7 +136,7 @@ protected:
                     const NSSize& aIconSize, NSString* aImageName,
                     bool aCenterHorizontally);
   void DrawButton(CGContextRef context, ThemeButtonKind inKind,
-                  const HIRect& inBoxRect, bool inIsDefault, 
+                  const HIRect& inBoxRect, bool inIsDefault,
                   ThemeButtonValue inValue, ThemeButtonAdornment inAdornment,
                   mozilla::EventStates inState, nsIFrame* aFrame);
   void DrawFocusOutline(CGContextRef cgContext, const HIRect& inBoxRect,
@@ -157,7 +162,7 @@ protected:
 
   // Scrollbars
   void DrawScrollbar(CGContextRef aCGContext, const HIRect& aBoxRect, nsIFrame *aFrame);
-  void GetScrollbarDrawInfo (HIThemeTrackDrawInfo& aTdi, nsIFrame *aFrame, 
+  void GetScrollbarDrawInfo (HIThemeTrackDrawInfo& aTdi, nsIFrame *aFrame,
                              const CGSize& aSize, bool aShouldGetButtonStates);
   void GetScrollbarPressStates(nsIFrame *aFrame,
                                mozilla::EventStates aButtonStates[]);

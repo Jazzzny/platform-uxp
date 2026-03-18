@@ -85,6 +85,7 @@ nsPrintDialogServiceX::Show(nsPIDOMWindowOuter *aParent, nsIPrintSettings *aSett
   [NSPrintOperation setCurrentOperation:printOperation];
 
   NSPrintPanel* panel = [NSPrintPanel printPanel];
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   [panel setOptions:NSPrintPanelShowsCopies
     | NSPrintPanelShowsPageRange
     | NSPrintPanelShowsPaperSize
@@ -94,6 +95,7 @@ nsPrintDialogServiceX::Show(nsPIDOMWindowOuter *aParent, nsIPrintSettings *aSett
     [[PrintPanelAccessoryController alloc] initWithSettings:aSettings];
   [panel addAccessoryController:viewController];
   [viewController release];
+#endif
 
   // Show the dialog.
   nsCocoaUtils::PrepareForNativeAppModalDialog();
@@ -126,7 +128,10 @@ nsPrintDialogServiceX::Show(nsPIDOMWindowOuter *aParent, nsIPrintSettings *aSett
     NSDictionary *devDesc = [win deviceDescription];
     if (devDesc) {
       NSSize res = [[devDesc objectForKey: NSDeviceResolution] sizeValue];
-      float scale = [win backingScaleFactor];
+      float scale = 1.0f;
+#if defined(MAC_OS_X_VERSION_10_7) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+      scale = [win backingScaleFactor];
+#endif
       if (scale > 0) {
         settingsX->SetInchesScale(res.width / scale, res.height / scale);
       }
@@ -134,7 +139,9 @@ nsPrintDialogServiceX::Show(nsPIDOMWindowOuter *aParent, nsIPrintSettings *aSett
   }
 
   // Export settings.
-  [viewController exportSettings];
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+  [(PrintPanelAccessoryView*)[[[panel accessoryControllers] objectAtIndex:0] view] exportSettings];
+#endif
 
   // If "ignore scaling" is checked, overwrite scaling factor with 1.
   bool isShrinkToFitChecked;
@@ -628,6 +635,7 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
           [mFooterRightList titleOfSelectedItem]]]]];
 }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 - (NSArray*)localizedSummaryItems
 {
   return [NSArray arrayWithObjects:
@@ -654,6 +662,7 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
       [self footerSummaryValue], NSPrintPanelAccessorySummaryItemDescriptionKey, nil],
     nil];
 }
+#endif
 
 @end
 
@@ -661,6 +670,7 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
 
 @implementation PrintPanelAccessoryController
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 - (id)initWithSettings:(nsIPrintSettings*)aSettings
 {
   [super initWithNibName:nil bundle:nil];
@@ -670,15 +680,40 @@ static const char sHeaderFooterTags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
   [accView release];
   return self;
 }
+#else
+- (id)initWithSettings:(nsIPrintSettings*)aSettings
+{
+  [super init];
+
+  NSView* accView = [[PrintPanelAccessoryView alloc] initWithSettings:aSettings];
+  [self setView:accView];
+  [accView release];
+  return self;
+}
+
+- (void)setView:(NSView*)aView
+{
+  [aView retain];
+  [mView release];
+  mView = aView;
+}
+
+- (NSView*)view
+{
+  return mView;
+}
+#endif
 
 - (void)exportSettings
 {
   return [(PrintPanelAccessoryView*)[self view] exportSettings];
 }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 - (NSArray *)localizedSummaryItems
 {
   return [(PrintPanelAccessoryView*)[self view] localizedSummaryItems];
 }
+#endif
 
 @end

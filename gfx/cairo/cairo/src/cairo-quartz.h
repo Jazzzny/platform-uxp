@@ -17,6 +17,10 @@
 #include <CoreText/CoreText.h>
 #endif
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#define CGFloat float
+#endif
+
 CAIRO_BEGIN_DECLS
 
 cairo_public cairo_surface_t *

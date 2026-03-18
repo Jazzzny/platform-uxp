@@ -34,7 +34,23 @@
 #include "PluginInterposeOSX.h"
 #include <set>
 #import <AppKit/AppKit.h>
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #import <objc/runtime.h>
+#else
+#import <objc/objc-runtime.h>
+static inline void method_exchangeImplementations(Method m1, Method m2) {
+    IMP imp1 = m1->method_imp;
+    m1->method_imp = m2->method_imp;
+    m2->method_imp = imp1;
+}
+
+#define class_getMethodImplementation(x,y) class_lookupMethod(x,y)
+
+static inline CGRect NSRectToCGRect(NSRect nsrect) {
+  union _ { NSRect ns; CGRect cg; };
+  return ((union _ *)&nsrect)->cg;
+}
+#endif
 #import <Carbon/Carbon.h>
 
 using namespace mozilla::plugins;
@@ -124,7 +140,9 @@ NSCursorInfo::NSCursorInfo(NSCursor* aCursor)
       for (NSUInteger i = 0; i < repsCount; ++i) {
         id rep = [reps objectAtIndex:i];
         if ([rep isKindOfClass:[NSBitmapImageRep class]]) {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
           cgImage = [(NSBitmapImageRep*)rep CGImage];
+#endif
           break;
         }
       }
@@ -366,7 +384,7 @@ NSCursor* NSCursorInfo::GetNSCursor() const
           NSImage* image = [[NSImage alloc] init];
           if (image) {
             [image addRepresentation:rep];
-            retval = [[[NSCursor alloc] initWithImage:image 
+            retval = [[[NSCursor alloc] initWithImage:image
                                               hotSpot:NSMakePoint(mHotSpot.x, mHotSpot.y)]
                       autorelease];
             [image release];

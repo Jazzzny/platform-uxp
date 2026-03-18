@@ -85,7 +85,9 @@ GLScreenBuffer::CreateFactory(GLContext* gl,
         switch (backend) {
             case mozilla::layers::LayersBackend::LAYERS_OPENGL: {
 #if defined(XP_MACOSX)
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
                 factory = SurfaceFactory_IOSurface::Create(gl, caps, ipcChannel, flags);
+#endif
 #elif defined(GL_PROVIDER_GLX)
                 if (sGLXLibrary.UseTextureFromPixmap())
                   factory = SurfaceFactory_GLXDrawable::Create(gl, caps, ipcChannel, flags);

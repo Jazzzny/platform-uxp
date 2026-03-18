@@ -88,7 +88,11 @@ nsresult SetFileCreatorCode(CFURLRef url, OSType creatorCode)
 
   NSAutoreleasePool* ap = [[NSAutoreleasePool alloc] init];
   NSDictionary* dict = [NSDictionary dictionaryWithObject:[NSNumber numberWithUnsignedLong:creatorCode] forKey:NSFileHFSCreatorCode];
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   BOOL success = [[NSFileManager defaultManager] setAttributes:dict ofItemAtPath:[(NSURL*)url path] error:nil];
+#else
+  BOOL success = [[NSFileManager defaultManager] changeFileAttributes:dict atPath:[(NSURL*)url path]];
+#endif
   [ap release];
   return (success ? NS_OK : NS_ERROR_FAILURE);
 
@@ -134,7 +138,11 @@ nsresult SetFileTypeCode(CFURLRef url, OSType typeCode)
 
   NSAutoreleasePool* ap = [[NSAutoreleasePool alloc] init];
   NSDictionary* dict = [NSDictionary dictionaryWithObject:[NSNumber numberWithUnsignedLong:typeCode] forKey:NSFileHFSTypeCode];
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   BOOL success = [[NSFileManager defaultManager] setAttributes:dict ofItemAtPath:[(NSURL*)url path] error:nil];
+#else
+  BOOL success = [[NSFileManager defaultManager] changeFileAttributes:dict atPath:[(NSURL*)url path]];
+#endif
   [ap release];
   return (success ? NS_OK : NS_ERROR_FAILURE);
 
@@ -261,8 +269,12 @@ void AddQuarantineMetadataToFile(const CFStringRef filePath,
 CFURLRef GetTemporaryFolderCFURLRef()
 {
   NSString* tempDir = ::NSTemporaryDirectory();
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   return tempDir == nil ? NULL : (CFURLRef)[NSURL fileURLWithPath:tempDir
                                                       isDirectory:YES];
+#else
+  return tempDir == nil ? NULL : (CFURLRef)[NSURL fileURLWithPath:tempDir];
+#endif
 }
 
 } // namespace CocoaFileUtils

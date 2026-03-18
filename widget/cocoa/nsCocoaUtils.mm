@@ -200,7 +200,8 @@ BOOL nsCocoaUtils::HasPreciseScrollingDeltas(NSEvent* aEvent)
   // kind of their underlaying carbon event is kEventMouseWheelMoved instead
   // of kEventMouseScroll.
   EventRef carbonEvent = [aEvent _eventRef];
-  return carbonEvent && ::GetEventKind(carbonEvent) == kEventMouseScroll;
+  // kEventMouseScroll (11)
+  return carbonEvent && ::GetEventKind(carbonEvent) == 11;
 }
 
 @interface NSEvent (ScrollingDeltas)
@@ -294,27 +295,27 @@ nsIWidget* nsCocoaUtils::GetHiddenWindowWidget()
     NS_WARNING("Couldn't get AppShellService in order to get hidden window ref");
     return nullptr;
   }
-  
+
   nsCOMPtr<nsIXULWindow> hiddenWindow;
   appShell->GetHiddenWindow(getter_AddRefs(hiddenWindow));
   if (!hiddenWindow) {
     // Don't warn, this happens during shutdown, bug 358607.
     return nullptr;
   }
-  
+
   nsCOMPtr<nsIBaseWindow> baseHiddenWindow;
   baseHiddenWindow = do_GetInterface(hiddenWindow);
   if (!baseHiddenWindow) {
     NS_WARNING("Couldn't get nsIBaseWindow from hidden window (nsIXULWindow)");
     return nullptr;
   }
-  
+
   nsCOMPtr<nsIWidget> hiddenWindowWidget;
   if (NS_FAILED(baseHiddenWindow->GetMainWidget(getter_AddRefs(hiddenWindowWidget)))) {
     NS_WARNING("Couldn't get nsIWidget from hidden window (nsIBaseWindow)");
     return nullptr;
   }
-  
+
   return hiddenWindowWidget;
 }
 
@@ -333,24 +334,24 @@ void nsCocoaUtils::PrepareForNativeAppModalDialog()
 
   NSMenu* mainMenu = [NSApp mainMenu];
   NS_ASSERTION([mainMenu numberOfItems] > 0, "Main menu does not have any items, something is terribly wrong!");
-  
+
   // Create new menu bar for use with modal dialog
   NSMenu* newMenuBar = [[NSMenu alloc] initWithTitle:@""];
-  
+
   // Swap in our app menu. Note that the event target is whatever window is up when
   // the app modal dialog goes up.
   NSMenuItem* firstMenuItem = [[mainMenu itemAtIndex:0] retain];
   [mainMenu removeItemAtIndex:0];
   [newMenuBar insertItem:firstMenuItem atIndex:0];
   [firstMenuItem release];
-  
+
   // Add standard edit menu
   [newMenuBar addItem:nsMenuUtilsX::GetStandardEditMenuItem()];
-  
+
   // Show the new menu bar
   [NSApp setMainMenu:newMenuBar];
   [newMenuBar release];
-  
+
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
@@ -655,7 +656,7 @@ nsCocoaUtils::MakeNewCocoaEventWithType(NSEventType aEventType, NSEvent *aEvent)
 
   NSEvent* newEvent =
     [NSEvent     keyEventWithType:aEventType
-                         location:[aEvent locationInWindow] 
+                         location:[aEvent locationInWindow]
 #if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
                     modifierFlags:[aEvent modifierFlags]
 #else

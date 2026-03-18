@@ -15,6 +15,7 @@
 #define MACOS_MINOR_VERSION_MASK 0x00FFFFFF
 #define MACOS_BUGFIX_VERSION_MASK 0x00FFFFFF
 #define MACOS_VERSION_10_0_HEX 0x000A0000
+#define MACOS_VERSION_10_4_HEX 0x000A0400
 #define MACOS_VERSION_10_5_HEX 0x000A0500
 #define MACOS_VERSION_10_6_HEX 0x000A0600
 #define MACOS_VERSION_10_7_HEX 0x000A0700
@@ -69,7 +70,7 @@ int32_t nsCocoaFeatures::ExtractBugFixVersion(int32_t aVersion)
 
 static int intAtStringIndex(NSArray *array, int index)
 {
-  return [(NSString*)[array objectAtIndex:index] integerValue];
+  return [(NSString*)[array objectAtIndex:index] intValue];
 }
 
 void nsCocoaFeatures::GetSystemVersion(int &major, int &minor, int &bugfix)
@@ -96,12 +97,15 @@ int32_t nsCocoaFeatures::GetVersion(int32_t aMajor, int32_t aMinor, int32_t aBug
   int32_t macOSVersion;
   if (aMajor < 10) {
     aMajor = 10;
-    NS_ERROR("Couldn't determine macOS version, assuming 10.5");
-    macOSVersion = MACOS_VERSION_10_5_HEX;
-  } else if (aMajor == 10 && aMinor < 5) {
-    aMinor = 5;
-    NS_ERROR("macOS version too old, assuming 10.5");
-    macOSVersion = MACOS_VERSION_10_5_HEX;
+    aMinor = 4;
+    aBugFix = 0;
+    NS_ERROR("Couldn't determine macOS version, assuming 10.4");
+    macOSVersion = MACOS_VERSION_10_4_HEX;
+  } else if (aMajor == 10 && aMinor < 4) {
+    aMinor = 4;
+    aBugFix = 0;
+    NS_ERROR("macOS version too old, assuming 10.4");
+    macOSVersion = MACOS_VERSION_10_4_HEX;
   } else {
     MOZ_ASSERT(aMajor >= 10);
     MOZ_ASSERT(aMajor < 256);
@@ -211,20 +215,20 @@ nsCocoaFeatures::OnSierraOrLater()
   return (macOSVersion() >= MACOS_VERSION_10_12_HEX);
 }
 
-/* static */ bool 
-nsCocoaFeatures::OnHighSierraOrLater() 
+/* static */ bool
+nsCocoaFeatures::OnHighSierraOrLater()
 {
   return (macOSVersion() >= MACOS_VERSION_10_13_HEX);
 }
 
-/* static */ bool 
-nsCocoaFeatures::OnMojaveOrLater() 
+/* static */ bool
+nsCocoaFeatures::OnMojaveOrLater()
 {
   return (macOSVersion() >= MACOS_VERSION_10_14_HEX);
 }
 
-/* static */ bool 
-nsCocoaFeatures::OnCatalinaOrLater() 
+/* static */ bool
+nsCocoaFeatures::OnCatalinaOrLater()
 {
   return (macOSVersion() >= MACOS_VERSION_10_15_HEX);
 }
@@ -257,7 +261,7 @@ nsCocoaFeatures::OnMontereyOrLater()
 }
 
 /* static */ bool
-nsCocoaFeatures::OnVenturaOrLater() 
+nsCocoaFeatures::OnVenturaOrLater()
 {
   return (macOSVersion() >= MACOS_VERSION_13_0_HEX);
 }
@@ -281,7 +285,7 @@ nsCocoaFeatures::IsAtLeastVersion(int32_t aMajor, int32_t aMinor, int32_t aBugFi
  * for this purpose. Note: using this in a sandboxed process requires allowing
  * the sysctl in the sandbox policy.
  */
-/* static */ bool 
+/* static */ bool
 nsCocoaFeatures::ProcessIsRosettaTranslated()
 {
   int ret = 0;

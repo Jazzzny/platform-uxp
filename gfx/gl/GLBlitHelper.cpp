@@ -14,7 +14,7 @@
 #include "mozilla/gfx/Matrix.h"
 #include "mozilla/UniquePtr.h"
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include "MacIOSurfaceImage.h"
 #include "GLContextCGL.h"
 #endif
@@ -674,7 +674,7 @@ GLBlitHelper::BlitPlanarYCbCrImage(layers::PlanarYCbCrImage* yuvImage)
     return true;
 }
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 bool
 GLBlitHelper::BlitMacIOSurfaceImage(layers::MacIOSurfaceImage* ioImage)
 {
@@ -732,7 +732,7 @@ GLBlitHelper::BlitImageToFramebuffer(layers::Image* srcImage,
         srcOrigin = OriginPos::BottomLeft;
         break;
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     case ImageFormat::MAC_IOSURFACE:
         type = ConvertMacIOSurfaceImage;
         srcOrigin = OriginPos::TopLeft;
@@ -764,7 +764,7 @@ GLBlitHelper::BlitImageToFramebuffer(layers::Image* srcImage,
             return ret;
         }
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     case ConvertMacIOSurfaceImage:
         return BlitMacIOSurfaceImage(srcImage->AsMacIOSurfaceImage());
 #endif

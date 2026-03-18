@@ -1272,6 +1272,7 @@ gfxMacPlatformFontList::InitSingleFaceList()
 
 static NSString* GetRealFamilyName(NSFont* aFont)
 {
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     if(nsCocoaFeatures::OnCatalinaOrLater())
     {
         NSString* psName = [[aFont fontDescriptor] postscriptName];
@@ -1302,6 +1303,7 @@ static NSString* GetRealFamilyName(NSFont* aFont)
         CFRelease(ctFont);
         return [familyName autorelease];
     }
+#endif
     NSFont* f = [NSFont fontWithName: [[aFont fontDescriptor] postscriptName]
                         size: 0.0];
     return [f familyName];
@@ -2200,11 +2202,15 @@ gfxMacPlatformFontList::ActivateBundledFonts()
             ::CFRelease(fontURL);
         }
 #else
-        NSURL *fontURL = [NSURL fileURLWithPath:[NSString stringWithCString:path.get() encoding:NSUTF8StringEncoding]];
+        CFURLRef fontURL =
+            ::CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
+                                                      (const UInt8*)path.get(),
+                                                      path.Length(),
+                                                      false);
         if (fontURL) {
             FSRef fsRef;
             FSSpec fsSpec;
-            (void)CFURLGetFSRef((CFURLRef)fontURL, &fsRef);
+            (void)CFURLGetFSRef(fontURL, &fsRef);
             OSStatus status = FSGetCatalogInfo(&fsRef, kFSCatInfoNone, NULL, NULL, &fsSpec, NULL);
             if (status == noErr) {
                 status = ATSFontActivateFromFileSpecification(&fsSpec,
@@ -2214,11 +2220,12 @@ gfxMacPlatformFontList::ActivateBundledFonts()
                                                               kATSOptionFlagsDefault,
                                                               NULL);
                 if (status != noErr) {
-                    NSLog(@"Error %d loading font from %@", status, fontURL);
+                    NSLog(@"Error %d loading font from %@", status, (NSURL *)fontURL);
                 }
             } else {
                 NSLog(@"Error loading catalog info");
             }
+            ::CFRelease(fontURL);
         }
 #endif
     }

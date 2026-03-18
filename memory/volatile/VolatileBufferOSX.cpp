@@ -10,6 +10,7 @@
 #include <mach/mach.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <AvailabilityMacros.h>
 
 #define MIN_VOLATILE_ALLOC_SIZE 8192
 
@@ -102,7 +103,11 @@ VolatileBuffer::Unlock()
     return;
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   int state = VM_PURGABLE_VOLATILE | VM_VOLATILE_GROUP_DEFAULT;
+#else
+  int state = VM_PURGABLE_VOLATILE;
+#endif
   DebugOnly<kern_return_t> ret =
     vm_purgable_control(mach_task_self(),
                         (vm_address_t)mBuf,

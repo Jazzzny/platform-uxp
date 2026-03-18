@@ -101,6 +101,11 @@ InitSystemMetrics()
     sSystemMetrics->AppendElement(nsGkAtoms::mac_yosemite_theme);
   }
 
+  rv = LookAndFeel::GetInt(LookAndFeel::eIntID_MacTigerTheme, &metricResult);
+  if (NS_SUCCEEDED(rv) && metricResult) {
+    sSystemMetrics->AppendElement(nsGkAtoms::mac_tiger_theme);
+  }
+
   rv = LookAndFeel::GetInt(LookAndFeel::eIntID_WindowsAccentColorApplies,
                            &metricResult);
   if (NS_SUCCEEDED(rv) && metricResult) {

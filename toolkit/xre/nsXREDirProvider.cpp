@@ -141,6 +141,7 @@ nsXREDirProvider::SetProfile(nsIFile* aDir, nsIFile* aLocalDir)
     return rv;
 
 #ifdef XP_MACOSX
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   bool same;
   if (NS_SUCCEEDED(aDir->Equals(aLocalDir, &same)) && !same) {
     // Ensure that the cache directory is not indexed by Spotlight
@@ -162,6 +163,7 @@ nsXREDirProvider::SetProfile(nsIFile* aDir, nsIFile* aLocalDir)
       }
     }
   }
+#endif
 #endif
 
   mProfileDir = aDir;
@@ -1484,7 +1486,7 @@ nsXREDirProvider::AppendProfilePath(nsIFile* aFile,
                                     bool aLocal)
 {
   NS_ASSERTION(aFile, "Null pointer!");
-  
+
   if (!gAppData) {
     return NS_ERROR_FAILURE;
   }

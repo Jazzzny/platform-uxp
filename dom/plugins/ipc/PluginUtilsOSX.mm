@@ -5,7 +5,9 @@
 
 #include <dlfcn.h>
 #import <AppKit/AppKit.h>
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #import <QuartzCore/QuartzCore.h>
+#endif
 #include "PluginUtilsOSX.h"
 
 // Remove definitions for try/catch interfering with ObjCException macros.
@@ -16,12 +18,14 @@
 
 #include "mozilla/Sprintf.h"
 
+using namespace mozilla::plugins::PluginUtilsOSX;
+
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+
 @interface CALayer (ContentsScale)
 - (double)contentsScale;
 - (void)setContentsScale:(double)scale;
 @end
-
-using namespace mozilla::plugins::PluginUtilsOSX;
 
 @interface CGBridgeLayer : CALayer {
   DrawPluginFunc mDrawFunc;
@@ -65,7 +69,7 @@ CGBitmapContextSetDataFunc CGBitmapContextSetDataPtr = NULL;
 
 - (void)drawInContext:(CGContextRef)aCGContext
 {
-  ::CGContextSaveGState(aCGContext); 
+  ::CGContextSaveGState(aCGContext);
   ::CGContextTranslateCTM(aCGContext, 0, self.bounds.size.height);
   ::CGContextScaleCTM(aCGContext, (CGFloat) 1, (CGFloat) -1);
 
@@ -80,8 +84,8 @@ CGBitmapContextSetDataFunc CGBitmapContextSetDataPtr = NULL;
 
 @end
 
-void* mozilla::plugins::PluginUtilsOSX::GetCGLayer(DrawPluginFunc aFunc, 
-                                                   void* aPluginInstance, 
+void* mozilla::plugins::PluginUtilsOSX::GetCGLayer(DrawPluginFunc aFunc,
+                                                   void* aPluginInstance,
                                                    double aContentsScaleFactor) {
   CGBridgeLayer *bridgeLayer = [[CGBridgeLayer alloc] init];
 
@@ -134,6 +138,8 @@ void mozilla::plugins::PluginUtilsOSX::Repaint(void *caLayer, nsIntRect aRect) {
   [CATransaction commit];
 }
 
+#endif
+
 @interface EventProcessor : NSObject {
   RemoteProcessEvents   aRemoteEvents;
   void                 *aPluginModule;
@@ -157,7 +163,7 @@ void mozilla::plugins::PluginUtilsOSX::Repaint(void *caLayer, nsIntRect aRect) {
 
 #define EVENT_PROCESS_DELAY 0.05 // 50 ms
 
-NPError mozilla::plugins::PluginUtilsOSX::ShowCocoaContextMenu(void* aMenu, int aX, int aY, void* pluginModule, RemoteProcessEvents remoteEvent) 
+NPError mozilla::plugins::PluginUtilsOSX::ShowCocoaContextMenu(void* aMenu, int aX, int aY, void* pluginModule, RemoteProcessEvents remoteEvent)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
@@ -254,7 +260,7 @@ bool mozilla::plugins::PluginUtilsOSX::SetProcessName(const char* aProcessName) 
   // This function is based on Chrome/Webkit's and relies on potentially dangerous SPI.
   typedef CFTypeRef (*LSGetASNType)();
   typedef OSStatus (*LSSetInformationItemType)(int, CFTypeRef,
-                                               CFStringRef, 
+                                               CFStringRef,
                                                CFStringRef,
                                                CFDictionaryRef*);
 
@@ -266,7 +272,7 @@ bool mozilla::plugins::PluginUtilsOSX::SetProcessName(const char* aProcessName) 
   }
 
   if (!sApplicationASN) {
-    sApplicationASN = ::CFBundleGetFunctionPointerForName(launchServices, 
+    sApplicationASN = ::CFBundleGetFunctionPointerForName(launchServices,
                                             CFSTR("_LSGetCurrentApplicationASN"));
   }
 
@@ -274,11 +280,11 @@ bool mozilla::plugins::PluginUtilsOSX::SetProcessName(const char* aProcessName) 
                                           (sApplicationASN);
 
   if (!sApplicationInfoItem) {
-    sApplicationInfoItem = ::CFBundleGetFunctionPointerForName(launchServices, 
+    sApplicationInfoItem = ::CFBundleGetFunctionPointerForName(launchServices,
                                             CFSTR("_LSSetApplicationInformationItem"));
   }
 
-  LSSetInformationItemType setInformationItemFunc 
+  LSSetInformationItemType setInformationItemFunc
                                           = reinterpret_cast<LSSetInformationItemType>
                                           (sApplicationInfoItem);
 
@@ -298,14 +304,14 @@ bool mozilla::plugins::PluginUtilsOSX::SetProcessName(const char* aProcessName) 
 
   CFTypeRef currentAsn = getASNFunc();
 
-  if (!getASNFunc || !setInformationItemFunc || 
+  if (!getASNFunc || !setInformationItemFunc ||
       !displayNameKey || !currentAsn) {
     NS_WARNING("Failed to set process name: Accessing launchServices failed");
     return false;
   }
 
-  CFStringRef processName = ::CFStringCreateWithCString(nil, 
-                                                        aProcessName, 
+  CFStringRef processName = ::CFStringCreateWithCString(nil,
+                                                        aProcessName,
                                                         kCFStringEncodingASCII);
   if (!processName) {
     NS_WARNING("Failed to set process name: Could not create CFStringRef");
@@ -329,6 +335,7 @@ namespace mozilla {
 namespace plugins {
 namespace PluginUtilsOSX {
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 size_t nsDoubleBufferCARenderer::GetFrontSurfaceWidth() {
   if (!HasFrontSurface()) {
     return 0;
@@ -474,6 +481,7 @@ void nsDoubleBufferCARenderer::ClearBackSurface() {
     mCARenderer = nullptr;
   }
 }
+#endif
 
 } // namespace PluginUtilsOSX
 } // namespace plugins

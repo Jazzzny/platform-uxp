@@ -27,6 +27,22 @@
 
 #include "nsASocketHandler.h"
 
+
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
+#include <dns_sd.h>
+#define kDNSServiceProtocol_IPv4 0x01
+#define kDNSServiceProtocol_IPv6 0x02
+typedef void (*DNSServiceGetAddrInfoReply)(DNSServiceRef, DNSServiceFlags, uint32_t,
+    DNSServiceErrorType, const char*, const struct sockaddr*, uint32_t, void*);
+static inline DNSServiceErrorType DNSServiceGetAddrInfo(DNSServiceRef *sdRef,
+    DNSServiceFlags flags, uint32_t interfaceIndex, uint32_t protocol,
+    const char *hostname, DNSServiceGetAddrInfoReply callBack, void *context) {
+  (void)sdRef; (void)flags; (void)interfaceIndex; (void)protocol;
+  (void)hostname; (void)callBack; (void)context;
+  return kDNSServiceErr_Unsupported;
+}
+#endif
+
 namespace mozilla {
 namespace net {
 

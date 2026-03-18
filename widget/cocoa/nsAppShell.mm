@@ -33,7 +33,7 @@
 #include "mozilla/HangMonitor.h"
 #include "GeckoProfiler.h"
 #include "pratom.h"
-#if !defined(RELEASE_OR_BETA) || defined(DEBUG)
+#if (!defined(RELEASE_OR_BETA) || defined(DEBUG)) && defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
 #include "nsSandboxViolationSink.h"
 #endif
 
@@ -317,7 +317,7 @@ nsAppShell::Init()
   // context.version = 0;
   context.info = this;
   context.perform = ProcessGeckoEvents;
-  
+
   mCFRunLoopSource = ::CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
   NS_ENSURE_STATE(mCFRunLoopSource);
 
@@ -345,7 +345,7 @@ nsAppShell::Init()
     CGSSetDebugOptions(0x80000007);
   }
 
-#if !defined(RELEASE_OR_BETA) || defined(DEBUG)
+#if (!defined(RELEASE_OR_BETA) || defined(DEBUG)) && defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
   if (Preferences::GetBool("security.sandbox.mac.track.violations", false)) {
     nsSandboxViolationSink::Start();
   }
@@ -704,7 +704,7 @@ nsAppShell::Exit(void)
 
   mTerminated = true;
 
-#if !defined(RELEASE_OR_BETA) || defined(DEBUG)
+#if (!defined(RELEASE_OR_BETA) || defined(DEBUG)) && defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
   nsSandboxViolationSink::Stop();
 #endif
 
@@ -866,8 +866,10 @@ nsAppShell::AfterProcessNextEvent(nsIThreadInternal *aThread,
   // to worry about getting an NSInternalInconsistencyException here.
   NSEvent* currentEvent = [NSApp currentEvent];
   if (currentEvent) {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     TextInputHandler::sLastModifierState =
       [currentEvent modifierFlags] & NSDeviceIndependentModifierFlagsMask;
+#endif
   }
 
   NS_OBJC_END_TRY_ABORT_BLOCK;

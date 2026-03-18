@@ -58,7 +58,34 @@ UpdateHandler(nsITimer *aTimer, void *aClosure)
       uint32_t outputs = 2;
       uint64_t lightLMU[outputs];
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
       kr = IOConnectCallMethod(sDataPort, 0, nil, 0, nil, 0, lightLMU, &outputs, nil, 0);
+#else
+    /* 10.4 doesn't have IOConnectCallMethod. However, it does have the related
+      IOConnectMethod* functions (see
+    http://developer.apple.com/library/mac/#samplecode/SimpleUserClient/Listings/User_Client_Info_txt.html
+      and
+    http://www.osxbook.com/book/bonus/chapter10/light/
+
+      The function above calls the hidden io_connect_t with
+      0 (function #) nil (input value array) 0 (number of input values)
+      nil (input struct parametre)
+      lightLMU (output value array) &outputs (pointer to number of output values)
+      nil (output struct parametre) 0 (output structure size).
+
+      So the 10.4 equivalent is, based on Amit's code,
+    */
+      SInt32 lightLMU_1; // can't use an array here
+      SInt32 lightLMU_2;
+      kr = IOConnectMethodScalarIScalarO(sDataPort, 0, // selector: read sensor
+      0, // no inputs
+      2, // two outputs
+      &lightLMU_1, &lightLMU_2);
+      lightLMU[0] = lightLMU_1;
+      lightLMU[1] = lightLMU_2;
+
+    // Whew!
+#endif
       if (kr == KERN_SUCCESS) {
         uint64_t mean = (lightLMU[0] + lightLMU[1]) / 2;
         if (mean == sLastMean) {

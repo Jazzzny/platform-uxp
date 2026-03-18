@@ -986,7 +986,7 @@ static BOOL gMenuItemsExecuteCommands = YES;
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     object_setClass(menuItem, [GeckoServicesNSMenuItem class]);
 #else
-    ((struct objc10_object *)menuItem)->isa = [GeckoServicesNSMenuItem class];
+    ((struct objc_object *)menuItem)->isa = [GeckoServicesNSMenuItem class];
 #endif
 }
 

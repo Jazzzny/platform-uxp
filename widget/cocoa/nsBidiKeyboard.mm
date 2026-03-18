@@ -31,7 +31,11 @@ NS_IMETHODIMP nsBidiKeyboard::Reset()
 
 NS_IMETHODIMP nsBidiKeyboard::IsLangRTL(bool *aIsRTL)
 {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   *aIsRTL = TISInputSourceWrapper::CurrentInputSource().IsForRTLLanguage();
+#else
+  *aIsRTL = false;
+#endif
   return NS_OK;
 }
 

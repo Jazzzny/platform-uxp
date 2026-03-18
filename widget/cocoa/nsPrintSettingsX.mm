@@ -52,7 +52,7 @@ nsPrintSettingsX& nsPrintSettingsX::operator=(const nsPrintSettingsX& rhs)
   if (this == &rhs) {
     return *this;
   }
-  
+
   nsPrintSettings::operator=(rhs);
 
   [mPrintInfo release];
@@ -92,7 +92,7 @@ NS_IMETHODIMP nsPrintSettingsX::InitUnwriteableMargin()
 
   return NS_OK;
 
-  NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;  
+  NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
 }
 
 NS_IMETHODIMP nsPrintSettingsX::InitAdjustedPaperSize()
@@ -139,7 +139,11 @@ NS_IMETHODIMP nsPrintSettingsX::ReadPageFormatFromPrefs()
     return NS_ERROR_FAILURE;
 
   PMPageFormat newPageFormat;
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   OSStatus status = ::PMPageFormatCreateWithDataRepresentation((CFDataRef)data, &newPageFormat);
+#else
+  OSStatus status = ::PMUnflattenPageFormatWithCFData((CFDataRef)data, &newPageFormat);
+#endif
   if (status == noErr) {
     SetPMPageFormat(newPageFormat);
   }
@@ -159,7 +163,11 @@ NS_IMETHODIMP nsPrintSettingsX::WritePageFormatToPrefs()
     return NS_ERROR_NOT_INITIALIZED;
 
   NSData* data = nil;
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   OSStatus err = ::PMPageFormatCreateDataRepresentation(pageFormat, (CFDataRef*)&data, kPMDataFormatXMLDefault);
+#else
+  OSStatus err = ::PMFlattenPageFormatToCFData(pageFormat, (CFDataRef*)&data);
+#endif
   if (err != noErr)
     return NS_ERROR_FAILURE;
 
@@ -177,7 +185,7 @@ nsresult nsPrintSettingsX::_Clone(nsIPrintSettings **_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
   *_retval = nullptr;
-  
+
   nsPrintSettingsX *newSettings = new nsPrintSettingsX(*this);
   if (!newSettings)
     return NS_ERROR_FAILURE;
@@ -198,19 +206,46 @@ NS_IMETHODIMP nsPrintSettingsX::_Assign(nsIPrintSettings *aPS)
 PMPrintSettings
 nsPrintSettingsX::GetPMPrintSettings()
 {
-  return static_cast<PMPrintSettings>([mPrintInfo PMPrintSettings]);
+  if ([mPrintInfo respondsToSelector:@selector(PMPrintSettings)])
+    return (PMPrintSettings)[mPrintInfo PMPrintSettings]; // 10.5+
+
+  if ([mPrintInfo respondsToSelector:@selector(pmPrintSettings)])
+    return (PMPrintSettings)[mPrintInfo pmPrintSettings]; // 10.4
+
+  NS_ASSERTION(PR_FALSE, "no way of getting PMPrintSettings from NSPrintInfo");
+  PMPrintSettings printSettings;
+  PMCreatePrintSettings(&printSettings);
+  return printSettings;
 }
 
 PMPrintSession
 nsPrintSettingsX::GetPMPrintSession()
 {
-  return static_cast<PMPrintSession>([mPrintInfo PMPrintSession]);
+  if ([mPrintInfo respondsToSelector:@selector(PMPrintSession)])
+    return (PMPrintSession)[mPrintInfo PMPrintSession]; // 10.5+
+
+  if ([mPrintInfo respondsToSelector:@selector(_pmPrintSession)])
+    return (PMPrintSession)[mPrintInfo _pmPrintSession]; // 10.4
+
+  NS_ASSERTION(PR_FALSE, "no way of getting PMPrintSession from NSPrintInfo");
+  PMPrintSession printSession;
+  PMCreateSession(&printSession);
+  return printSession;
 }
 
 PMPageFormat
 nsPrintSettingsX::GetPMPageFormat()
 {
-  return static_cast<PMPageFormat>([mPrintInfo PMPageFormat]);
+  if ([mPrintInfo respondsToSelector:@selector(PMPageFormat)])
+    return (PMPageFormat)[mPrintInfo PMPageFormat]; // 10.5+
+
+  if ([mPrintInfo respondsToSelector:@selector(pmPageFormat)])
+    return (PMPageFormat)[mPrintInfo pmPageFormat]; // 10.4
+
+  NS_ASSERTION(PR_FALSE, "no way of getting PMPageFormat from NSPrintInfo");
+  PMPageFormat pageFormat;
+  PMCreatePageFormat(&pageFormat);
+  return pageFormat;
 }
 
 void

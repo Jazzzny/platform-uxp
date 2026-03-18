@@ -6,6 +6,16 @@
 #ifndef MacIOSurface_h__
 #define MacIOSurface_h__
 #ifdef XP_DARWIN
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#include "mozilla/RefCounted.h"
+class MacIOSurface final : public mozilla::external::AtomicRefCounted<MacIOSurface> {
+public:
+  MOZ_DECLARE_REFCOUNTED_VIRTUAL_TYPENAME(MacIOSurface)
+  // Add only minimal members if needed for other code to compile
+};
+#else
+
 #include <QuartzCore/QuartzCore.h>
 #include <CoreVideo/CoreVideo.h>
 #include <dlfcn.h>
@@ -212,5 +222,6 @@ public:
   } sLibraryUnloader;
 };
 
+#endif
 #endif
 #endif
