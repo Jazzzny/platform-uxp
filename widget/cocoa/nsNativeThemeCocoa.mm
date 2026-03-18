@@ -2072,22 +2072,19 @@ nsNativeThemeCocoa::DrawSegment(CGContextRef cgContext, const HIRect& inBoxRect,
   NSControlSize controlSize = FindControlSize(drawRect.size.height, aSettings.heights, 4.0f);
 
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
-  if (nsCocoaFeatures::OnLeopardOrLater()) {
-    RenderWithCoreUI(drawRect, cgContext, [NSDictionary dictionaryWithObjectsAndKeys:
-              aSettings.widgetName, @"widget",
-              (isActive ? @"kCUIPresentationStateActiveKey" : @"kCUIPresentationStateInactive"), @"kCUIPresentationStateKey",
-              ToolbarButtonPosition(!left, !right), @"kCUIPositionKey",
-              [NSNumber numberWithBool:drawLeftSeparator], @"kCUISegmentLeadingSeparatorKey",
-              [NSNumber numberWithBool:drawRightSeparator], @"kCUISegmentTrailingSeparatorKey",
-              [NSNumber numberWithBool:isSelected], @"value",
-              (isPressed ? @"pressed" : (isActive ? @"normal" : @"inactive")), @"state",
-              [NSNumber numberWithBool:isFocused], @"focus",
-              CUIControlSizeForCocoaSize(controlSize), @"size",
-              [NSNumber numberWithBool:YES], @"is.flipped",
-              @"up", @"direction",
-              nil]);
-    return;
-  }
+  RenderWithCoreUI(drawRect, cgContext, [NSDictionary dictionaryWithObjectsAndKeys:
+            aSettings.widgetName, @"widget",
+            (isActive ? @"kCUIPresentationStateActiveKey" : @"kCUIPresentationStateInactive"), @"kCUIPresentationStateKey",
+            ToolbarButtonPosition(!left, !right), @"kCUIPositionKey",
+            [NSNumber numberWithBool:drawLeftSeparator], @"kCUISegmentLeadingSeparatorKey",
+            [NSNumber numberWithBool:drawRightSeparator], @"kCUISegmentTrailingSeparatorKey",
+            [NSNumber numberWithBool:isSelected], @"value",
+            (isPressed ? @"pressed" : (isActive ? @"normal" : @"inactive")), @"state",
+            [NSNumber numberWithBool:isFocused], @"focus",
+            CUIControlSizeForCocoaSize(controlSize), @"size",
+            [NSNumber numberWithBool:YES], @"is.flipped",
+            @"up", @"direction",
+            nil]);
 #else
   HIThemeSegmentDrawInfo sdi;
   sdi.version = 0;
