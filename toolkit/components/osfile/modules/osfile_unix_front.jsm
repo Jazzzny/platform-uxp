@@ -490,7 +490,7 @@
       */
      File.move = null;
 
-     if (UnixFile.copyfile) {
+     if (UnixFile.copyfile && "COPYFILE_DATA" in Const) {
        // This implementation uses |copyfile(3)|, from the BSD library.
        // Adding copying of hierarchies and/or attributes is just a flag
        // away.
