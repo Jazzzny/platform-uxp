@@ -26,6 +26,19 @@
 #include "vm/Runtime.h"
 #include "wasm/WasmInstance.h"
 
+#ifdef XP_MACOSX
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#ifndef __ppc__
+#include <sys/ucontext.h>
+#include <mach/mach_types.h>
+#include <mach/thread_status.h>
+#endif
+
+#define MACH_EXCEPTION_CODES 0x80000000
+
+#endif
+#endif
+
 using namespace js;
 using namespace js::jit;
 using namespace js::wasm;
@@ -131,8 +144,8 @@ class AutoSetHandlingSegFault
 #  define XMM_sig(p,i) ((p)->uc_mcontext.fpregs->_xmm[i])
 #  define EIP_sig(p) ((p)->uc_mcontext.gregs[REG_EIP])
 # else // defined(__sun)
-/* See https://www.illumos.org/issues/5876. They keep arguing over whether 
- * <ucontext.h> should provide the register index defines in regset.h or 
+/* See https://www.illumos.org/issues/5876. They keep arguing over whether
+ * <ucontext.h> should provide the register index defines in regset.h or
  * require applications to request them specifically, and we need them here. */
 #include <ucontext.h>
 #include <sys/regset.h>
@@ -233,9 +246,15 @@ class AutoSetHandlingSegFault
 #  define RFP_sig(p) ((p)->uc_mcontext.mc_regs[30])
 # endif
 #elif defined(XP_DARWIN)
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 # define EIP_sig(p) ((p)->uc_mcontext->__ss.__eip)
 # define RIP_sig(p) ((p)->uc_mcontext->__ss.__rip)
 # define R15_sig(p) ((p)->uc_mcontext->__ss.__pc)
+#else
+# define EIP_sig(p) ((p)->uc_mcontext->ss.eip)
+# define RIP_sig(p) ((p)->uc_mcontext->ss.rip)
+# define R15_sig(p) ((p)->uc_mcontext->ss.pc)
+#endif
 #else
 # error "Don't know how to read/write to the thread state via the mcontext_t."
 #endif
@@ -269,6 +288,7 @@ class AutoSetHandlingSegFault
 // into the emulator code from a Mach exception handler rather than a
 // sigaction-style signal handler.
 #if defined(XP_DARWIN)
+
 # if defined(JS_CPU_X64)
 struct macos_x64_context {
     x86_thread_state64_t thread;
@@ -797,7 +817,9 @@ WasmFaultHandler(LPEXCEPTION_POINTERS exception)
 }
 
 #elif defined(XP_DARWIN)
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 # include <mach/exc.h>
+#endif
 
 static uint8_t**
 ContextToPC(EMULATOR_CONTEXT* context)
@@ -807,9 +829,15 @@ ContextToPC(EMULATOR_CONTEXT* context)
                   "stored IP should be compile-time pointer-sized");
     return reinterpret_cast<uint8_t**>(&context->thread.__rip);
 # elif defined(JS_CPU_X86)
-    static_assert(sizeof(context->thread.uts.ts32.__eip) == sizeof(void*),
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+    static_assert(sizeof(context->thread.uts.ts32.eip) == sizeof(void*),
                   "stored IP should be compile-time pointer-sized");
-    return reinterpret_cast<uint8_t**>(&context->thread.uts.ts32.__eip);
+    return reinterpret_cast<uint8_t**>(&context->thread.uts.ts32.eip);
+#else
+    static_assert(sizeof(context->thread.uts.ts32.eip) == sizeof(void*),
+                  "stored IP should be compile-time pointer-sized");
+    return reinterpret_cast<uint8_t**>(&context->thread.uts.ts32.eip);
+#endif
 # elif defined(JS_CPU_ARM) || defined(__aarch64__)
     static_assert(sizeof(context->thread.__pc) == sizeof(void*),
                   "stored IP should be compile-time pointer-sized");
@@ -834,6 +862,15 @@ typedef struct {
     mach_msg_type_number_t codeCnt;
     int64_t code[2];
 } Request__mach_exception_raise_t;
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+typedef struct {
+    mach_msg_header_t Head;
+    NDR_record_t NDR;
+    kern_return_t RetCode;
+} __Reply__exception_raise_t;
+#endif
+
 #pragma pack()
 
 // The full Mach message also includes a trailer.
@@ -1067,6 +1104,11 @@ MachExceptionHandler::install(JSRuntime* rt)
 
   error:
     uninstall();
+    if (kret == KERN_INVALID_ARGUMENT) {
+        // MACH_EXCEPTION_CODES is not on 10.4
+        // this is fine since ProcessHasSignalHandlers() gives a handler anyways
+        return true;
+    }
     return false;
 }
 
