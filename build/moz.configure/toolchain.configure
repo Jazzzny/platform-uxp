@@ -59,7 +59,7 @@ def have_yasm(value):
 
 set_config('HAVE_YASM', have_yasm)
 # Until the YASM variable is not necessary in old-configure.
-add_old_configure_assignment('YASM', have_yasm)
+add_old_configure_assignment('YASM', yasm)
 
 # MacOS deployment target version
 # ==============================================================
