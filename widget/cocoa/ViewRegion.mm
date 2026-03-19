@@ -12,6 +12,9 @@ ViewRegion::~ViewRegion()
 {
   for (size_t i = 0; i < mViews.Length(); i++) {
     [mViews[i] removeFromSuperview];
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
+    [mViews[i] release];
+#endif
   }
 }
 
@@ -47,9 +50,11 @@ ViewRegion::UpdateRegion(const LayoutDeviceIntRegion& aRegion,
         view = aViewCreationCallback();
         [aContainerView addSubview:view];
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
         // Now that the view is in the view hierarchy, it'll be kept alive by
         // its superview, so we can drop our reference.
         [view release];
+#endif
       }
       if (!NSEqualRects(rect, [view frame])) {
         [view setFrame:rect];
@@ -58,10 +63,17 @@ ViewRegion::UpdateRegion(const LayoutDeviceIntRegion& aRegion,
       mViews.AppendElement(view);
       iter.Next();
     } else {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
       // Our new region is made of fewer rects than the old region, so we can
       // remove this view. We only have a weak reference to it, so removing it
       // from the view hierarchy will release it.
       [viewsToRecycle[i] removeFromSuperview];
+#else
+      // Our new region is made of fewer rects than the old region, so we can
+      // remove this view.
+      [viewsToRecycle[i] removeFromSuperview];
+      [viewsToRecycle[i] release];
+#endif
     }
   }
 

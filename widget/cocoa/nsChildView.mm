@@ -4217,6 +4217,9 @@ NSEvent* gLastDragMouseDownEvent = nil;
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+  [mGLContext clearDrawable];
+#endif
   [mGLContext release];
   [mLastMouseDownEvent release];
   [mLastKeyDownEvent release];
@@ -4240,6 +4243,10 @@ NSEvent* gLastDragMouseDownEvent = nil;
 
 - (void)widgetDestroyed
 {
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+  [mGLContext clearDrawable];
+#endif
+
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   if (mTextInputHandler) {
     mTextInputHandler->OnDestroyWidget(mGeckoChild);
