@@ -47,6 +47,10 @@
 #include "NativeKeyBindings.h"
 #include "ComplexTextInputPanel.h"
 
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+#import <IOKit/IOKitLib.h>
+#endif
+
 #include "gfxContext.h"
 #include "gfxQuartzSurface.h"
 #include "gfxUtils.h"
@@ -1778,6 +1782,43 @@ nsChildView::ShouldUseOffMainThreadCompositing()
   if (!mView || ![[mView window] isOpaque] ||
       [[mView window] isKindOfClass:[PopupWindow class]])
     return false;
+
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+  static int sBadGPU = -1;
+  if (sBadGPU == -1) {
+    sBadGPU = 0;
+    CFMutableDictionaryRef matchingDict = IOServiceMatching("IOAccelerator");
+    io_iterator_t iterator;
+    if (IOServiceGetMatchingServices(kIOMasterPortDefault, matchingDict, &iterator) == kIOReturnSuccess) {
+        io_registry_entry_t registryEntry;
+        while ((registryEntry = IOIteratorNext(iterator))) {
+            CFTypeRef bundleName = IORegistryEntryCreateCFProperty(registryEntry,
+                                                                   CFSTR("IOGLBundleName"),
+                                                                   kCFAllocatorDefault,
+                                                                   0);
+            if (bundleName) {
+                if (CFGetTypeID(bundleName) == CFStringGetTypeID()) {
+                    NSString* str = (NSString*)bundleName;
+                    if ([str isEqualToString:@"GeForce2MXGLDriver"] ||
+                        [str isEqualToString:@"ATIRadeon8500GLDriver"] ||
+                        [str isEqualToString:@"GeForce3GLDriver"]) {
+                        sBadGPU = 1;
+                    }
+                }
+                CFRelease(bundleName);
+            }
+            IOObjectRelease(registryEntry);
+            if (sBadGPU == 1) break;
+        }
+        IOObjectRelease(iterator);
+    }
+  }
+
+  if (sBadGPU == 1) {
+    return false;
+  }
+
+#endif
 
   return nsBaseWidget::ShouldUseOffMainThreadCompositing();
 }
