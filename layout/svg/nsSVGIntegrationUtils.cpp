@@ -465,10 +465,6 @@ PaintMaskSurface(const PaintFramesParams& aParams,
 
       maskContext->Multiply(gfxMatrix::Translation(-devPixelOffsetToUserSpace));
       const nsStyleImage& maskImage = svgReset->mMask.mLayers[i].mImage;
-      if (maskImage.GetType() == nsStyleImageType::eStyleImageType_Gradient) {
-        fprintf(stderr, "mask layer %d: gradient image mask (backend=%d)\n", i,
-                int(aMaskDT->GetBackendType()));
-      }
       nsRenderingContext rc(maskContext);
       nsCSSRendering::PaintBGParams  params =
         nsCSSRendering::PaintBGParams::ForSingleLayer(*presContext,
