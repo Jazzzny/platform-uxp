@@ -371,6 +371,8 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
     // Block the non-QECI drivers for OpenGL. They just crash the browser
     // We only need this for 10.5 (PPC) as all drivers on Intel work.
     if (mIOGLBundleName.EqualsLiteral("ATIRadeon8500GLDriver") ||
+        mIOGLBundleName.EqualsLiteral("ATIRadeonGLDriver") ||
+        mIOGLBundleName.EqualsLiteral("ATIRage128GLDriver") ||
         mIOGLBundleName.EqualsLiteral("GeForce2MXGLDriver") ||
         mIOGLBundleName.EqualsLiteral("GeForce3GLDriver")) {
       if (aFeature == nsIGfxInfo::FEATURE_OPENGL_LAYERS) {

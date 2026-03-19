@@ -1801,6 +1801,8 @@ nsChildView::ShouldUseOffMainThreadCompositing()
                     NSString* str = (NSString*)bundleName;
                     if ([str isEqualToString:@"GeForce2MXGLDriver"] ||
                         [str isEqualToString:@"ATIRadeon8500GLDriver"] ||
+                        [str isEqualToString:@"ATIRadeonGLDriver"] ||
+                        [str isEqualToString:@"ATIRage128GLDriver"] ||
                         [str isEqualToString:@"GeForce3GLDriver"]) {
                         sBadGPU = 1;
                     }
