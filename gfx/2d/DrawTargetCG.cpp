@@ -247,11 +247,15 @@ InterpolationQualityFromSamplingFilter(SamplingFilter aSamplingFilter)
   switch (aSamplingFilter) {
     default:
     case SamplingFilter::LINEAR:
+    case SamplingFilter::GOOD:
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
       return kCGInterpolationLow;
+#else
+      // kCGInterpolationLow is ugly on 10.4
+      return kCGInterpolationDefault;
+#endif
     case SamplingFilter::POINT:
       return kCGInterpolationNone;
-    case SamplingFilter::GOOD:
-      return kCGInterpolationLow;
   }
 }
 
