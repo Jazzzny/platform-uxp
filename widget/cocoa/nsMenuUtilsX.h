@@ -10,6 +10,11 @@
 #include "nsMenuBaseX.h"
 
 #import <Cocoa/Cocoa.h>
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#import <Carbon/Carbon.h>
+extern "C" MenuRef _NSGetCarbonMenu(NSMenu* aMenu);
+#endif
+
 
 class nsIContent;
 class nsString;
