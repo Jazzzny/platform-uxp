@@ -2950,6 +2950,9 @@ nsChildView::UpdateTitlebarCGContext()
 #endif
 
   NSGraphicsContext* oldContext = [NSGraphicsContext currentContext];
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+  [oldContext retain];
+#endif
 
   CGContextSaveGState(ctx);
 
@@ -2960,6 +2963,9 @@ nsChildView::UpdateTitlebarCGContext()
     CGContextScaleCTM(ctx, 1, -1);
   }
   NSGraphicsContext* context = [NSGraphicsContext graphicsContextWithGraphicsPort:ctx flipped:[frameView isFlipped]];
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+  [context retain];
+#endif
   [NSGraphicsContext setCurrentContext:context];
 
   // Draw the title string.
@@ -3033,7 +3039,13 @@ nsChildView::UpdateTitlebarCGContext()
   DrawTitlebarHighlight([frameView bounds].size, [(ChildView*)mView cornerRadius],
                         DevPixelsToCocoaPoints(1));
 
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
   [NSGraphicsContext setCurrentContext:oldContext];
+  [oldContext release];
+  [context release];
+#else
+  [NSGraphicsContext setCurrentContext:oldContext];
+#endif
 
   CGContextRestoreGState(ctx);
 
@@ -4729,6 +4741,9 @@ extern "C" void CGContextSetCompositeOperation (CGContextRef,
   }
 
   NSGraphicsContext* oldContext = [NSGraphicsContext currentContext];
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+  [oldContext retain];
+#endif
   CGContextRef ctx = (CGContextRef)[oldContext graphicsPort];
   CGContextSaveGState(ctx);
   if ([oldContext isFlipped] != [frameView isFlipped]) {
@@ -4739,6 +4754,9 @@ extern "C" void CGContextSetCompositeOperation (CGContextRef,
   [frameView _drawTitleBar:[frameView bounds]];
   CGContextRestoreGState(ctx);
   [NSGraphicsContext setCurrentContext:oldContext];
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+  [oldContext release];
+#endif
 }
 
 - (void)drawTitlebarHighlight
