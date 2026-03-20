@@ -15,6 +15,7 @@
 
 #include "nsToolkit.h"
 #include "nsCocoaUtils.h"
+#include "nsCocoaFeatures.h"
 #include "nsCOMPtr.h"
 #include "prinrval.h"
 #include "nsString.h"
@@ -815,6 +816,15 @@ nsresult nsMenuX::SetupIcon()
     targetMenuItem->DispatchDOMEvent(NS_LITERAL_STRING("DOMMenuItemActive"), &handlerCalledPreventDefault);
   }
 }
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+- (void)menuNeedsUpdate:(NSMenu *)menu
+{
+  if (!nsCocoaFeatures::OnLeopardOrLater()) {
+    [self menuWillOpen:menu];
+  }
+}
+#endif
 
 - (void)menuWillOpen:(NSMenu *)menu
 {
