@@ -373,6 +373,7 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
     if (mIOGLBundleName.EqualsLiteral("ATIRadeon8500GLDriver") ||
         mIOGLBundleName.EqualsLiteral("ATIRadeonGLDriver") ||
         mIOGLBundleName.EqualsLiteral("ATIRage128GLDriver") ||
+        mIOGLBundleName.EqualsLiteral("ATIRageProGLDriver") ||
         mIOGLBundleName.EqualsLiteral("GeForce2MXGLDriver") ||
         mIOGLBundleName.EqualsLiteral("GeForce3GLDriver")) {
       if (aFeature == nsIGfxInfo::FEATURE_OPENGL_LAYERS) {

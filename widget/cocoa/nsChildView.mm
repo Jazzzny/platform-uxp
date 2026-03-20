@@ -1803,6 +1803,7 @@ nsChildView::ShouldUseOffMainThreadCompositing()
                         [str isEqualToString:@"ATIRadeon8500GLDriver"] ||
                         [str isEqualToString:@"ATIRadeonGLDriver"] ||
                         [str isEqualToString:@"ATIRage128GLDriver"] ||
+                        [str isEqualToString:@"ATIRageProGLDriver"] ||
                         [str isEqualToString:@"GeForce3GLDriver"]) {
                         sBadGPU = 1;
                     }
