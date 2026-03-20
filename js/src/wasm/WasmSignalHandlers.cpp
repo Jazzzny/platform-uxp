@@ -832,7 +832,7 @@ ContextToPC(EMULATOR_CONTEXT* context)
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     static_assert(sizeof(context->thread.uts.ts32.eip) == sizeof(void*),
                   "stored IP should be compile-time pointer-sized");
-    return reinterpret_cast<uint8_t**>(&context->thread.uts.ts32.eip);
+    return reinterpret_cast<uint8_t**>(&context->thread.uts.ts32.__eip);
 #else
     static_assert(sizeof(context->thread.uts.ts32.eip) == sizeof(void*),
                   "stored IP should be compile-time pointer-sized");
