@@ -817,15 +817,6 @@ nsresult nsMenuX::SetupIcon()
   }
 }
 
-#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
-- (void)menuNeedsUpdate:(NSMenu *)menu
-{
-  if (!nsCocoaFeatures::OnLeopardOrLater()) {
-    [self menuWillOpen:menu];
-  }
-}
-#endif
-
 - (void)menuWillOpen:(NSMenu *)menu
 {
   if (!mGeckoMenu)
