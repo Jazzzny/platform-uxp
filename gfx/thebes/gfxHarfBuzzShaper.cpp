@@ -327,7 +327,7 @@ gfxHarfBuzzShaper::GetGlyphHAdvance(hb_codepoint_t glyph) const
         glyph = mNumLongHMetrics - 1;
     }
 
-#if defined(XP_MACOSX) && (defined(__ppc__) || defined(__ppc64__))
+#if defined(XP_MACOSX) && !(defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6))
     if (MOZ_UNLIKELY(mFont->mSpacingKludge && glyph == mFont->GetSpaceGlyph())) {
         // This is one of the fonts where the spacing went awry,
         // invariably on an nbsp character that escaped into the run.

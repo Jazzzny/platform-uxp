@@ -884,7 +884,7 @@ gfxFont::GetGlyphHAdvance(DrawTarget* aDrawTarget, uint16_t aGID)
     if (!SetupCairoFont(aDrawTarget)) {
         return 0;
     }
-#if !defined(XP_MACOSX) || (defined(XP_MACOSX) && !(defined(__ppc__) || defined(__ppc64__)))
+#if !defined(XP_MACOSX) || (defined(XP_MACOSX) && (defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6))
     if (ProvidesGlyphWidths()) {
         return GetGlyphWidth(*aDrawTarget, aGID) / 65536.0;
     }
