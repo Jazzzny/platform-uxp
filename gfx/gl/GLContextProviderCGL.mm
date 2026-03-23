@@ -17,6 +17,7 @@
 
 #include <OpenGL/OpenGL.h>
 #import <IOKit/IOKitLib.h>
+#include <AvailabilityMacros.h>
 
 // When running inside a VM, creating an accelerated OpenGL context usually
 // fails. Uncomment this line to emulate that behavior.

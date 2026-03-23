@@ -9,6 +9,7 @@
 #include "npapi.h"
 #include "mozilla/gfx/QuartzSupport.h"
 #include "nsRect.h"
+#include <AvailabilityMacros.h>
 
 namespace mozilla {
 namespace plugins {

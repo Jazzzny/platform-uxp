@@ -4,6 +4,11 @@
 * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "TextureHostBasic.h"
+
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 #if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include "MacIOSurfaceTextureHostBasic.h"
 #endif

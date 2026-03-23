@@ -26,6 +26,7 @@
 
 #ifdef XP_MACOSX
 #include "SharedSurfaceIO.h"
+#include <AvailabilityMacros.h>
 #endif
 
 #ifdef GL_PROVIDER_GLX

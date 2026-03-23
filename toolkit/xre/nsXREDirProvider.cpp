@@ -50,6 +50,7 @@
 #endif
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
+#include <AvailabilityMacros.h>
 // for chflags()
 #include <sys/stat.h>
 #include <unistd.h>

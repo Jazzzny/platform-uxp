@@ -19,6 +19,10 @@
 #include "unicode/unorm.h"
 #include "unicode/utext.h"
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 static const UNormalizer2 * sNormalizer = nullptr;
 
 #include <algorithm>

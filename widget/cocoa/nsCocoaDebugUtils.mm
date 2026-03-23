@@ -5,7 +5,7 @@
 
 #include "nsCocoaDebugUtils.h"
 
-#include <AvailabilityMacros.h>
+#import <Cocoa/Cocoa.h>
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 // this does not work on 10.4
 
@@ -16,8 +16,6 @@
 #include <execinfo.h>
 #include <asl.h>
 #include <unistd.h>
-
-#import <Cocoa/Cocoa.h>
 
 static char gProcPath[PROC_PIDPATHINFO_MAXSIZE] = {0};
 static char gBundleID[MAXPATHLEN] = {0};

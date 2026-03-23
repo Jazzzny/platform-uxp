@@ -16,6 +16,10 @@
 #include "mozilla/FileUtils.h"
 #include "mozilla/Sprintf.h"
 
+#ifdef XP_DARWIN
+#include <AvailabilityMacros.h>
+#endif
+
 using namespace mozilla;
 
 #define XPCOM_DEPENDENT_LIBS_LIST "dependentlibs.list"

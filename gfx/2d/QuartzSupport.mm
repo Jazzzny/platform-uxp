@@ -13,6 +13,8 @@
 #include <dlfcn.h>
 #include "GLDefs.h"
 
+#include <AvailabilityMacros.h>
+
 #define IOSURFACE_FRAMEWORK_PATH \
   "/System/Library/Frameworks/IOSurface.framework/IOSurface"
 #define OPENGL_FRAMEWORK_PATH \

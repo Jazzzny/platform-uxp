@@ -15,6 +15,8 @@
 
 #include <dlfcn.h>
 
+#include <AvailabilityMacros.h>
+
 using namespace mozilla;
 
 // CoreText shaper is unsupported on 10.4

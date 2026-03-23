@@ -29,6 +29,7 @@
 
 #include <dlfcn.h>
 #import <Carbon/Carbon.h>
+#include <AvailabilityMacros.h>
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
 #import <objc/objc.h>
 #endif

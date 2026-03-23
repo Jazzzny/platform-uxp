@@ -6,6 +6,7 @@
 #ifndef MacIOSurface_h__
 #define MacIOSurface_h__
 #ifdef XP_DARWIN
+#include <AvailabilityMacros.h>
 
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
 #include "mozilla/RefCounted.h"

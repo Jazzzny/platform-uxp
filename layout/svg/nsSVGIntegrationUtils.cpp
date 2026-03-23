@@ -27,6 +27,10 @@
 #include "nsCSSRendering.h"
 #include "mozilla/Unused.h"
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 using namespace mozilla;
 using namespace mozilla::layers;
 using namespace mozilla::gfx;

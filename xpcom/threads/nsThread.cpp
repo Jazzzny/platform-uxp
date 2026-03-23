@@ -44,6 +44,10 @@
 #include <sched.h>
 #endif
 
+#ifdef XP_DARWIN
+#include <AvailabilityMacros.h>
+#endif
+
 #define HAVE_UALARM _BSD_SOURCE || (_XOPEN_SOURCE >= 500 ||                 \
                       _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED) &&           \
                       !(_POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700)

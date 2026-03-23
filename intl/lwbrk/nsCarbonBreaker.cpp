@@ -4,6 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <AvailabilityMacros.h>
 #include <stdint.h>
 #include "nsDebug.h"
 #include "nscore.h"

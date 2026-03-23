@@ -6,6 +6,10 @@
 #ifndef dom_plugins_PluginInstanceParent_h
 #define dom_plugins_PluginInstanceParent_h 1
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 #include "mozilla/plugins/PPluginInstanceParent.h"
 #include "mozilla/plugins/PluginScriptableObjectParent.h"
 #if defined(OS_WIN)

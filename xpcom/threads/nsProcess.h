@@ -10,6 +10,10 @@
 #define PROCESSMODEL_WINAPI
 #endif
 
+#ifdef XP_DARWIN
+#include <AvailabilityMacros.h>
+#endif
+
 #include "mozilla/Attributes.h"
 #include "mozilla/Mutex.h"
 #include "nsIProcess.h"

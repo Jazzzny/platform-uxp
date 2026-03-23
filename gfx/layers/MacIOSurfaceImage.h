@@ -11,6 +11,8 @@
 #include "mozilla/gfx/Point.h"
 #include "mozilla/layers/TextureClient.h"
 
+#include <AvailabilityMacros.h>
+
 namespace mozilla {
 
 namespace layers {

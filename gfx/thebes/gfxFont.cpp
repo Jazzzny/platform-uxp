@@ -50,6 +50,10 @@
 #include "gfxWindowsPlatform.h"
 #endif
 
+#ifdef XP_DARWIN
+#include <AvailabilityMacros.h>
+#endif
+
 #include "harfbuzz/hb.h"
 #include "harfbuzz/hb-ot.h"
 #include "graphite2/Font.h"

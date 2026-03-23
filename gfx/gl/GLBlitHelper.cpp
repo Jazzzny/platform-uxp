@@ -14,6 +14,10 @@
 #include "mozilla/gfx/Matrix.h"
 #include "mozilla/UniquePtr.h"
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 #if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include "MacIOSurfaceImage.h"
 #include "GLContextCGL.h"

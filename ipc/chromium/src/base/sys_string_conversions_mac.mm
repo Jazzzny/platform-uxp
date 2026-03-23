@@ -5,6 +5,7 @@
 #include "base/sys_string_conversions.h"
 
 #import <Foundation/Foundation.h>
+#include <AvailabilityMacros.h>
 
 #include <vector>
 

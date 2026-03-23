@@ -112,6 +112,7 @@ static const TCHAR kPluginIgnoreSubclassProperty[] = TEXT("PluginIgnoreSubclassP
 #elif defined(XP_MACOSX)
 #include <ApplicationServices/ApplicationServices.h>
 #include "PluginUtilsOSX.h"
+#include <AvailabilityMacros.h>
 
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
 static CGColorSpaceRef CreateSystemColorSpace() {

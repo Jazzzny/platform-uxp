@@ -21,6 +21,7 @@
 #include "SourceSurfaceCG.h"
 #include "GLDefs.h"
 #include "Tools.h"
+#include <AvailabilityMacros.h>
 
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
 typedef float CGFloat; // 10.4

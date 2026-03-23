@@ -11,6 +11,8 @@
 
 #include "cairo-error-private.h"
 
+#include <AvailabilityMacros.h>
+
 /**
  * SECTION:cairo-quartz-fonts
  * @Title: Quartz (CGFont) Fonts

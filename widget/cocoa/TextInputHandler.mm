@@ -5,6 +5,7 @@
 
 
 // this entire file is gated for 10.5, conditional code for 10.4 is in nschildview
+#include <AvailabilityMacros.h>
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 
 #include "TextInputHandler.h"

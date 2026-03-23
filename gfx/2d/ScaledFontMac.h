@@ -13,6 +13,8 @@
 #include <CoreText/CoreText.h>
 #endif
 
+#include <AvailabilityMacros.h>
+
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
 // For 10.4
 typedef unsigned int PRUint32;

@@ -23,6 +23,7 @@
 #include "mozilla/Types.h" // for decltype
 #include "mozilla/Vector.h"
 #include "CGTextDrawing.h"
+#include <AvailabilityMacros.h>
 
 using namespace std;
 

@@ -21,6 +21,7 @@
 #include <windows.h>
 #elif defined(XP_MACOSX)
 #include <sys/resource.h>
+#include <AvailabilityMacros.h>
 #endif
 
 using namespace mozilla;

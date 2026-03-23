@@ -10,6 +10,7 @@
 #include "gfxFont.h"
 #include "cairo.h"
 #include <ApplicationServices/ApplicationServices.h>
+#include <AvailabilityMacros.h>
 
 class MacOSFontEntry;
 

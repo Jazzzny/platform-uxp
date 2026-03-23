@@ -9,6 +9,7 @@
 #include <mach/mach.h>
 #include <cmath>
 #import <IOKit/IOKitLib.h>
+#include <AvailabilityMacros.h>
 
 #define MEAN_GRAVITY 9.80665
 #define DEFAULT_SENSOR_POLL 100

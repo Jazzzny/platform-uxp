@@ -5,6 +5,10 @@
 
 #include "SharedSurfaceIO.h"
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 
 #include "GLContextCGL.h"

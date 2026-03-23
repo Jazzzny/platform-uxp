@@ -17,6 +17,9 @@
 #include "sys/stat.h"
 #include "sys/statvfs.h"
 #include "sys/wait.h"
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
 #if (defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5) || !defined(XP_MACOSX)
 #include <spawn.h>
 #endif

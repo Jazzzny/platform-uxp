@@ -14,6 +14,8 @@
 #endif
 #include "Tools.h"
 
+#include <AvailabilityMacros.h>
+
 namespace mozilla {
 namespace gfx {
 

@@ -6,6 +6,10 @@
 #ifndef dom_plugins_PluginInstanceChild_h
 #define dom_plugins_PluginInstanceChild_h 1
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 #include "mozilla/EventForwards.h"
 #include "mozilla/plugins/PPluginInstanceChild.h"
 #include "mozilla/plugins/PluginScriptableObjectChild.h"

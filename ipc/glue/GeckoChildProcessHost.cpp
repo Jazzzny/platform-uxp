@@ -37,6 +37,10 @@
 #define NS_TASKBAR_CONTRACTID "@mozilla.org/windows-taskbar;1"
 #endif
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 #include "nsTArray.h"
 #include "nsClassHashtable.h"
 #include "nsHashKeys.h"

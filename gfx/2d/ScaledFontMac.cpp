@@ -17,6 +17,8 @@
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
+#include <AvailabilityMacros.h>
+
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
 #include "../thebes/PhonyCoreText.h"
 #include "nsTArray.h"

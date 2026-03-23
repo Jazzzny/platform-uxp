@@ -13,6 +13,8 @@
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
+#include <AvailabilityMacros.h>
+
 namespace mozilla {
 namespace gfx {
 

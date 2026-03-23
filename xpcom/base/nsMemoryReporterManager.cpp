@@ -421,6 +421,7 @@ ResidentFastDistinguishedAmount(int64_t* aN)
 
 #elif defined(XP_MACOSX)
 
+#include <AvailabilityMacros.h>
 #include <mach/mach_init.h>
 #include <mach/mach_vm.h>
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5

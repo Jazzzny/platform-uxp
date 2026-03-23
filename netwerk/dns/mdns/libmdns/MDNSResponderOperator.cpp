@@ -27,7 +27,8 @@
 
 #include "nsASocketHandler.h"
 
-
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
 #if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
 #include <dns_sd.h>
 #define kDNSServiceProtocol_IPv4 0x01
@@ -41,6 +42,7 @@ static inline DNSServiceErrorType DNSServiceGetAddrInfo(DNSServiceRef *sdRef,
   (void)hostname; (void)callBack; (void)context;
   return kDNSServiceErr_Unsupported;
 }
+#endif
 #endif
 
 namespace mozilla {

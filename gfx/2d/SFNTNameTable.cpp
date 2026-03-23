@@ -11,6 +11,7 @@
 
 #if defined(XP_MACOSX)
 #include <CoreFoundation/CoreFoundation.h>
+#include <AvailabilityMacros.h>
 #endif
 
 namespace mozilla {

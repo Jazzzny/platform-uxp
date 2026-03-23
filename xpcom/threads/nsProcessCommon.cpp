@@ -34,6 +34,7 @@
 #include "nsReadableUtils.h"
 #else
 #ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include <crt_externs.h>
 #include <spawn.h>
