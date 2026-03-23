@@ -1,6 +1,6 @@
 /* -----------------------------------------------------------------------
-   darwin_closure.S - Copyright (c) 2002, 2003, 2004, 2010, 
-   Free Software Foundation, Inc. 
+   darwin_closure.S - Copyright (c) 2002, 2003, 2004, 2010,
+   Free Software Foundation, Inc.
    based on ppc_closure.S
 
    PowerPC Assembly glue.
@@ -34,7 +34,7 @@
 #define MODE_CHOICE(x, y) x
 #endif
 
-#define machine_choice	MODE_CHOICE(ppc7400,ppc64)
+#define machine_choice	MODE_CHOICE(ppc750,ppc64)
 
 ; Define some pseudo-opcodes for size-independent load & store of GPRs ...
 #define lgu		MODE_CHOICE(lwzu, ldu)
@@ -54,7 +54,7 @@
 #define SAVED_CR_OFFSET	MODE_CHOICE(4,8)	/* save position for CR */
 #define SAVED_LR_OFFSET	MODE_CHOICE(8,16)	/* save position for lr */
 
-/* WARNING: if ffi_type is changed... here be monsters.  
+/* WARNING: if ffi_type is changed... here be monsters.
    Offsets of items within the result type.  */
 #define FFI_TYPE_TYPE	MODE_CHOICE(6,10)
 #define FFI_TYPE_ELEM	MODE_CHOICE(8,16)
@@ -404,9 +404,9 @@ Lstructend:
 
 	/* OK, frustratingly, the process of saving the struct to mem might have
 	   messed with the FPRs, so we have to re-load them :(.
-	   We`ll use our FPRs space again - calling: 
-	   void darwin64_pass_struct_floats (ffi_type *s, char *src, 
-					     unsigned *nfpr, double **fprs) 
+	   We`ll use our FPRs space again - calling:
+	   void darwin64_pass_struct_floats (ffi_type *s, char *src,
+					     unsigned *nfpr, double **fprs)
 	   We`ll temporarily pinch the first two slots of the param area for local
 	   vars used by the routine.  */
 	xor	r6,r6,r6
@@ -419,7 +419,7 @@ Lstructend:
 	lg	r3,LINKAGE_SIZE(r1)		; ffi_type * result_type.
 	bl	PASS_STR_FLOATS			; get struct floats into FPR save space.
 	/* See if we used any floats  */
-	lwz	r0,(SAVE_SIZE-RESULT_BYTES)(r1)	
+	lwz	r0,(SAVE_SIZE-RESULT_BYTES)(r1)
 	cmpi	0,r0,0
 	beq	Lstructints			; nope.
 	/* OK load `em up... */
@@ -458,7 +458,7 @@ Lfinish:
 	blr
 Lendcode:
 	.align 1
-	
+
 /* END(ffi_closure_ASM)  */
 
 /* EH frame stuff.  */

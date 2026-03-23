@@ -140,8 +140,23 @@ init_simd(void)
 
   simd_support = 0;
 
-#if defined(__ALTIVEC__) || defined(__APPLE__)
+#if defined(__ALTIVEC__) && !defined(__APPLE__) && !defined(__MACH__)
   simd_support |= JSIMD_ALTIVEC;
+#elif defined(__APPLE__) && defined(__MACH__)
+  #include <sys/sysctl.h>
+  // from gfx/qcms/transformn.c
+  {
+    int sels[2] = {CTL_HW, HW_VECTORUNIT};
+    static int available = -1;
+    size_t len = sizeof(available);
+    int err;
+
+    if (available == -1) {
+      err = sysctl(sels, 2, &available, &len, NULL, 0);
+    }
+    if (available > 0)
+      simd_support |= JSIMD_ALTIVEC;
+  }
 #elif defined(__linux__) || defined(ANDROID) || defined(__ANDROID__)
   while (!parse_proc_cpuinfo(bufsize)) {
     bufsize *= 2;
