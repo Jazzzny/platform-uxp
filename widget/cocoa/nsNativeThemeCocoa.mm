@@ -2354,6 +2354,7 @@ nsNativeThemeCocoa::DrawStatusBar(CGContextRef cgContext, const HIRect& inBoxRec
   if (inBoxRect.size.height < 2.0f)
     return;
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   CGContextSaveGState(cgContext);
   CGContextClipToRect(cgContext, inBoxRect);
 
@@ -2375,6 +2376,16 @@ nsNativeThemeCocoa::DrawStatusBar(CGContextRef cgContext, const HIRect& inBoxRec
             nil]);
 
   CGContextRestoreGState(cgContext);
+#else
+  // No CoreUI here.
+  // Instead, use HIThemeDrawBackground to paint brushed metal.
+  HIThemeBackgroundDrawInfo bdi;
+  bdi.version = 0;
+  bdi.state = IsActive(aFrame, YES) ? kThemeStateActive : kThemeStateInactive;
+  bdi.kind = kThemeBackgroundMetal;
+
+  HIThemeDrawBackground(&inBoxRect, &bdi, cgContext, HITHEME_ORIENTATION);
+#endif
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
