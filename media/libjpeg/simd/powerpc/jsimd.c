@@ -143,6 +143,8 @@ init_simd(void)
 #if defined(__ALTIVEC__) && !defined(__APPLE__) && !defined(__MACH__)
   simd_support |= JSIMD_ALTIVEC;
 #elif defined(__APPLE__) && defined(__MACH__)
+  #include <AvailabilityMacros.h>
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
   #include <sys/sysctl.h>
   // from gfx/qcms/transformn.c
   {
@@ -157,6 +159,12 @@ init_simd(void)
     if (available > 0)
       simd_support |= JSIMD_ALTIVEC;
   }
+#else
+  // 10.5 doesn't run on G3, so always have altivec here. additionally,
+  // altivec detection causes /MacOSX10.5.sdk/usr/include/sys/_structs.h:191:1: error: invalid storage class for function ‘__darwin_fd_isset’
+  // on 10.5 SDK (?)
+  simd_support |= JSIMD_ALTIVEC;
+#endif
 #elif defined(__linux__) || defined(ANDROID) || defined(__ANDROID__)
   while (!parse_proc_cpuinfo(bufsize)) {
     bufsize *= 2;

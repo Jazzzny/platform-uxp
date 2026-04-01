@@ -4620,7 +4620,11 @@ NSEvent* gLastDragMouseDownEvent = nil;
   // Make the context opaque for fullscreen (since it performs better), and transparent
   // for windowed (since we need it for rounded corners).
   GLint opaque = aOpaque ? 1 : 0;
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
   [mGLContext setValues:(const long *)&opaque forParameter:NSOpenGLCPSurfaceOpacity];
+#else
+  [mGLContext setValues:&opaque forParameter:NSOpenGLCPSurfaceOpacity];
+#endif
   CGLUnlockContext((CGLContextObj)[mGLContext CGLContextObj]);
 }
 
@@ -7632,7 +7636,6 @@ GetUSLayoutCharFromKeyTranslate(UInt32 aKeyCode, UInt32 aModifiers)
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
 }
-#endif
 
 #pragma mark -
 
@@ -7841,6 +7844,7 @@ static const char* ToEscapedString(NSString* aString, nsAutoCString& aBuf)
 }
 // Double whew!
 // End of NSTextInput
+#endif
 
 #pragma mark -
 
