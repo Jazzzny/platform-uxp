@@ -299,6 +299,9 @@ GLContextProviderCGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated
                 }
                 CFRelease(bundleName);
             }
+            if (!bundleName) {
+                forceSoftware = true;
+            }
             IOObjectRelease(registryEntry);
             if (forceSoftware) break;
         }

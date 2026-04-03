@@ -375,7 +375,9 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
         mIOGLBundleName.EqualsLiteral("ATIRage128GLDriver") ||
         mIOGLBundleName.EqualsLiteral("ATIRageProGLDriver") ||
         mIOGLBundleName.EqualsLiteral("GeForce2MXGLDriver") ||
-        mIOGLBundleName.EqualsLiteral("GeForce3GLDriver")) {
+        mIOGLBundleName.EqualsLiteral("GeForce3GLDriver") ||
+        // block too if no IOGLBundleName, this means software driver which is also too old
+        mIOGLBundleName.IsEmpty()) {
       if (aFeature == nsIGfxInfo::FEATURE_OPENGL_LAYERS) {
         *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DEVICE;
         aFailureId = "FEATURE_FAILURE_MAC_UNSUPPORTED_GPU";
