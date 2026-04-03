@@ -279,6 +279,7 @@ GLContextProviderCGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated
     CFMutableDictionaryRef matchingDict = IOServiceMatching("IOAccelerator");
     io_iterator_t iterator;
     if (IOServiceGetMatchingServices(kIOMasterPortDefault, matchingDict, &iterator) == kIOReturnSuccess) {
+        bool foundAnyGLDriver = false;
         io_registry_entry_t registryEntry;
         while ((registryEntry = IOIteratorNext(iterator))) {
             CFTypeRef bundleName = IORegistryEntryCreateCFProperty(registryEntry,
@@ -286,6 +287,7 @@ GLContextProviderCGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated
                                                                    kCFAllocatorDefault,
                                                                    0);
             if (bundleName) {
+                foundAnyGLDriver = true;
                 if (CFGetTypeID(bundleName) == CFStringGetTypeID()) {
                     NSString* str = (NSString*)bundleName;
                     if ([str isEqualToString:@"GeForce2MXGLDriver"] ||
@@ -299,13 +301,13 @@ GLContextProviderCGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated
                 }
                 CFRelease(bundleName);
             }
-            if (!bundleName) {
-                forceSoftware = true;
-            }
             IOObjectRelease(registryEntry);
             if (forceSoftware) break;
         }
         IOObjectRelease(iterator);
+        if (!foundAnyGLDriver) {
+            forceSoftware = true;
+        }
     }
 
     if (forceSoftware) {

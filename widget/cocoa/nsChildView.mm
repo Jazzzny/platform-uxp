@@ -1786,6 +1786,7 @@ nsChildView::ShouldUseOffMainThreadCompositing()
   static int sBadGPU = -1;
   if (sBadGPU == -1) {
     sBadGPU = 0;
+    bool foundAnyGLDriver = false;
     CFMutableDictionaryRef matchingDict = IOServiceMatching("IOAccelerator");
     io_iterator_t iterator;
     if (IOServiceGetMatchingServices(kIOMasterPortDefault, matchingDict, &iterator) == kIOReturnSuccess) {
@@ -1796,6 +1797,7 @@ nsChildView::ShouldUseOffMainThreadCompositing()
                                                                    kCFAllocatorDefault,
                                                                    0);
             if (bundleName) {
+                foundAnyGLDriver = true;
                 if (CFGetTypeID(bundleName) == CFStringGetTypeID()) {
                     NSString* str = (NSString*)bundleName;
                     if ([str isEqualToString:@"GeForce2MXGLDriver"] ||
@@ -1809,14 +1811,14 @@ nsChildView::ShouldUseOffMainThreadCompositing()
                 }
                 CFRelease(bundleName);
             }
-            // also block if no bundle was found,
-            if (!bundleName) {
-                sBadGPU = 1;
-            }
             IOObjectRelease(registryEntry);
             if (sBadGPU == 1) break;
         }
         IOObjectRelease(iterator);
+    }
+    // Also block if no bundle was found at all
+    if (!foundAnyGLDriver) {
+        sBadGPU = 1;
     }
   }
 
