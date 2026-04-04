@@ -24,6 +24,9 @@ class nsChildView;
 namespace mozilla {
 namespace widget {
 
+// this is not used on 10.4
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+
 // Key code constants
 enum
 {
@@ -528,7 +531,7 @@ protected:
     KeyEventState() : mKeyEvent(nullptr)
     {
       Clear();
-    }    
+    }
 
     explicit KeyEventState(NSEvent* aNativeKeyEvent) : mKeyEvent(nullptr)
     {
@@ -1187,6 +1190,8 @@ protected:
   void DispatchKeyEventForFlagsChanged(NSEvent* aNativeEvent,
                                        bool aDispatchKeyDown);
 };
+
+#endif
 
 } // namespace widget
 } // namespace mozilla

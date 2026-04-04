@@ -87,7 +87,12 @@ SpeechTaskCallback::OnPause()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
   [mSpeechSynthesizer pauseSpeakingAtBoundary:NSSpeechImmediateBoundary];
+#else
+  NS_WARNING("mSpeechSynthesizer Pause/Resume not supported in 10.4");
+  return NS_ERROR_FAILURE;
+#endif
   if (!mTask) {
     // When calling pause() on child porcess, it may not receive end event
     // from chrome process yet.
@@ -121,8 +126,12 @@ SpeechTaskCallback::OnVolumeChanged(float aVolume)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
   [mSpeechSynthesizer setObject:[NSNumber numberWithFloat:aVolume]
                     forProperty:NSSpeechVolumeProperty error:nil];
+#else
+  NS_WARNING("mSpeechSynthesizer Volume control not supported in 10.4");
+#endif
   return NS_OK;
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
@@ -310,9 +319,13 @@ EnumVoicesRunnable::Run()
 
     nsCocoaUtils::GetStringForNSString([attr objectForKey:NSVoiceName], item.mName);
 
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     nsCocoaUtils::GetStringForNSString(
       [attr objectForKey:NSVoiceLocaleIdentifier], item.mLocale);
     item.mLocale.ReplaceChar('_', '-');
+#else
+    item.mLocale.AssignLiteral("en-us");
+#endif
 
     item.mUri.AssignLiteral("urn:moz-tts:osx:");
     item.mUri.Append(identifier);
@@ -392,6 +405,7 @@ OSXSpeechSynthesizerService::Speak(const nsAString& aText,
   NSString* identifier = nsCocoaUtils::ToNSString(Substring(aUri, 16));
   [synth setVoice:identifier];
 
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
   // default rate is 180-220
   [synth setObject:[NSNumber numberWithInt:aRate * 200]
          forProperty:NSSpeechRateProperty error:nil];
@@ -406,6 +420,7 @@ OSXSpeechSynthesizerService::Speak(const nsAString& aText,
     [synth setObject:[NSNumber numberWithInt:newPitch]
            forProperty:NSSpeechPitchBaseProperty error:nil];
   }
+#endif
 
   nsAutoString escapedText;
   // We need to map the the offsets from the given text to the escaped text.

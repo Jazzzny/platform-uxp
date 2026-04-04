@@ -79,7 +79,7 @@ static void ToolkitSleepWakeCallback(void *refCon, io_service_t service, natural
       nsToolkit::PostSleepWakeNotification(NS_WIDGET_SLEEP_OBSERVER_TOPIC);
       ::IOAllowPowerChange(gRootPort, (long)messageArgument);
       break;
-      
+
     case kIOMessageCanSystemSleep:
       // In this case, the computer has been idle for several minutes
       // and will sleep soon so you must either allow or cancel
@@ -88,7 +88,7 @@ static void ToolkitSleepWakeCallback(void *refCon, io_service_t service, natural
       // In Mozilla's case, we always allow sleep.
       ::IOAllowPowerChange(gRootPort,(long)messageArgument);
       break;
-      
+
     case kIOMessageSystemHasPoweredOn:
       // Handle wakeup.
       nsToolkit::PostSleepWakeNotification(NS_WIDGET_WAKE_OBSERVER_TOPIC);
@@ -318,7 +318,13 @@ nsresult nsToolkit::SwizzleMethods(Class aClass, SEL orgMethod, SEL posedMethod,
   if (!original || !posed)
     return NS_ERROR_FAILURE;
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   method_exchangeImplementations(original, posed);
+#else
+  IMP aMethodImp = original->method_imp;
+  original->method_imp = posed->method_imp;
+  posed->method_imp = aMethodImp;
+#endif
 
   return NS_OK;
 

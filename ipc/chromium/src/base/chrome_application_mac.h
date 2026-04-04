@@ -23,9 +23,15 @@
  // Array of objects implementing the CrApplicationEventHookProtocol
   scoped_nsobject<NSMutableArray> eventHooks_;
 }
+
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 @property(readonly,
           getter=isHandlingSendEvent,
           nonatomic) BOOL handlingSendEvent;
+#else
+- (BOOL)isHandlingSendEvent;
+- (void)setHandlingSendEvent:(BOOL)flag;
+#endif
 
 // Add or remove an event hook to be called for every sendEvent:
 // that the application receives.  These handlers are called before

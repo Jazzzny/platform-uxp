@@ -27,6 +27,10 @@
 #include "nsCSSRendering.h"
 #include "mozilla/Unused.h"
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 using namespace mozilla;
 using namespace mozilla::layers;
 using namespace mozilla::gfx;
@@ -465,10 +469,6 @@ PaintMaskSurface(const PaintFramesParams& aParams,
 
       maskContext->Multiply(gfxMatrix::Translation(-devPixelOffsetToUserSpace));
       const nsStyleImage& maskImage = svgReset->mMask.mLayers[i].mImage;
-      if (maskImage.GetType() == nsStyleImageType::eStyleImageType_Gradient) {
-        fprintf(stderr, "mask layer %d: gradient image mask (backend=%d)\n", i,
-                int(aMaskDT->GetBackendType()));
-      }
       nsRenderingContext rc(maskContext);
       nsCSSRendering::PaintBGParams  params =
         nsCSSRendering::PaintBGParams::ForSingleLayer(*presContext,
@@ -541,18 +541,18 @@ CreateAndPaintMaskSurface(const PaintFramesParams& aParams,
   }
 
   RefPtr<DrawTarget> maskDT;
-  if (ctx.GetDrawTarget()->GetBackendType() == BackendType::COREGRAPHICS) {
 #if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
+  if (ctx.GetDrawTarget()->GetBackendType() == BackendType::COREGRAPHICS) {
     maskDT = Factory::CreateDrawTarget(BackendType::SKIA, maskSurfaceRect.Size(),
                                        SurfaceFormat::A8);
-#else
-    maskDT = Factory::CreateDrawTarget(BackendType::COREGRAPHICS, maskSurfaceRect.Size(),
-                                       SurfaceFormat::A8);
-#endif
   } else {
     maskDT = ctx.GetDrawTarget()->CreateSimilarDrawTarget(maskSurfaceRect.Size(),
                                                           SurfaceFormat::A8);
   }
+#else
+  maskDT = ctx.GetDrawTarget()->CreateSimilarDrawTarget(maskSurfaceRect.Size(),
+                                                        SurfaceFormat::A8);
+#endif
   if (!maskDT || !maskDT->IsValid()) {
     paintResult.result = DrawResult::TEMPORARY_ERROR;
     return paintResult;

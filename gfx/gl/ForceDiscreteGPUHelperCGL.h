@@ -7,9 +7,14 @@
 #define ForceDiscreteGPUHelperCGL_h_
 
 #include <OpenGL/OpenGL.h>
+#include <AvailabilityMacros.h>
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#define CGLReleasePixelFormat CGLDestroyPixelFormat
+#endif
 
 /** This RAII helper guarantees that we're on the discrete GPU during its lifetime.
- * 
+ *
  * As long as any ForceDiscreteGPUHelperCGL object is alive, we're on the discrete GPU.
  */
 class ForceDiscreteGPUHelperCGL
@@ -23,7 +28,11 @@ public:
         // BSD-style license, (c) The Chromium Authors
         CGLPixelFormatAttribute attribs[1];
         attribs[0] = static_cast<CGLPixelFormatAttribute>(0);
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+        long num_pixel_formats = 0;
+#else
         GLint num_pixel_formats = 0;
+#endif
         CGLChoosePixelFormat(attribs, &mPixelFormatObj, &num_pixel_formats);
     }
 

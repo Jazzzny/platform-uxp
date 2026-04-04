@@ -8,6 +8,8 @@ import os
 import re
 import sys
 
+sys.exit(0)
+
 if sys.platform == 'darwin':
   if len(sys.argv) <= 1:
     print("find_sdk_uxp.py: error: Not enough arguments")
@@ -37,4 +39,4 @@ if sys.platform == 'darwin':
   else:
     print("find_sdk_uxp.py: error: Unknown MacOS X SDK version")
 
-sys.exit(0) 
+sys.exit(0)

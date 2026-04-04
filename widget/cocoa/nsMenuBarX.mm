@@ -821,6 +821,14 @@ static BOOL gMenuItemsExecuteCommands = YES;
     return YES;
   }
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  // Shortcut this logic for 10.4, it seems to be required for key combinations
+  // to be handled properly at all. We can't return no; the event gets handled
+  // twice. -- Cameron
+  return [super performKeyEquivalent:theEvent];
+#endif
+
+
   // Return NO so that we can handle the event via NSView's "keyDown:".
   return NO;
 }
@@ -979,6 +987,12 @@ static BOOL gMenuItemsExecuteCommands = YES;
   [self _overrideClassOfMenuItem:newItem];
   return newItem;
 }
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+struct objc10_object {
+	Class	isa;
+};
+#endif
 
 - (void) _overrideClassOfMenuItem:(NSMenuItem *)menuItem
 {

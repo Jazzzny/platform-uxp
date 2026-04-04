@@ -44,6 +44,10 @@
 #include <sched.h>
 #endif
 
+#ifdef XP_DARWIN
+#include <AvailabilityMacros.h>
+#endif
+
 #define HAVE_UALARM _BSD_SOURCE || (_XOPEN_SOURCE >= 500 ||                 \
                       _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED) &&           \
                       !(_POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700)
@@ -381,10 +385,12 @@ SetThreadAffinity(unsigned int cpu)
   // to run them on the same processor. To run threads on different processors,
   // tag them as belonging to different affinity sets. Tag 0, the default, means
   // "no affinity" so let's pretend each CPU has its own tag `cpu+1`.
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   thread_affinity_policy_data_t policy;
   policy.affinity_tag = cpu + 1;
   MOZ_ALWAYS_TRUE(thread_policy_set(mach_thread_self(), THREAD_AFFINITY_POLICY,
                                     &policy.affinity_tag, 1) == KERN_SUCCESS);
+#endif
 #elif defined(XP_WIN)
   MOZ_ALWAYS_TRUE(SetThreadIdealProcessor(GetCurrentThread(), cpu) != -1);
 #endif

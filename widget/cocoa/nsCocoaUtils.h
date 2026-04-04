@@ -8,6 +8,36 @@
 
 #import <Cocoa/Cocoa.h>
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+// from tenfourfox:
+// "Borrowed" in part from the QTKit framework's QTKitDefines.h.  This is
+// needed when building on OS X Tiger (10.4.X) or with a 10.4 SDK.  It won't
+// be used when building on Leopard (10.5.X) or higher (or with a 10.5 or
+// higher SDK).
+//
+// These definitions for NSInteger and NSUInteger are the 32-bit ones -- since
+// we assume we'll always be building 32-bit binaries when building on Tiger
+// (or with a 10.4 SDK).
+//
+// jazzzny - 10.4 doesn't actually support 64-bit GUI binaries, and we can't even
+// build for 64-bit before 10.6 anyways.
+
+typedef float CGFloat;
+#define CGFLOAT_MIN FLT_MIN
+#define CGFLOAT_MAX FLT_MAX
+#define CGFLOAT_IS_DOUBLE 0
+#define CGFLOAT_DEFINED 1
+
+typedef int NSInteger;
+typedef unsigned int NSUInteger;
+
+#define NSIntegerMax    LONG_MAX
+#define NSIntegerMin    LONG_MIN
+#define NSUIntegerMax   ULONG_MAX
+
+#define NSINTEGER_DEFINED 1
+#endif
+
 #include "nsRect.h"
 #include "imgIContainer.h"
 #ifdef MOZ_ENABLE_NPAPI
@@ -255,7 +285,7 @@ public:
   // unless the window the event was originally targeted at is still alive!
   // anEvent may be nil -- in that case the current mouse location is returned.
   static NSPoint ScreenLocationForEvent(NSEvent* anEvent);
-  
+
   // Determines if an event happened over a window, whether or not the event
   // is for the window. Does not take window z-order into account.
   static BOOL IsEventOverWindow(NSEvent* anEvent, NSWindow* aWindow);
@@ -291,20 +321,20 @@ public:
 
   // 3 utility functions to go from a frame of imgIContainer to CGImage and then to NSImage
   // Convert imgIContainer -> CGImageRef, caller owns result
-  
+
   /** Creates a <code>CGImageRef</code> from a frame contained in an <code>imgIContainer</code>.
       Copies the pixel data from the indicated frame of the <code>imgIContainer</code> into a new <code>CGImageRef</code>.
-      The caller owns the <code>CGImageRef</code>. 
+      The caller owns the <code>CGImageRef</code>.
       @param aFrame the frame to convert
       @param aResult the resulting CGImageRef
       @return NS_OK if the conversion worked, NS_ERROR_FAILURE otherwise
    */
   static nsresult CreateCGImageFromSurface(SourceSurface* aSurface,
                                            CGImageRef* aResult);
-  
+
   /** Creates a Cocoa <code>NSImage</code> from a <code>CGImageRef</code>.
       Copies the pixel data from the <code>CGImageRef</code> into a new <code>NSImage</code>.
-      The caller owns the <code>NSImage</code>. 
+      The caller owns the <code>NSImage</code>.
       @param aInputImage the image to convert
       @param aResult the resulting NSImage
       @return NS_OK if the conversion worked, NS_ERROR_FAILURE otherwise
@@ -318,7 +348,7 @@ public:
       @param aResult the resulting NSImage
       @param scaleFactor the desired scale factor of the NSImage (2 for a retina display)
       @return NS_OK if the conversion worked, NS_ERROR_FAILURE otherwise
-   */  
+   */
   static nsresult CreateNSImageFromImageContainer(imgIContainer *aImage, uint32_t aWhichFrame, NSImage **aResult, CGFloat scaleFactor);
 
   /**

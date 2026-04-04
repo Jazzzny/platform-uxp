@@ -29,6 +29,10 @@
 
 #include <dlfcn.h>
 #import <Carbon/Carbon.h>
+#include <AvailabilityMacros.h>
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#import <objc/objc.h>
+#endif
 
 // The header file QuickdrawAPI.h is missing on OS X 10.7 and up (though the
 // QuickDraw APIs defined in it are still present) -- so we need to supply the

@@ -323,15 +323,25 @@ public:
      */
     eIntID_MacLionTheme,
 
-   /*
-    * A Boolean value to determine whether the Mac OS X Yosemite-specific theming
-    * should be used.
-    *
-    * The value of this metric is not used on non-Mac platforms. These
-    * platforms should return NS_ERROR_NOT_IMPLEMENTED when queried for this
-    * metric.
-    */
-   eIntID_MacYosemiteTheme,
+    /*
+      * A Boolean value to determine whether the Mac OS X Yosemite-specific theming
+      * should be used.
+      *
+      * The value of this metric is not used on non-Mac platforms. These
+      * platforms should return NS_ERROR_NOT_IMPLEMENTED when queried for this
+      * metric.
+      */
+    eIntID_MacYosemiteTheme,
+
+    /*
+      * A Boolean value to determine whether the Mac OS X Tiger-specific theming
+      * should be used.
+      *
+      * The value of this metric is not used on non-Mac platforms. These
+      * platforms should return NS_ERROR_NOT_IMPLEMENTED when queried for this
+      * metric.
+      */
+    eIntID_MacTigerTheme,
 
     /*
      * eIntID_AlertNotificationOrigin indicates from which corner of the

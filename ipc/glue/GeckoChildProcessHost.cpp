@@ -37,6 +37,10 @@
 #define NS_TASKBAR_CONTRACTID "@mozilla.org/windows-taskbar;1"
 #endif
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 #include "nsTArray.h"
 #include "nsClassHashtable.h"
 #include "nsHashKeys.h"
@@ -184,6 +188,7 @@ nsresult GeckoChildProcessHost::GetArchitecturesForBinary(const char *path, uint
   *result = 0;
 
 #ifdef MOZ_WIDGET_COCOA
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   CFURLRef url = ::CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
                                                            (const UInt8*)path,
                                                            strlen(path),
@@ -222,6 +227,15 @@ nsresult GeckoChildProcessHost::GetArchitecturesForBinary(const char *path, uint
   }
 
   return (*result ? NS_OK : NS_ERROR_FAILURE);
+#else
+  // check at build time for PPC or i386, thats all that can exist
+  #if defined(__ppc__)
+    *result |= base::PROCESS_ARCH_PPC;
+  #elif defined(__i386__)
+    *result |= base::PROCESS_ARCH_I386;
+  #endif
+  return (*result ? NS_OK : NS_ERROR_FAILURE);
+#endif
 #else
   return NS_ERROR_NOT_IMPLEMENTED;
 #endif

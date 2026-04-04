@@ -11,6 +11,7 @@
 
 #if defined(XP_MACOSX)
 #include <CoreFoundation/CoreFoundation.h>
+#include <AvailabilityMacros.h>
 #endif
 
 namespace mozilla {
@@ -331,9 +332,15 @@ SFNTNameTable::ReadU16NameFromMacRomanRecord(const NameRecord *aNameRecord,
   const uint8_t *encodedStr = mStringData + offset;
 
   CFStringRef cfString;
+
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   cfString = CFStringCreateWithBytesNoCopy(kCFAllocatorDefault, encodedStr,
                                            length, kCFStringEncodingMacRoman,
                                            false, kCFAllocatorNull);
+#else
+  cfString = CFStringCreateWithBytes(kCFAllocatorDefault, encodedStr,
+                                    length, kCFStringEncodingMacRoman, false);
+#endif
 
   // length (in UTF-16 code pairs) of the decoded string
   CFIndex decodedLength = CFStringGetLength(cfString);

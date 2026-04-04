@@ -35,6 +35,7 @@
 
 class nsChildView;
 class nsCocoaWindow;
+class nsITimer;
 
 namespace {
 class GLPresenter;
@@ -153,6 +154,9 @@ typedef NSInteger NSEventGestureAxis;
 #endif // #if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
 #endif // #if !defined(MAC_OS_X_VERSION_10_7) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7)
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+@protocol NSTextInputClient @end
+#endif
 
 @interface ChildView : NSView<
 #ifdef ACCESSIBILITY
@@ -172,7 +176,28 @@ typedef NSInteger NSEventGestureAxis;
   // for Gecko's leak detector to detect leaked TextInputHandler objects.
   // This is initialized by [mozView installTextInputHandler:aHandler] and
   // cleared by [mozView uninstallTextInputHandler].
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   mozilla::widget::TextInputHandler* mTextInputHandler;  // [WEAK]
+#else
+// backout bug 519972
+  // The following variables are only valid during key down event processing.
+  // Their current usage needs to be fixed to avoid problems with nested event
+  // loops that can confuse them. Once a variable is set during key down event
+  // processing, if an event spawns a nested event loop the previously set value
+  // will be wiped out.
+  NSEvent* mCurKeyEvent;
+  bool mKeyDownHandled;
+  // While we process key down events we need to keep track of whether or not
+  // we sent a key press event. This helps us make sure we do send one
+  // eventually.
+  BOOL mKeyPressSent;
+  // Valid when mKeyPressSent is true.
+  bool mKeyPressHandled;
+  // needed for NSTextInput implementation on 10.4
+  NSRange mMarkedRange;
+  // When this is YES the next key up event (keyUp:) will be ignored.
+  BOOL mIgnoreNextKeyUpEvent;
+#endif
 
   // when mouseDown: is called, we store its event here (strong)
   NSEvent* mLastMouseDownEvent;
@@ -227,10 +252,10 @@ typedef NSInteger NSEventGestureAxis;
   float mCumulativeMagnification;
   float mCumulativeRotation;
 
-  BOOL mDidForceRefreshOpenGL;
-
   // Support for fluid swipe tracking.
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   BOOL* mCancelSwipeAnimation;
+#endif
 
   // Whether this uses off-main-thread compositing.
   BOOL mUsingOMTCompositor;
@@ -330,7 +355,67 @@ public:
   static NSEvent* sLastMouseMoveEvent;
   static NSWindow* sWindowUnderMouse;
   static NSPoint sLastScrollEventScreenLocation;
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  static NSWindow* WindowForEvent(NSEvent* aEvent);
+#endif
 };
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+// We don't use bug 519972 at all in TenFourFox.
+//-------------------------------------------------------------------------
+//
+// nsTSMManager
+//
+//-------------------------------------------------------------------------
+
+class nsTSMManager {
+public:
+  static bool IsComposing() { return sComposingView ? true : false; }
+  static bool IsIMEEnabled() { return sIsIMEEnabled; }
+  static bool IgnoreCommit() { return sIgnoreCommit; }
+
+  // returns nsIWidget::IME_STATUS_*
+  static uint32_t GetIMEEnabled() { return sIMEEnabledStatus; }
+
+  // Note that we cannot get the actual state in TSM, but we can trust this
+  // value because nsIMEStateManager resets this at every change of focus.
+  // This doesn't work for plugins, but we don't support them anyway, so there.
+  static bool IsRomanKeyboardsOnly() { return sIsRomanKeyboardsOnly; }
+
+  static void OnDestroyView(NSView<mozView>* aDestroyingView);
+
+  static bool GetIMEOpenState();
+
+  static void InitTSMDocument(NSView<mozView>* aViewForCaret);
+  static void StartComposing(NSView<mozView>* aComposingView);
+  static void UpdateComposing(NSString* aComposingString);
+  static void EndComposing();
+  static void SetIMEOpenState(bool aOpen);
+  static nsresult SetIMEEnabled(uint32_t aEnabled);
+
+  static void CommitIME();
+  static void CancelIME();
+
+  static void Shutdown();
+private:
+  static bool sIsIMEEnabled;
+  static bool sIsRomanKeyboardsOnly;
+  static bool sIgnoreCommit;
+  static NSView<mozView>* sComposingView;
+  static TSMDocumentID sDocumentID;
+  static NSString* sComposingString;
+  static nsITimer* sSyncKeyScriptTimer;
+  static uint32_t sIMEEnabledStatus; // nsIWidget::IME_STATUS_*
+
+  static void KillComposing();
+  static void CallKeyScriptAPI();
+  static void SyncKeyScript(nsITimer* aTimer, void* aClosure);
+
+  static void EnableIME(bool aEnable);
+  static void SetRomanKeyboardsOnly(bool aRomanOnly);
+};
+#endif // !defined(MAC_OS_X_VERSION_10_5)
 
 //-------------------------------------------------------------------------
 //
@@ -515,16 +600,20 @@ public:
   static uint32_t GetCurrentInputEventCount();
   static void UpdateCurrentInputEventCount();
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   NSView<mozView>* GetEditorView();
+#endif
 
   nsCocoaWindow*    GetXULWindowWidget();
 
   virtual void      ReparentNativeWidget(nsIWidget* aNewParent) override;
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   mozilla::widget::TextInputHandler* GetTextInputHandler()
   {
     return mTextInputHandler;
   }
+#endif
 
   void              ClearVibrantAreas();
   NSColor*          VibrancyFillColorForThemeGeometryType(nsITheme::ThemeGeometryType aThemeGeometryType);
@@ -620,7 +709,12 @@ protected:
 protected:
 
   ChildView<mozView>* mView;  // my parallel cocoa view, [STRONG]
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   RefPtr<mozilla::widget::TextInputHandler> mTextInputHandler;
+#endif
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  static uint32_t	sSecureEventInputCount; // bug 807893
+#endif
   InputContext          mInputContext;
 
   NSView<mozView>*      mParentView;
@@ -705,5 +799,57 @@ protected:
   // multiple synthesized points
   mozilla::UniquePtr<mozilla::MultiTouchInput> mSynthesizedTouchInput;
 };
+
+// These kVK_* constants are not defined in the 10.4 SDK's Carbon headers.
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#define kVK_ANSI_Keypad0 0x52
+#define kVK_ANSI_Keypad1 0x53
+#define kVK_ANSI_Keypad2 0x54
+#define kVK_ANSI_Keypad3 0x55
+#define kVK_ANSI_Keypad4 0x56
+#define kVK_ANSI_Keypad5 0x57
+#define kVK_ANSI_Keypad6 0x58
+#define kVK_ANSI_Keypad7 0x59
+#define kVK_ANSI_Keypad8 0x5b
+#define kVK_ANSI_Keypad9 0x5c
+#define kVK_ANSI_KeypadDecimal 0x41
+#define kVK_ANSI_KeypadDivide 0x4b
+#define kVK_ANSI_KeypadEnter 0x4c
+#define kVK_ANSI_KeypadMinus 0x4e
+#define kVK_ANSI_KeypadMultiply 0x43
+#define kVK_ANSI_KeypadPlus 0x45
+#define kVK_Control 0x3b
+#define kVK_Delete 0x33
+#define kVK_DownArrow 0x7d
+#define kVK_End 0x77
+#define kVK_Escape 0x35
+#define kVK_F1 0x7a
+#define kVK_F2 0x78
+#define kVK_F3 0x63
+#define kVK_F4 0x76
+#define kVK_F5 0x60
+#define kVK_F6 0x61
+#define kVK_F7 0x62
+#define kVK_F8 0x64
+#define kVK_F9 0x65
+#define kVK_F10 0x6d
+#define kVK_F11 0x67
+#define kVK_F12 0x6f
+#define kVK_F13 0x69
+#define kVK_F14 0x6b
+#define kVK_F15 0x71
+#define kVK_ForwardDelete 0x75
+#define kVK_Help 0x72
+#define kVK_Home 0x73
+#define kVK_LeftArrow 0x7b
+#define kVK_Option 0x3a
+#define kVK_PageDown 0x79
+#define kVK_PageUp 0x74
+#define kVK_Return 0x24
+#define kVK_RightArrow 0x7c
+#define kVK_Shift 0x38
+#define kVK_Tab 0x30
+#define kVK_UpArrow 0x7e
+#endif
 
 #endif // nsChildView_h_

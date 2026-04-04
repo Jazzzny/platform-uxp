@@ -21,6 +21,7 @@
 #include <windows.h>
 #elif defined(XP_MACOSX)
 #include <sys/resource.h>
+#include <AvailabilityMacros.h>
 #endif
 
 using namespace mozilla;
@@ -439,7 +440,7 @@ nsAutoLowPriorityIO::nsAutoLowPriorityIO()
 #if defined(XP_WIN)
   lowIOPrioritySet = SetThreadPriority(GetCurrentThread(),
                                        THREAD_MODE_BACKGROUND_BEGIN);
-#elif defined(XP_MACOSX)
+#elif defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   oldPriority = getiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_THREAD);
   lowIOPrioritySet = oldPriority != -1 &&
                      setiopolicy_np(IOPOL_TYPE_DISK,
@@ -459,7 +460,9 @@ nsAutoLowPriorityIO::~nsAutoLowPriorityIO()
   }
 #elif defined(XP_MACOSX)
   if (MOZ_LIKELY(lowIOPrioritySet)) {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     setiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_THREAD, oldPriority);
+#endif
   }
 #endif
 }

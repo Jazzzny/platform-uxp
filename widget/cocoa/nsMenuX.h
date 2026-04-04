@@ -8,6 +8,10 @@
 
 #import <Cocoa/Cocoa.h>
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#import <Carbon/Carbon.h>
+#endif
+
 #include "mozilla/RefPtr.h"
 #include "mozilla/UniquePtr.h"
 #include "nsMenuBaseX.h"
@@ -30,6 +34,9 @@ class nsIWidget;
 #endif
 {
   nsMenuX* mGeckoMenu; // weak ref
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  EventHandlerRef mEventHandler;
+#endif
 }
 - (id)initWithGeckoMenu:(nsMenuX*)geckoMenu;
 @end

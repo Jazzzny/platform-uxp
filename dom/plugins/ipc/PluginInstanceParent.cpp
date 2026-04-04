@@ -50,6 +50,10 @@
 #endif
 
 #ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include "MacIOSurfaceImage.h"
 #endif
 
@@ -70,6 +74,11 @@ extern const wchar_t* kFlashFullscreenClass;
 #include <gdk/gdk.h>
 #elif defined(XP_MACOSX)
 #include <ApplicationServices/ApplicationServices.h>
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+static CGColorSpaceRef CreateSystemColorSpace() {
+    return CGColorSpaceCreateDeviceRGB();
+}
+#endif
 #endif // defined(XP_MACOSX)
 
 using namespace mozilla;
@@ -886,7 +895,7 @@ PluginInstanceParent::RecvShow(const NPRect& updatedRect,
         }
         surface = gfxSharedImageSurface::Open(newSurface.get_Shmem());
     }
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     else if (newSurface.type() == SurfaceDescriptor::TIOSurfaceDescriptor) {
         IOSurfaceDescriptor iodesc = newSurface.get_IOSurfaceDescriptor();
 
@@ -1026,7 +1035,7 @@ PluginInstanceParent::GetImageContainer(ImageContainer** aContainer)
         return NS_OK;
     }
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     MacIOSurface* ioSurface = nullptr;
 
     if (mFrontIOSurface) {
@@ -1047,7 +1056,7 @@ PluginInstanceParent::GetImageContainer(ImageContainer** aContainer)
         return NS_ERROR_FAILURE;
     }
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     if (ioSurface) {
         RefPtr<Image> image = new MacIOSurfaceImage(ioSurface);
         container->SetCurrentImageInTransaction(image);
@@ -1080,7 +1089,7 @@ PluginInstanceParent::GetImageSize(nsIntSize* aSize)
         return NS_OK;
     }
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     if (mFrontIOSurface) {
         *aSize = nsIntSize(mFrontIOSurface->GetWidth(), mFrontIOSurface->GetHeight());
         return NS_OK;
@@ -1378,11 +1387,14 @@ PluginInstanceParent::NPP_SetWindow(const NPWindow* aWindow)
 #endif
 #if defined(XP_MACOSX)
     if (mShWidth != window.width * scaleFactor || mShHeight != window.height * scaleFactor) {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
         if (mDrawingModel == NPDrawingModelCoreAnimation ||
             mDrawingModel == NPDrawingModelInvalidatingCoreAnimation) {
             mIOSurface = MacIOSurface::CreateIOSurface(window.width, window.height,
                                                        floatScaleFactor);
-        } else if (uint32_t(mShWidth * mShHeight) !=
+        } else
+#endif
+        if (uint32_t(mShWidth * mShHeight) !=
                    window.width * scaleFactor * window.height * scaleFactor) {
             if (mShWidth != 0 && mShHeight != 0) {
                 DeallocShmem(mShSurface);
@@ -1662,6 +1674,7 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
 
 #ifdef XP_MACOSX
     if (npevent->type == NPCocoaEventDrawRect) {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
         if (mDrawingModel == NPDrawingModelCoreAnimation ||
             mDrawingModel == NPDrawingModelInvalidatingCoreAnimation) {
             if (!mIOSurface) {
@@ -1708,7 +1721,9 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
                                                      npevent->data.draw.height);
             }
             return true;
-        } else {
+        } else
+#endif
+        {
             if (mShWidth == 0 && mShHeight == 0) {
                 PLUGIN_LOG_DEBUG(("NPCocoaEventDrawRect on window of size 0."));
                 return false;

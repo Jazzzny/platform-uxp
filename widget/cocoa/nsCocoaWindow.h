@@ -78,7 +78,10 @@ typedef struct _nsCocoaWindowList {
   // descendants to use.
   float mDPI;
 
+  // 10.4 doesn't have NSTrackingArea.
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   NSTrackingArea* mTrackingArea;
+#endif
   NSView* mViewWithTrackingArea;
 
   NSRect mDirtyRect;
@@ -417,7 +420,7 @@ protected:
   // window upon closing it, held through our destructor. This is useful
   // to ensure that macOS run loops which reference the window will still
   // have something to point to even if they don't use proper retain and
-  // release patterns.  
+  // release patterns.
   WindowDelegate*      mDelegate;       // our delegate for processing window msgs [STRONG]
   RefPtr<nsMenuBarX>   mMenuBar;
   NSWindow*            mSheetWindowParent; // if this is a sheet, this is the NSWindow it's attached to

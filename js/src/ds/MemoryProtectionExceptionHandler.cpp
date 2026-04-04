@@ -286,6 +286,10 @@ MemoryProtectionExceptionHandler::uninstall()
 }
 
 #elif defined(XP_DARWIN)
+#include <AvailabilityMacros.h>
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#define MACH_EXCEPTION_CODES 0x80000000
+#endif
 
 /*
  * The fact that we need to be able to forward to other exception handlers

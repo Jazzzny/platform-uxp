@@ -21,6 +21,11 @@
 #include "SourceSurfaceCG.h"
 #include "GLDefs.h"
 #include "Tools.h"
+#include <AvailabilityMacros.h>
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+typedef float CGFloat; // 10.4
+#endif
 
 namespace mozilla {
 namespace gfx {
@@ -207,6 +212,12 @@ private:
   CGColorSpaceRef mColorSpace;
   CGContextRef mCg;
   CGAffineTransform mOriginalTransform;
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  typedef bool (*CGFontGetGlyphBBoxesFunc)(CGFontRef, const CGGlyph[], size_t, CGRect[]);
+  CGFontGetGlyphBBoxesFunc CGFontGetGlyphBBoxesPtr;
+  unsigned int (*CGContextGetTypePtr) (CGContextRef);
+#endif
 
   /**
    * The image buffer, if the buffer is owned by this class.

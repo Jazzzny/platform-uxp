@@ -371,14 +371,31 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
     // Block the non-QECI drivers for OpenGL. They just crash the browser
     // We only need this for 10.5 (PPC) as all drivers on Intel work.
     if (mIOGLBundleName.EqualsLiteral("ATIRadeon8500GLDriver") ||
+        mIOGLBundleName.EqualsLiteral("ATIRadeonGLDriver") ||
+        mIOGLBundleName.EqualsLiteral("ATIRage128GLDriver") ||
+        mIOGLBundleName.EqualsLiteral("ATIRageProGLDriver") ||
         mIOGLBundleName.EqualsLiteral("GeForce2MXGLDriver") ||
-        mIOGLBundleName.EqualsLiteral("GeForce3GLDriver")) {
+        mIOGLBundleName.EqualsLiteral("GeForce3GLDriver") ||
+        // block too if no IOGLBundleName, this means software driver which is also too old
+        mIOGLBundleName.IsEmpty()) {
       if (aFeature == nsIGfxInfo::FEATURE_OPENGL_LAYERS) {
         *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DEVICE;
         aFailureId = "FEATURE_FAILURE_MAC_UNSUPPORTED_GPU";
         return NS_OK;
       }
     }
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+    // 10.4 PPC OpenGL is too old for OMTC!
+#if defined(__ppc__)
+    if (aFeature == nsIGfxInfo::FEATURE_OPENGL_LAYERS &&
+        !nsCocoaFeatures::OnLeopardOrLater()) {
+      *aStatus = nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION;
+      aFailureId = "FEATURE_FAILURE_LAYERS_OSX_VERSION";
+      return NS_OK;
+    }
+#endif
+#endif
 
     // Many WebGL issues on 10.5, especially:
     //   * bug 631258: WebGL shader paints using textures belonging to other processes on Mac OS 10.5

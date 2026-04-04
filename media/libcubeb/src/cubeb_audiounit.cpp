@@ -1422,10 +1422,16 @@ audiounit_set_buffer_size(cubeb_stream * stm, uint32_t new_size_frames, set_buff
       PRINT_ERROR_CODE("AudioUnitSetProperty/output/kAudioDevicePropertyBufferFrameSize", r);
     }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     r = AudioUnitRemovePropertyListenerWithUserData(au,
                                                     kAudioDevicePropertyBufferFrameSize,
                                                     buffer_size_changed_callback,
                                                     stm);
+#else
+    r = AudioUnitRemovePropertyListener(au,
+                                        kAudioDevicePropertyBufferFrameSize,
+                                        buffer_size_changed_callback);
+#endif
     if (r != noErr) {
       if (set_side == INPUT) {
         PRINT_ERROR_CODE("AudioUnitAddPropertyListener/input/kAudioDevicePropertyBufferFrameSize", r);
@@ -1448,10 +1454,17 @@ audiounit_set_buffer_size(cubeb_stream * stm, uint32_t new_size_frames, set_buff
     LOG("(%p) audiounit_set_buffer_size : wait count = %d", stm, count);
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   r = AudioUnitRemovePropertyListenerWithUserData(au,
                                                   kAudioDevicePropertyBufferFrameSize,
                                                   buffer_size_changed_callback,
                                                   stm);
+#else
+    r = AudioUnitRemovePropertyListener(au,
+                                        kAudioDevicePropertyBufferFrameSize,
+                                        buffer_size_changed_callback);
+#endif
+
   if (r != noErr) {
     if (set_side == INPUT) {
       PRINT_ERROR_CODE("AudioUnitAddPropertyListener/input/kAudioDevicePropertyBufferFrameSize", r);

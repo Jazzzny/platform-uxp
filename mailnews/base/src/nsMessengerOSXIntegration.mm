@@ -112,7 +112,7 @@ static void openMailWindow(const nsCString& aUri)
         if (NS_FAILED(rv))
           return;
 
-        nsCOMPtr<nsIMsgDBHdr> msgHdr; 
+        nsCOMPtr<nsIMsgDBHdr> msgHdr;
         messenger->MsgHdrFromURI(aUri, getter_AddRefs(msgHdr));
         if (msgHdr)
         {
@@ -216,7 +216,7 @@ nsMessengerOSXIntegration::Observe(nsISupports* aSubject, const char* aTopic, co
 
 #ifdef MOZ_SUITE
   // SeaMonkey does most of the GUI work in JS code when clicking on a mail
-  // notification, so it needs an extra function here 
+  // notification, so it needs an extra function here
   if (!strcmp(aTopic, "alertclicksimplecallback"))
     return OnAlertClickedSimple();
 #endif
@@ -472,8 +472,10 @@ nsMessengerOSXIntegration::RestoreDockIcon()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   id tile = [[NSApplication sharedApplication] dockTile];
   [tile setBadgeLabel: nil];
+#endif
 
   return NS_OK;
 
@@ -527,8 +529,10 @@ nsMessengerOSXIntegration::BadgeDockIcon()
     return NS_OK;
   }
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   id tile = [[NSApplication sharedApplication] dockTile];
   [tile setBadgeLabel:[NSString stringWithFormat:@"%S", (const unichar*)badgeString.get()]];
+#endif
   return NS_OK;
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;

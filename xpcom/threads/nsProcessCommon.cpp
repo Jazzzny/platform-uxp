@@ -34,10 +34,13 @@
 #include "nsReadableUtils.h"
 #else
 #ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include <crt_externs.h>
 #include <spawn.h>
 #include <sys/wait.h>
 #include <sys/errno.h>
+#endif
 #endif
 #include <sys/types.h>
 #include <signal.h>
@@ -46,6 +49,14 @@
 using namespace mozilla;
 
 #ifdef XP_MACOSX
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+typedef int cpu_type_t; // we don't have cpu_type* on 10.4.
+#define CPU_TYPE_ANY           ((cpu_type_t) -1)
+#define CPU_TYPE_X86           ((cpu_type_t)  7)
+#define CPU_TYPE_POWERPC       ((cpu_type_t) 18)
+#endif
+
 cpu_type_t pref_cpu_types[2] = {
 #if defined(__i386__)
   CPU_TYPE_X86,
@@ -74,7 +85,7 @@ nsProcess::nsProcess()
   , mObserver(nullptr)
   , mWeakObserver(nullptr)
   , mExitValue(-1)
-#if !defined(XP_MACOSX)
+#if !defined(XP_MACOSX) || (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5) // need for 10.4
   , mProcess(nullptr)
 #endif
 {
@@ -262,7 +273,7 @@ nsProcess::Monitor(void* aArg)
     }
   }
 #else
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   int exitCode = -1;
   int status = 0;
   pid_t result;
@@ -286,7 +297,7 @@ nsProcess::Monitor(void* aArg)
   // Lock in case Kill or GetExitCode are called during this
   {
     MutexAutoLock lock(process->mLock);
-#if !defined(XP_MACOSX)
+#if !defined(XP_MACOSX) || (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5) // need for 10.4
     process->mProcess = nullptr;
 #endif
     process->mExitValue = exitCode;
@@ -505,7 +516,7 @@ nsProcess::RunProcess(bool aBlocking, char** aMyArgv, nsIObserver* aObserver,
   }
 
   mPid = GetProcessId(mProcess);
-#elif defined(XP_MACOSX)
+#elif defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   // Initialize spawn attributes.
   posix_spawnattr_t spawnattr;
   if (posix_spawnattr_init(&spawnattr) != 0) {
@@ -612,7 +623,7 @@ nsProcess::Kill()
     if (TerminateProcess(mProcess, 0) == 0) {
       return NS_ERROR_FAILURE;
     }
-#elif defined(XP_MACOSX)
+#elif defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     if (kill(mPid, SIGKILL) != 0) {
       return NS_ERROR_FAILURE;
     }

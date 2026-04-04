@@ -50,13 +50,30 @@ void nsMenuUtilsX::DispatchCommandTo(nsIContent* aTargetContent)
 NSString* nsMenuUtilsX::GetTruncatedCocoaLabel(const nsString& itemLabel)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
-
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   // We want to truncate long strings to some reasonable pixel length but there is no
   // good API for doing that which works for all OS versions and architectures. For now
   // we'll do nothing for consistency and depend on good user interface design to limit
   // string lengths.
   return [NSString stringWithCharacters:reinterpret_cast<const unichar*>(itemLabel.get())
                                  length:itemLabel.Length()];
+#else
+  // TenFourFox needs the old code. We can use the above for 64 bit if we
+  // ever end up building it, but here's the old stuff (OS 9 era!) back.
+  // For laughs, look at Classilla issue 71 for the OS 9 equivalent.
+  // 10.4Fx issue 65 / back out part of 641927
+  // ::TruncateThemeText() doesn't take the number of characters to truncate to, it takes a pixel with
+  // to fit the string in. Ugh. I talked it over with sfraser and we couldn't come up with an
+  // easy way to compute what this should be given the system font, etc, so we're just going
+  // to hard code it to something reasonable and bigger fonts will just have to deal.
+  const short kMaxItemPixelWidth = 300;
+  NSMutableString *label = [NSMutableString
+  	stringWithCharacters:reinterpret_cast<const unichar*>(itemLabel.get())
+  	length:itemLabel.Length()];
+  ::TruncateThemeText((CFMutableStringRef)label, kThemeMenuItemFont,
+  	kThemeStateActive, kMaxItemPixelWidth, truncMiddle, NULL);
+  return label;
+#endif
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
 }
@@ -70,9 +87,9 @@ uint8_t nsMenuUtilsX::GeckoModifiersForNodeAttribute(const nsString& modifiersAt
   while (token != NULL) {
     if (strcmp(token, "shift") == 0)
       modifiers |= knsMenuItemShiftModifier;
-    else if (strcmp(token, "alt") == 0) 
+    else if (strcmp(token, "alt") == 0)
       modifiers |= knsMenuItemAltModifier;
-    else if (strcmp(token, "control") == 0) 
+    else if (strcmp(token, "control") == 0)
       modifiers |= knsMenuItemControlModifier;
     else if ((strcmp(token, "accel") == 0) ||
              (strcmp(token, "meta") == 0)) {
@@ -88,7 +105,7 @@ uint8_t nsMenuUtilsX::GeckoModifiersForNodeAttribute(const nsString& modifiersAt
 unsigned int nsMenuUtilsX::MacModifiersForGeckoModifiers(uint8_t geckoModifiers)
 {
   unsigned int macModifiers = 0;
-  
+
   if (geckoModifiers & knsMenuItemShiftModifier)
     macModifiers |= NSShiftKeyMask;
   if (geckoModifiers & knsMenuItemAltModifier)

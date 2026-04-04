@@ -32,6 +32,9 @@
 #include "nsILocalFileMac.h"
 #include "nsString.h"
 #include "nsCommandLineServiceMac.h"
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#include "nsCocoaUtils.h"
+#endif
 
 class AutoAutoreleasePool {
 public:

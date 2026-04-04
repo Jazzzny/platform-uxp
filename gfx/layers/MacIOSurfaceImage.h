@@ -11,6 +11,8 @@
 #include "mozilla/gfx/Point.h"
 #include "mozilla/layers/TextureClient.h"
 
+#include <AvailabilityMacros.h>
+
 namespace mozilla {
 
 namespace layers {
@@ -25,8 +27,12 @@ public:
   MacIOSurface* GetSurface() { return mSurface; }
 
   gfx::IntSize GetSize() override {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     return gfx::IntSize::Truncate(mSurface->GetDevicePixelWidth(),
                                   mSurface->GetDevicePixelHeight());
+#else
+    return gfx::IntSize(0, 0);
+#endif
   }
 
   virtual already_AddRefed<gfx::SourceSurface> GetAsSourceSurface() override;

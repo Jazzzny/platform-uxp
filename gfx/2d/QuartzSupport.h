@@ -6,6 +6,9 @@
 #ifndef nsCoreAnimationSupport_h__
 #define nsCoreAnimationSupport_h__
 #ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 
 #import <OpenGL/OpenGL.h>
 #import <OpenGL/gl.h>
@@ -93,5 +96,6 @@ private:
 };
 
 #endif // XP_MACOSX
+#endif // 10.5
 #endif // nsCoreAnimationSupport_h__
 

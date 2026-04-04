@@ -33,7 +33,7 @@
 #include "mozilla/HangMonitor.h"
 #include "GeckoProfiler.h"
 #include "pratom.h"
-#if !defined(RELEASE_OR_BETA) || defined(DEBUG)
+#if (!defined(RELEASE_OR_BETA) || defined(DEBUG)) && defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
 #include "nsSandboxViolationSink.h"
 #endif
 
@@ -105,7 +105,8 @@ extern int32_t             gXULModalLevel;
 
 static bool gAppShellMethodsSwizzled = false;
 
-#ifdef __ppc__
+#if !defined(__clang__)
+// internal compiler error: in create_component_ref_by_pieces_1
 #pragma GCC push_optimize
 #pragma GCC optimize ("-O1")
 #endif
@@ -148,7 +149,7 @@ static bool gAppShellMethodsSwizzled = false;
 
 @end
 
-#ifdef __ppc__
+#if !defined(__clang__)
 #pragma GCC pop_optimize
 #endif
 
@@ -317,7 +318,7 @@ nsAppShell::Init()
   // context.version = 0;
   context.info = this;
   context.perform = ProcessGeckoEvents;
-  
+
   mCFRunLoopSource = ::CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
   NS_ENSURE_STATE(mCFRunLoopSource);
 
@@ -345,7 +346,7 @@ nsAppShell::Init()
     CGSSetDebugOptions(0x80000007);
   }
 
-#if !defined(RELEASE_OR_BETA) || defined(DEBUG)
+#if (!defined(RELEASE_OR_BETA) || defined(DEBUG)) && defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
   if (Preferences::GetBool("security.sandbox.mac.track.violations", false)) {
     nsSandboxViolationSink::Start();
   }
@@ -704,7 +705,7 @@ nsAppShell::Exit(void)
 
   mTerminated = true;
 
-#if !defined(RELEASE_OR_BETA) || defined(DEBUG)
+#if (!defined(RELEASE_OR_BETA) || defined(DEBUG)) && defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
   nsSandboxViolationSink::Stop();
 #endif
 
@@ -866,8 +867,10 @@ nsAppShell::AfterProcessNextEvent(nsIThreadInternal *aThread,
   // to worry about getting an NSInternalInconsistencyException here.
   NSEvent* currentEvent = [NSApp currentEvent];
   if (currentEvent) {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     TextInputHandler::sLastModifierState =
       [currentEvent modifierFlags] & NSDeviceIndependentModifierFlagsMask;
+#endif
   }
 
   NS_OBJC_END_TRY_ABORT_BLOCK;

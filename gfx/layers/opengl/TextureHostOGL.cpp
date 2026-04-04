@@ -21,6 +21,10 @@
 #include "GeckoProfiler.h"
 
 #ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include "mozilla/layers/MacIOSurfaceTextureHostOGL.h"
 #endif
 
@@ -49,7 +53,7 @@ CreateTextureHostOGL(const SurfaceDescriptor& aDesc,
       break;
     }
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     case SurfaceDescriptor::TSurfaceDescriptorMacIOSurface: {
       const SurfaceDescriptorMacIOSurface& desc =
         aDesc.get_SurfaceDescriptorMacIOSurface();

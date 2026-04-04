@@ -6,6 +6,11 @@
 
 #include "base/logging.h"
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#import "nsCocoaUtils.h"
+#endif
+
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 @interface CrApplication ()
 @property(readwrite,
           getter=isHandlingSendEvent,
@@ -14,6 +19,17 @@
 
 @implementation CrApplication
 @synthesize handlingSendEvent = handlingSendEvent_;
+#else
+@implementation CrApplication
+- (BOOL)isHandlingSendEvent {
+  return handlingSendEvent_;
+}
+
+- (void)setHandlingSendEvent:(BOOL)flag {
+  handlingSendEvent_ = flag;
+}
+#endif
+
 
 // Initialize NSApplication using the custom subclass.  Check whether NSApp
 // was already initialized using another class, because that would break

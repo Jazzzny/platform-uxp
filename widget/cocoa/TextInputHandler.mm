@@ -3,6 +3,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+
+// this entire file is gated for 10.5, conditional code for 10.4 is in nschildview
+#include <AvailabilityMacros.h>
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+
 #include "TextInputHandler.h"
 
 #include "mozilla/Logging.h"
@@ -2827,12 +2832,12 @@ IMEInputHandler::GetRangeCount(NSAttributedString *aAttrString)
   NSRange effectiveRange;
   NSRange limitRange = NSMakeRange(0, [aAttrString length]);
   while (limitRange.length > 0) {
-    [aAttrString  attribute:NSUnderlineStyleAttributeName 
-                    atIndex:limitRange.location 
+    [aAttrString  attribute:NSUnderlineStyleAttributeName
+                    atIndex:limitRange.location
       longestEffectiveRange:&effectiveRange
                     inRange:limitRange];
     limitRange =
-      NSMakeRange(NSMaxRange(effectiveRange), 
+      NSMakeRange(NSMaxRange(effectiveRange),
                   NSMaxRange(limitRange) - NSMaxRange(effectiveRange));
     count++;
   }
@@ -2888,7 +2893,7 @@ IMEInputHandler::CreateTextRangeArray(NSAttributedString *aAttrString,
        ToChar(range.mRangeType)));
 
     limitRange =
-      NSMakeRange(NSMaxRange(effectiveRange), 
+      NSMakeRange(NSMaxRange(effectiveRange),
                   NSMaxRange(limitRange) - NSMaxRange(effectiveRange));
   }
 
@@ -4560,3 +4565,5 @@ TextInputHandlerBase::AutoInsertStringClearer::~AutoInsertStringClearer()
     mState->mInsertString = nullptr;
   }
 }
+
+#endif // #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5

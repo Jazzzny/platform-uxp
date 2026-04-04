@@ -17,6 +17,21 @@
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
+#include <AvailabilityMacros.h>
+
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#include "../thebes/PhonyCoreText.h"
+#include "nsTArray.h"
+#endif
+
+#ifdef __ppc__
+#define TAG_CFF  0x43464620
+#define TAG_HEAD 0x68656164
+#else
+#define TAG_CFF  0x20464643
+#define TAG_HEAD 0x64616568
+#endif
+
 #ifdef MOZ_WIDGET_COCOA
 // prototype for private API
 extern "C" {
@@ -37,6 +52,7 @@ bool ScaledFontMac::sSymbolLookupDone = false;
 ScaledFontMac::ScaledFontMac(CGFontRef aFont, Float aSize)
   : ScaledFontBase(aSize)
 {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   if (!sSymbolLookupDone) {
     CTFontDrawGlyphsPtr =
       (CTFontDrawGlyphsFuncT*)dlsym(RTLD_DEFAULT, "CTFontDrawGlyphs");
@@ -51,6 +67,13 @@ ScaledFontMac::ScaledFontMac(CGFontRef aFont, Float aSize)
   } else {
     mCTFont = nullptr;
   }
+#else
+// CTFontDrawGlyphs only exists in 10.7 and up. There is no reason for us
+// to look for it knowing it will fail.
+  mFont = CGFontRetain(aFont);
+  mCTFont = nullptr;
+  CTFontDrawGlyphsPtr = nullptr;
+#endif
 }
 
 ScaledFontMac::~ScaledFontMac()
@@ -209,6 +232,7 @@ struct writeBuf
 bool
 ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
 {
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     // We'll reconstruct a TTF font from the tables we can get from the CGFont
     CFArrayRef tags = CGFontCopyTableTags(mFont);
     CFIndex count = CFArrayGetCount(tags);
@@ -235,6 +259,71 @@ ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
         offset = (offset + 3) & ~3;
     }
     CFRelease(tags);
+#else
+
+    // 10.4 doesn't make this easy the way Mozilla wants it, but we'll try.
+    // Since this is a raw CGFont, we have none of the work we already did.
+    bool CFF = false;
+    FallibleTArray<uint8_t> table;
+    ByteCount sizer = 0;
+
+    // mFont is a CGFont, and ATSUI won't operate on that, so we need to make
+    // it an ATSFontRef first. If this fails, we're dead.
+    CFStringRef psName = ::CGFontCopyPostScriptName(mFont);
+    ATSFontRef fontRef = ::ATSFontFindFromPostScriptName(psName,
+	kATSOptionFlagsDefault);
+    CFRelease(psName);
+    if (!fontRef || fontRef == kInvalidFont ||
+	fontRef == kATSFontRefUnspecified) {
+		NS_WARNING("Failed PostScript lookup");
+		return false;
+    }
+
+    // Next, get the table directory and iterate over it.
+    if(::ATSFontGetTableDirectory(fontRef, 0, nullptr, &sizer) == noErr) {
+      // Sanity check.
+      if (sizer <= 12 || ((sizer-12) % 16) || sizer >= 1024)
+        return false;
+    } else { return false; }
+    table.SetLength(sizer, fallible);
+
+    if (::ATSFontGetTableDirectory(fontRef, sizer,
+      reinterpret_cast<void *>(table.Elements()), &sizer) != noErr)
+        return false;
+    uint32_t count = ((sizer-12) / 16);
+    uint32_t offset = (uint32_t)sizer;
+    uint32_t *wtable = (reinterpret_cast<uint32_t *>(table.Elements()));
+    TableRecord *records = new TableRecord[count];
+    for (uint32_t i=3; i<(sizer/4); i+=4) { // Skip header
+        uint32_t tag = wtable[i];
+        if (tag == TAG_CFF)
+            CFF = true;
+        // We know the length from the directory, so we can simply import
+        // the data. We assume the table exists, and OMG if it doesn't.
+	// This is the equivalent for CGFontCopyTableForTag().
+        records[i].tag = tag;
+        records[i].offset = offset;
+	ByteCount dataLength = (ByteCount)wtable[i+3];
+	CFMutableDataRef data = ::CFDataCreateMutable(kCFAllocatorDefault,
+		dataLength);
+	if (!data) return false;
+	::CFDataIncreaseLength(data, dataLength); // paranoia
+	if(::ATSFontGetTable(fontRef, tag, 0, dataLength,
+		::CFDataGetMutableBytePtr(data), &dataLength) != noErr) {
+		CFRelease(data);
+		return false;
+	}
+        records[i].data = data;
+        records[i].length = (uint32_t)dataLength;
+        bool skipChecksumAdjust = (tag == TAG_HEAD); // 'head'
+        records[i].checkSum = CalcTableChecksum(
+		reinterpret_cast<const uint32_t*>(CFDataGetBytePtr(data)),
+                records[i].length, skipChecksumAdjust);
+        offset += records[i].length;
+        // 32 bit align the tables
+        offset = (offset + 3) & ~3;
+    }
+#endif
 
     struct writeBuf buf(offset);
     // write header/offset table
@@ -259,7 +348,7 @@ ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
     // write tables
     int checkSumAdjustmentOffset = 0;
     for (CFIndex i = 0; i<count; i++) {
-        if (records[i].tag == 0x68656164) {
+        if (records[i].tag == TAG_HEAD) {
             checkSumAdjustmentOffset = buf.offset + 2*4;
         }
         buf.writeMem(CFDataGetBytePtr(records[i].data), CFDataGetLength(records[i].data));

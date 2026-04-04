@@ -57,7 +57,18 @@ protected:
 
 @end
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 @interface PrintPanelAccessoryController : NSViewController <NSPrintPanelAccessorizing>
+#else
+@interface PrintPanelAccessoryController : NSObject
+{
+  NSView* mView;
+}
+
+- (void)setView:(NSView*)aView;
+
+- (NSView*)view;
+#endif
 
 - (id)initWithSettings:(nsIPrintSettings*)aSettings;
 

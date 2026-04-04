@@ -6,6 +6,10 @@
 #ifndef dom_plugins_PluginInstanceParent_h
 #define dom_plugins_PluginInstanceParent_h 1
 
+#ifdef XP_MACOSX
+#include <AvailabilityMacros.h>
+#endif
+
 #include "mozilla/plugins/PPluginInstanceParent.h"
 #include "mozilla/plugins/PluginScriptableObjectParent.h"
 #if defined(OS_WIN)
@@ -14,7 +18,7 @@
 #endif // MOZ_ENABLE_NPAPI
 #include <d3d10_1.h>
 #include "nsRefPtrHashtable.h"
-#elif defined(MOZ_WIDGET_COCOA)
+#elif defined(MOZ_WIDGET_COCOA) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include "mozilla/gfx/QuartzSupport.h"
 #endif
 
@@ -116,7 +120,7 @@ public:
 
     virtual bool
     AnswerNPN_GetValue_DrawingModelSupport(const NPNVariable& model, bool* value) override;
-  
+
     virtual bool
     AnswerNPN_GetValue_NPNVdocumentOrigin(nsCString* value, NPError* result) override;
 #ifdef MOZ_ENABLE_NPAPI
@@ -439,12 +443,14 @@ private:
 #endif // defined(XP_WIN)
 #if defined(MOZ_WIDGET_COCOA)
 private:
-    Shmem                  mShSurface; 
+    Shmem                  mShSurface;
     uint16_t               mShWidth;
     uint16_t               mShHeight;
     CGColorSpaceRef        mShColorSpace;
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     RefPtr<MacIOSurface> mIOSurface;
     RefPtr<MacIOSurface> mFrontIOSurface;
+#endif
 #endif // definied(MOZ_WIDGET_COCOA)
 
     // ObjectFrame layer wrapper

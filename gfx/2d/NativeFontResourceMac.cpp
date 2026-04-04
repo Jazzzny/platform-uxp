@@ -13,6 +13,8 @@
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
+#include <AvailabilityMacros.h>
+
 namespace mozilla {
 namespace gfx {
 
@@ -20,6 +22,9 @@ namespace gfx {
 already_AddRefed<NativeFontResourceMac>
 NativeFontResourceMac::Create(uint8_t *aFontData, uint32_t aDataLength)
 {
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+  return nullptr;
+#else
   // copy font data
   CFDataRef data = CFDataCreate(kCFAllocatorDefault, aFontData, aDataLength);
   if (!data) {
@@ -47,6 +52,7 @@ NativeFontResourceMac::Create(uint8_t *aFontData, uint32_t aDataLength)
     new NativeFontResourceMac(fontRef);
 
   return fontResource.forget();
+#endif
 }
 
 already_AddRefed<ScaledFont>

@@ -9,6 +9,14 @@
 #include "nsMacDockSupport.h"
 #include "nsObjCExceptions.h"
 
+// NSRectFromCGRect was introduced in 10.5.
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+static inline NSRect NSRectFromCGRect(CGRect cgrect) {
+  union _ { CGRect cg; NSRect ns; };
+  return ((union _ *)&cgrect)->ns;
+}
+#endif
+
 NS_IMPL_ISUPPORTS(nsMacDockSupport, nsIMacDockSupport, nsITaskbarProgress)
 
 nsMacDockSupport::nsMacDockSupport()
@@ -67,6 +75,7 @@ nsMacDockSupport::SetBadgeText(const nsAString& aBadgeText)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   NSDockTile *tile = [[NSApplication sharedApplication] dockTile];
   mBadgeText = aBadgeText;
   if (aBadgeText.IsEmpty())
@@ -74,6 +83,7 @@ nsMacDockSupport::SetBadgeText(const nsAString& aBadgeText)
   else
     [tile setBadgeLabel:[NSString stringWithCharacters:reinterpret_cast<const unichar*>(mBadgeText.get())
                                                 length:mBadgeText.Length()]];
+#endif
   return NS_OK;
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
@@ -108,7 +118,7 @@ nsMacDockSupport::SetProgressState(nsTaskbarProgressState aState,
   }
 
   if (mProgressState == STATE_NORMAL || mProgressState == STATE_INDETERMINATE) {
-    int perSecond = 8; // Empirically determined, see bug 848792 
+    int perSecond = 8; // Empirically determined, see bug 848792
     mProgressTimer->InitWithFuncCallback(RedrawIconCallback, this, 1000 / perSecond,
       nsITimer::TYPE_REPEATING_SLACK);
     return NS_OK;

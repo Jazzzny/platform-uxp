@@ -16,7 +16,9 @@
 #include <ServiceManagement/ServiceManagement.h>
 #endif
 #include <Security/Authorization.h>
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include <spawn.h>
+#endif
 #include <stdio.h>
 #ifdef __ppc__
 #include <sys/types.h>

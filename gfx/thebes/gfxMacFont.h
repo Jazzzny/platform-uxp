@@ -10,6 +10,7 @@
 #include "gfxFont.h"
 #include "cairo.h"
 #include <ApplicationServices/ApplicationServices.h>
+#include <AvailabilityMacros.h>
 
 class MacOSFontEntry;
 
@@ -42,8 +43,12 @@ public:
     // with embedded color bitmaps (Apple Color Emoji), as Core Text renders
     // the glyphs with non-linear scaling at small pixel sizes.
     virtual bool ProvidesGlyphWidths() const override {
+#if defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
         return mVariationFont ||
                mFontEntry->HasFontTable(TRUETYPE_TAG('s','b','i','x'));
+#else
+        return mFontEntry->HasFontTable(TRUETYPE_TAG('s','b','i','x'));
+#endif
     }
 
     virtual int32_t GetGlyphWidth(DrawTarget& aDrawTarget,
@@ -65,10 +70,12 @@ public:
     // Helper to create a CTFont from a CGFont, with optional font descriptor
     // (for features), and copying any variations that were set on the CGFont.
     // This is public so that gfxCoreTextShaper can also use it.
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     static CTFontRef
     CreateCTFontFromCGFontWithVariations(CGFontRef aCGFont,
                                          CGFloat aSize,
                                          CTFontDescriptorRef aFontDesc = nullptr);
+#endif
 
 protected:
     virtual const Metrics& GetHorizontalMetrics() override {
@@ -95,9 +102,11 @@ protected:
     // a strong reference to the CoreGraphics font
     CGFontRef             mCGFont;
 
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     // a Core Text font reference, created only if we're using CT to measure
     // glyph widths; otherwise null.
     CTFontRef             mCTFont;
+#endif
 
     cairo_font_face_t    *mFontFace;
 
