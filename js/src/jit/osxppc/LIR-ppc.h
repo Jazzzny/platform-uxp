@@ -77,23 +77,23 @@ class LUnboxFloatingPoint : public LInstructionHelper<1, 2, 0>
 };
 
 // Convert a 32-bit unsigned integer to a double.
-class LAsmJSUInt32ToDouble : public LInstructionHelper<1, 1, 0>
+class LWasmUint32ToDouble : public LInstructionHelper<1, 1, 0>
 {
   public:
-    LIR_HEADER(AsmJSUInt32ToDouble)
+    LIR_HEADER(WasmUint32ToDouble)
 
-    LAsmJSUInt32ToDouble(const LAllocation &input) {
+    LWasmUint32ToDouble(const LAllocation &input) {
         setOperand(0, input);
     }
 };
 
 // Convert a 32-bit unsigned integer to a float32.
-class LAsmJSUInt32ToFloat32 : public LInstructionHelper<1, 1, 0>
+class LWasmUint32ToFloat32 : public LInstructionHelper<1, 1, 0>
 {
   public:
-    LIR_HEADER(AsmJSUInt32ToFloat32)
+    LIR_HEADER(WasmUint32ToFloat32)
 
-    LAsmJSUInt32ToFloat32(const LAllocation &input) {
+    LWasmUint32ToFloat32(const LAllocation &input) {
         setOperand(0, input);
     }
 };
@@ -216,15 +216,16 @@ class LTableSwitch : public LInstructionHelper<0, 1, 2>
     }
 };
 
-// Takes a tableswitch with an integer to decide
+// Takes a tableswitch with a value to decide
 class LTableSwitchV : public LInstructionHelper<0, BOX_PIECES, 3>
 {
   public:
     LIR_HEADER(TableSwitchV);
 
-    LTableSwitchV(const LDefinition &inputCopy, const LDefinition &floatCopy,
+    LTableSwitchV(const LBoxAllocation& input, const LDefinition &inputCopy, const LDefinition &floatCopy,
                   const LDefinition &jumpTablePointer, MTableSwitch *ins)
     {
+        setBoxOperand(InputValue, input);
         setTemp(0, inputCopy);
         setTemp(1, floatCopy);
         setTemp(2, jumpTablePointer);
@@ -306,21 +307,6 @@ class LUDivOrMod : public LBinaryMath<0>
         if (mir_->isMod())
             return mir_->toMod()->canBeDivideByZero();
         return mir_->toDiv()->canBeDivideByZero();
-    }
-};
-
-class LAsmJSLoadFuncPtr : public LInstructionHelper<1, 1, 0>
-{
-  public:
-    LIR_HEADER(AsmJSLoadFuncPtr);
-    LAsmJSLoadFuncPtr(const LAllocation &index) {
-        setOperand(0, index);
-    }
-    const MAsmJSLoadFuncPtr *mir() const {
-        return mir_->toAsmJSLoadFuncPtr();
-    }
-    const LAllocation *index() {
-        return getOperand(0);
     }
 };
 

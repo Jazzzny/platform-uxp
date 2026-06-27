@@ -132,6 +132,11 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
         pushedNonVolatileRegisters++;
     }
 
+#if defined(JS_CODEGEN_PPC_OSX)
+    masm.Push(r17);
+    masm.x_mflr(r17);
+#endif
+
 #ifndef JS_CODEGEN_X86
     // The InputOutputData* is stored as an argument, save it on the stack
     // above the frame.
@@ -399,6 +404,11 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
 #endif
 
     // Restore non-volatile registers which were saved on entry.
+#if defined(JS_CODEGEN_PPC_OSX)
+    masm.x_mtlr(r17);
+    masm.Pop(r17);
+#endif
+
     for (GeneralRegisterBackwardIterator iter(savedNonVolatileRegisters); iter.more(); ++iter)
         masm.Pop(*iter);
 
@@ -420,6 +430,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
 
         masm.movePtr(ImmPtr(runtime), temp1);
 
+#ifndef JS_CODEGEN_PPC_OSX
         // Save registers before calling C function
         LiveGeneralRegisterSet volatileRegs(GeneralRegisterSet::Volatile());
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
@@ -443,6 +454,34 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
         // so that the stack is adjusted by our return instruction.
         Label return_from_overflow_handler;
         masm.branchTest32(Assembler::Zero, temp0, temp0, &return_from_overflow_handler);
+#else
+        Label return_from_overflow_handler;
+
+        masm.x_mflr(r0);
+        masm.push5(r3, r4, r5, r6, r7);
+        masm.push4(r8, r9, r10, r0);
+
+        masm.x_li32(r0, (uint32_t)GrowBacktrackStack);
+        masm.x_mtctr(r0);
+
+        masm.x_mr(addressTempRegister, stackPointerRegister);
+        masm.andi_rc(r0, stackPointerRegister, 0x04);
+        masm.subf(stackPointerRegister, r0, stackPointerRegister);
+        masm.andi_rc(r0, stackPointerRegister, 0x08);
+        masm.addi(r0, r0, 512);
+        masm.subf(stackPointerRegister, r0, stackPointerRegister);
+        masm.stw(addressTempRegister, stackPointerRegister, 0);
+
+        masm.x_mr(r3, temp1);
+        masm.bctr(Assembler::LinkB);
+
+        masm.lwz(stackPointerRegister, stackPointerRegister, 0);
+        masm.cmpwi(r3, 0);
+        masm.pop4(r0, r10, r9, r8);
+        masm.pop5(r7, r6, r5, r4, r3);
+        masm.x_mtlr(r0);
+        masm.bc(Assembler::Equal, &return_from_overflow_handler);
+#endif
 
         // Otherwise, store the new backtrack stack base and recompute the new
         // top of the stack.
@@ -455,7 +494,13 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
 
         // Resume execution in calling code.
         masm.bind(&return_from_overflow_handler);
+#ifdef JS_CODEGEN_PPC_OSX
+        // CheckBacktrackStackLimit calls this handler with a JIT-style call,
+        // so PPC must consume the fake return address pushed by that call.
+        masm.ret();
+#else
         masm.abiret();
+#endif
     }
 
     if (exit_with_exception_label_.used()) {
@@ -686,6 +731,7 @@ NativeRegExpMacroAssembler::CheckNotBackReferenceImpl(int start_reg, bool read_b
     }
 
     if (mode_ == CHAR16 && ignore_case) {
+#ifndef JS_CODEGEN_PPC_OSX
         // We call a helper function for case-insensitive non-latin1 strings.
         // Save volatile regs. temp1, temp2, and current_character
         // don't need to be saved.  current_position needs to be saved
@@ -730,6 +776,56 @@ NativeRegExpMacroAssembler::CheckNotBackReferenceImpl(int start_reg, bool read_b
         masm.PopRegsInMask(volatileRegs);
         // Check if function returned non-zero for success or zero for failure.
         masm.branchTest32(Assembler::Zero, temp1, temp1, BranchOrBacktrack(on_no_match));
+#else
+        masm.x_mflr(r0);
+        masm.push5(r3, r4, r5, r6, r7);
+        masm.push4(r8, r9, r10, r0);
+
+        masm.addi(stackPointerRegister, stackPointerRegister, -16);
+
+        masm.x_mr(addressTempRegister, input_end_pointer);
+        masm.add(addressTempRegister, addressTempRegister, current_character);
+        masm.stw(addressTempRegister, stackPointerRegister, 0);
+
+        masm.x_mr(addressTempRegister, input_end_pointer);
+        masm.add(addressTempRegister, addressTempRegister, current_position);
+        if (read_backward)
+            masm.subf(addressTempRegister, temp1, addressTempRegister);
+        masm.stw(addressTempRegister, stackPointerRegister, 4);
+
+        masm.stw(temp0, stackPointerRegister, 8);
+
+        if (unicode) {
+            int (*fun)(const char16_t*, const char16_t*, size_t) = CaseInsensitiveCompareUCStrings;
+            masm.x_li32(r0, (uint32_t)fun);
+        } else {
+            int (*fun)(const char16_t*, const char16_t*, size_t) = CaseInsensitiveCompareStrings;
+            masm.x_li32(r0, (uint32_t)fun);
+        }
+        masm.x_mtctr(r0);
+
+        masm.lwz(r3, stackPointerRegister, 0);
+        masm.lwz(r4, stackPointerRegister, 4);
+        masm.lwz(r5, stackPointerRegister, 8);
+
+        masm.x_mr(addressTempRegister, stackPointerRegister);
+        masm.andi_rc(r0, stackPointerRegister, 0x04);
+        masm.subf(stackPointerRegister, r0, stackPointerRegister);
+        masm.andi_rc(r0, stackPointerRegister, 0x08);
+        masm.addi(r0, r0, 512);
+        masm.subf(stackPointerRegister, r0, stackPointerRegister);
+        masm.stw(addressTempRegister, stackPointerRegister, 0);
+
+        masm.bctr(Assembler::LinkB);
+
+        masm.lwz(stackPointerRegister, stackPointerRegister, 0);
+        masm.cmpwi(r3, 0);
+        masm.addi(stackPointerRegister, stackPointerRegister, 16);
+        masm.pop4(r0, r10, r9, r8);
+        masm.pop5(r7, r6, r5, r4, r3);
+        masm.x_mtlr(r0);
+        masm.bc(Assembler::Equal, BranchOrBacktrack(on_no_match));
+#endif
 
         // On success, advance position by length of capture
         if (read_backward) {
@@ -968,9 +1064,19 @@ NativeRegExpMacroAssembler::LoadCurrentCharacterUnchecked(int cp_offset, int cha
     BaseIndex address(input_end_pointer, current_position, TimesOne, cp_offset * char_size());
     if (mode_ == ASCII) {
         if (characters == 4) {
+            // The regexp compiler expects packed multi-character loads in
+            // little-endian order: the first input character is in the low bits.
+#ifdef JS_CODEGEN_PPC_OSX
+            masm.load32ByteSwapped(address, current_character);
+#else
             masm.load32(address, current_character);
+#endif
         } else if (characters == 2) {
+#ifdef JS_CODEGEN_PPC_OSX
+            masm.load16ZeroExtendSwapped(address, current_character);
+#else
             masm.load16ZeroExtend(address, current_character);
+#endif
         } else {
             MOZ_ASSERT(characters == 1);
             masm.load8ZeroExtend(address, current_character);
@@ -978,10 +1084,15 @@ NativeRegExpMacroAssembler::LoadCurrentCharacterUnchecked(int cp_offset, int cha
     } else {
         MOZ_ASSERT(mode_ == CHAR16);
         MOZ_ASSERT(characters <= 2);
-        if (characters == 2)
+        if (characters == 2) {
+#ifdef JS_CODEGEN_PPC_OSX
+            masm.load32WordSwapped(address, current_character);
+#else
             masm.load32(address, current_character);
-        else
+#endif
+        } else {
             masm.load16ZeroExtend(address, current_character);
+        }
     }
 }
 

@@ -27,6 +27,7 @@
 #if defined(XP_WIN)
 # include <io.h>     /* for isatty() */
 #endif
+#include <limits.h>
 #include <locale.h>
 #if defined(MALLOC_H)
 # include MALLOC_H    /* for malloc_usable_size, malloc_size, _msize */
@@ -93,6 +94,10 @@
 #include "vm/HelperThreads.h"
 #include "vm/Monitor.h"
 #include "vm/MutexIDs.h"
+
+#if defined(MOZ_ICU_DATA_ARCHIVE)
+# include "unicode/putil.h"
+#endif
 #include "vm/Shape.h"
 #include "vm/SharedArrayObject.h"
 #include "vm/StringBuffer.h"
@@ -275,6 +280,8 @@ struct ShellContext
     ExclusiveData<ShellAsyncTasks> asyncTasks;
     bool drainingJobQueue;
     JS::PersistentRootedFunction moduleResolveHook;
+    JS::PersistentRootedFunction moduleMetadataHook;
+    JS::PersistentRootedFunction moduleDynamicImportHook;
 
     /*
      * Watchdog thread state.
@@ -442,7 +449,9 @@ ShellContext::ShellContext(JSContext* cx)
     quitting(false),
     readLineBufPos(0),
     spsProfilingStackSize(0),
-    moduleResolveHook(cx)
+    moduleResolveHook(cx),
+    moduleMetadataHook(cx),
+    moduleDynamicImportHook(cx)
 {}
 
 static ShellContext*
@@ -4067,10 +4076,10 @@ ParseModule(JSContext* cx, unsigned argc, Value* vp)
 
     const char16_t* chars = stableChars.twoByteRange().begin().get();
     JS::SourceBufferHolder srcBuf(chars, scriptContents->length(),
-                                  SourceBufferHolder::NoOwnership);
+                                  JS::SourceBufferHolder::NoOwnership);
 
-    RootedObject module(cx, frontend::CompileModule(cx, options, srcBuf));
-    if (!module)
+    RootedObject module(cx);
+    if (!JS::CompileModule(cx, options, srcBuf, &module))
         return false;
 
     args.rval().setObject(*module);
@@ -4184,30 +4193,28 @@ SetModuleMetadataHook(JSContext* cx, unsigned argc, Value* vp)
         return false;
     }
 
-    Handle<GlobalObject*> global = cx->global();
-    global->setReservedSlot(GlobalAppSlotModuleMetadataHook, args[0]);
+    ShellContext* sc = GetShellContext(cx);
+    sc->moduleMetadataHook = &args[0].toObject().as<JSFunction>();
 
     args.rval().setUndefined();
     return true;
 }
 
 static bool
-CallModuleMetadataHook(JSContext* cx, HandleObject module, HandleObject metaObject)
+ShellModuleMetadataHook(JSContext* cx, HandleObject module, HandleObject metaObject)
 {
-    Handle<GlobalObject*> global = cx->global();
-    RootedValue hookValue(cx, global->getReservedSlot(GlobalAppSlotModuleMetadataHook));
-    if (hookValue.isUndefined()) {
+    ShellContext* sc = GetShellContext(cx);
+    if (!sc->moduleMetadataHook) {
         JS_ReportErrorASCII(cx, "Module metadata hook not set");
         return false;
     }
-    MOZ_ASSERT(hookValue.toObject().is<JSFunction>());
 
     JS::AutoValueArray<2> args(cx);
     args[0].setObject(*module);
     args[1].setObject(*metaObject);
 
     RootedValue dummy(cx);
-    return JS_CallFunctionValue(cx, nullptr, hookValue, args, &dummy);
+    return JS_CallFunction(cx, nullptr, sc->moduleMetadataHook, args, &dummy);
 }
 
 static bool
@@ -4226,8 +4233,8 @@ SetModuleDynamicImportHook(JSContext* cx, unsigned argc, Value* vp)
         return false;
     }
 
-    Handle<GlobalObject*> global = cx->global();
-    global->setReservedSlot(GlobalAppSlotModuleDynamicImportHook, args[0]);
+    ShellContext* sc = GetShellContext(cx);
+    sc->moduleDynamicImportHook = &args[0].toObject().as<JSFunction>();
 
     args.rval().setUndefined();
     return true;
@@ -4278,7 +4285,8 @@ AbortDynamicModuleImport(JSContext* cx, unsigned argc, Value* vp)
     RootedString specifier(cx, args[1].toString());
     Rooted<PromiseObject*> promise(cx, &args[2].toObject().as<PromiseObject>());
 
-    cx->setPendingException(args[3]);
+    RootedValue exception(cx, args[3]);
+    cx->setPendingException(exception, nullptr);
     return js::FinishDynamicModuleImport(cx, args[0], specifier, promise);
 }
 
@@ -4286,13 +4294,11 @@ static bool
 ShellModuleDynamicImportHook(JSContext* cx, HandleValue referencingPrivate, HandleString specifier,
                              HandleObject promise)
 {
-    Handle<GlobalObject*> global = cx->global();
-    RootedValue hookValue(cx, global->getReservedSlot(GlobalAppSlotModuleDynamicImportHook));
-    if (hookValue.isUndefined()) {
+    ShellContext* sc = GetShellContext(cx);
+    if (!sc->moduleDynamicImportHook) {
         JS_ReportErrorASCII(cx, "Module resolve hook not set");
         return false;
     }
-    MOZ_ASSERT(hookValue.toObject().is<JSFunction>());
 
     JS::AutoValueArray<3> args(cx);
     args[0].set(referencingPrivate);
@@ -4300,7 +4306,7 @@ ShellModuleDynamicImportHook(JSContext* cx, HandleValue referencingPrivate, Hand
     args[2].setObject(*promise);
 
     RootedValue result(cx);
-    if (!JS_CallFunctionValue(cx, nullptr, hookValue, args, &result)) {
+    if (!JS_CallFunction(cx, nullptr, sc->moduleDynamicImportHook, args, &result)) {
         return false;
     }
 
@@ -4655,6 +4661,55 @@ struct MOZ_RAII FreeOnReturn
 
 static int sArgc;
 static char** sArgv;
+
+#if defined(MOZ_ICU_DATA_ARCHIVE)
+static bool
+FileExists(const char* path)
+{
+    struct stat st;
+    return stat(path, &st) == 0;
+}
+
+static bool
+JoinPath(char* buffer, size_t bufferLen, const char* dir, const char* leaf)
+{
+    int written = snprintf(buffer, bufferLen, "%s/%s", dir, leaf);
+    return written > 0 && size_t(written) < bufferLen;
+}
+
+static void
+SetICUDataDirectory(const char* argv0)
+{
+    const char* slash = strrchr(argv0, '/');
+    if (!slash)
+        return;
+
+    char exeDir[PATH_MAX + 1];
+    size_t len = slash - argv0;
+    if (len >= sizeof(exeDir))
+        return;
+
+    memcpy(exeDir, argv0, len);
+    exeDir[len] = '\0';
+
+    char dataDir[PATH_MAX + 1];
+    char dataFile[PATH_MAX + 1];
+
+    if (JoinPath(dataDir, sizeof(dataDir), exeDir, "../../../dist/bin") &&
+        JoinPath(dataFile, sizeof(dataFile), dataDir, MOZ_ICU_DATA_FILE) &&
+        FileExists(dataFile))
+    {
+        u_setDataDirectory(dataDir);
+        return;
+    }
+
+    if (JoinPath(dataFile, sizeof(dataFile), exeDir, MOZ_ICU_DATA_FILE) &&
+        FileExists(dataFile))
+    {
+        u_setDataDirectory(exeDir);
+    }
+}
+#endif
 
 class AutoCStringVector
 {
@@ -8207,6 +8262,10 @@ main(int argc, char** argv, char** envp)
 
     if (op.getBoolOption("no-threads"))
         js::DisableExtraThreads();
+
+#if defined(MOZ_ICU_DATA_ARCHIVE)
+    SetICUDataDirectory(argv[0]);
+#endif
 
     // Start the engine.
     if (!JS_Init())

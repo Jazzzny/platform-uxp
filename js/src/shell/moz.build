@@ -37,10 +37,24 @@ LOCAL_INCLUDES += [
 OS_LIBS += CONFIG['EDITLINE_LIBS']
 OS_LIBS += CONFIG['MOZ_ZLIB_LIBS']
 
+if CONFIG['OS_ARCH'] == 'Darwin' and CONFIG['CPU_ARCH'] == 'ppc':
+    OS_LIBS += ['-Wl,-stack_size,0x10000000']
+
 if CONFIG['MOZ_ICU_DATA_ARCHIVE']:
-    # The ICU libraries linked into libmozjs will not include the ICU data,
-    # so link it directly.
-    USE_LIBS += ['icudata']
+    DEFINES['MOZ_ICU_DATA_ARCHIVE'] = True
+    data_file = {
+        'little': 'icudt%sl.dat' % CONFIG['MOZ_ICU_VERSION'],
+        'big': 'icudt%sb.dat' % CONFIG['MOZ_ICU_VERSION'],
+    }
+    DEFINES['MOZ_ICU_DATA_FILE'] = '"%s"' % data_file[CONFIG['TARGET_ENDIANNESS']]
+
+    if not (CONFIG['OS_ARCH'] == 'Darwin' and CONFIG['CPU_ARCH'] == 'ppc'):
+        # The ICU libraries linked into libmozjs will not include the ICU data,
+        # so link it directly.
+        USE_LIBS += ['icudata']
+
+if CONFIG['MOZ_NEEDS_LIBATOMIC']:
+    OS_LIBS += ['atomic']
 
 # Prepare module loader JS code for embedding
 GENERATED_FILES += ['shellmoduleloader.out.h']

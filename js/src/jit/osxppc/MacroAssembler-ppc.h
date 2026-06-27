@@ -102,11 +102,12 @@ class MacroAssemblerPPC : public Assembler
     void convertInt32ToDouble(const BaseIndex& src, FloatRegister dest);
     void convertUInt32ToDouble(Register src, FloatRegister dest);
     void mul64(Imm64 imm, const Register64& dest);
-    void convertUInt64ToDouble(Register64 src, Register temp, FloatRegister dest);
+    static bool convertUInt64ToDoubleNeedsTemp() { return true; }
+    void convertUInt64ToDouble(Register64 src, FloatRegister dest, Register temp);
     void mulDoublePtr(ImmPtr imm, Register temp, FloatRegister dest) {
         ispew("[[ mulDoublePtr(immptr, reg, fpr)");
         // mscdfr0!
-        x_li32(addressTempRegister, imm.value);
+        x_li32(addressTempRegister, int32_t(uintptr_t(imm.value)));
         lfd(fpTempRegister, addressTempRegister, 0);
         fmul(dest, fpTempRegister, dest);
         ispew("   mulDoublePtr(immptr, reg, fpr) ]]");
@@ -410,6 +411,10 @@ class MacroAssemblerPPCCompat : public MacroAssemblerPPC
 {
   public:
   	MacroAssemblerPPCCompat() { }
+
+    struct AutoPrepareForPatching {
+        explicit AutoPrepareForPatching(MacroAssemblerPPCCompat&) {}
+    };
   	
     void j(Label *dest) {
         b(dest);
@@ -631,6 +636,11 @@ class MacroAssemblerPPCCompat : public MacroAssemblerPPC
     void jump(JitCode *code) {
     	branch(code);
     }
+    void jump(wasm::TrapDesc target) {
+        Label label;
+        jump(&label);
+        bindLater(&label, target);
+    }
 
     void neg32(Register reg) {
         neg(reg, reg);
@@ -704,10 +714,12 @@ class MacroAssemblerPPCCompat : public MacroAssemblerPPC
     void loadInt32OrDouble(Register base, Register index,
                            FloatRegister dest, int32_t shift = defaultShift);
     void loadConstantDouble(double dp, FloatRegister dest);
+    void loadConstantDouble(wasm::RawF64 dp, FloatRegister dest);
 
     void boolValueToFloat32(const ValueOperand &operand, FloatRegister dest);
     void int32ValueToFloat32(const ValueOperand &operand, FloatRegister dest);
     void loadConstantFloat32(float f, FloatRegister dest);
+    void loadConstantFloat32(wasm::RawF32 f, FloatRegister dest);
 
     void branchTestInt32(Condition cond, const ValueOperand &value, Label *label);
     void branchTestInt32(Condition cond, Register tag, Label *label);
@@ -833,6 +845,8 @@ class MacroAssemblerPPCCompat : public MacroAssemblerPPC
     void branchTestSymbol(Condition cond, const ValueOperand &value, Label *label);
     void branchTestSymbol(Condition cond, const Register &tag, Label *label);
     void branchTestSymbol(Condition cond, const BaseIndex &src, Label *label);
+    void branchTestBigInt(Condition cond, const ValueOperand &value, Label *label);
+    void branchTestBigInt(Condition cond, Register tag, Label *label);
 
     void branchTestUndefined(Condition cond, const ValueOperand &value, Label *label);
     void branchTestUndefined(Condition cond, Register tag, Label *label);
@@ -858,6 +872,7 @@ class MacroAssemblerPPCCompat : public MacroAssemblerPPC
     void branchTestInt32Truthy(bool b, const ValueOperand &value, Label *label);
 
     void branchTestStringTruthy(bool b, const ValueOperand &value, Label *label);
+    void branchTestBigIntTruthy(bool b, const ValueOperand &value, Label *label);
 
     void branchTestDoubleTruthy(bool b, FloatRegister value, Label *label);
 
@@ -1019,6 +1034,13 @@ public:
     void storeValue(JSValueType type, Register reg, Address dest);
     void storeValue(const Value &val, Address dest);
     void storeValue(const Value &val, BaseIndex dest);
+    void storeValue(const Address &src, const Address &dest, Register temp) {
+        load32(ToType(src), temp);
+        store32(temp, ToType(dest));
+
+        load32(ToPayload(src), temp);
+        store32(temp, ToPayload(dest));
+    }
 
     void loadValue(Address src, ValueOperand val);
     void loadValue(Operand dest, ValueOperand val) {
@@ -1031,13 +1053,12 @@ public:
     void popValue(ValueOperand val);
     void pushValue(const Value &val) {
     	ispew("pushValue(v)");
-        jsval_layout jv = JSVAL_TO_IMPL(val);
         // Payload FIRST! ENDIAN!
-        if (val.isMarkable())
-            push(ImmGCPtr(reinterpret_cast<gc::Cell *>(val.toGCThing())));
+        if (val.isGCThing())
+            push(ImmGCPtr(val.toGCThing()));
         else
-            push(Imm32(jv.s.payload.i32));
-        push(Imm32(jv.s.tag));
+            push(Imm32(val.toNunboxPayload()));
+        push(Imm32(val.toNunboxTag()));
     }
     void pushValue(JSValueType type, Register reg) {
     	ispew("pushValue(jsvaluetype, reg)");
@@ -1053,9 +1074,11 @@ public:
     void storeTypeTag(ImmTag tag, Address dest);
     void storeTypeTag(ImmTag tag, const BaseIndex &dest);
 
-    void makeFrameDescriptor(Register frameSizeReg, FrameType type) {
+    void makeFrameDescriptor(Register frameSizeReg, FrameType type, uint32_t headerSize) {
         x_slwi(frameSizeReg, frameSizeReg, FRAMESIZE_SHIFT);
-        ma_or(frameSizeReg, frameSizeReg, Imm32(type));
+        headerSize = EncodeFrameHeaderSize(headerSize);
+        ma_or(frameSizeReg, frameSizeReg,
+              Imm32((headerSize << FRAME_HEADER_SIZE_SHIFT) | type));
     }
 
     void handleFailureWithHandlerTail(void *handler);
@@ -1642,12 +1665,18 @@ public:
 
     void loadAsmJSActivation(Register dest) {
     	ispew("loadAsmJSActivation(reg)");
-        loadPtr(Address(GlobalReg, wasm::ActivationGlobalDataOffset - AsmJSGlobalRegBias), dest);
+        loadPtr(Address(WasmTlsReg, offsetof(wasm::TlsData, cx)), dest);
+        loadPtr(Address(dest, JSContext::offsetOfWasmActivation()), dest);
     }
     void loadAsmJSHeapRegisterFromGlobalData() {
     	ispew("loadAsmJSHeapRegisterFromGlobalData()");
-        MOZ_ASSERT(Imm16::IsInSignedRange(wasm::HeapGlobalDataOffset - AsmJSGlobalRegBias));
-        loadPtr(Address(GlobalReg, wasm::HeapGlobalDataOffset - AsmJSGlobalRegBias), HeapReg);
+        loadPtr(Address(WasmTlsReg, offsetof(wasm::TlsData, memoryBase)), HeapReg);
+    }
+    void loadWasmGlobalPtr(uint32_t, Register) {
+        MOZ_CRASH("wasm is not supported on PPC");
+    }
+    void loadWasmPinnedRegsFromTls() {
+        MOZ_CRASH("wasm is not supported on PPC");
     }
 
     // Instrumentation for entering and leaving the profiler.

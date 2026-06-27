@@ -26,7 +26,7 @@ Registers::FromName(const char *name)
         return Code(3); // Dispatch, this is Floodgap, Code 3. Over.
 
     for (size_t i = 0; i < Total; i++) {
-        if (strcmp(GetName(i), name) == 0)
+        if (strcmp(GetName(uint32_t(i)), name) == 0)
             return Code(i);
     }
 
@@ -37,7 +37,7 @@ FloatRegisters::Code
 FloatRegisters::FromName(const char *name)
 {
     for (size_t i = 0; i < Total; i++) {
-        if (strcmp(GetName(i), name) == 0)
+        if (strcmp(GetName(uint32_t(i)), name) == 0)
             return Code(i);
     }
 
@@ -77,4 +77,3 @@ FloatRegister::getRegisterDumpOffsetInBytes()
 
 } // namespace ion
 } // namespace js
-

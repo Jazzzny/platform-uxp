@@ -17,22 +17,27 @@ using namespace js::jit;
 
 using mozilla::FloorLog2;
 
-void
-LIRGeneratorPPC::useBoxFixed(LInstruction *lir, size_t n, MDefinition *mir, Register reg1,
-                              Register reg2, bool useAtStart)
+LBoxAllocation
+LIRGeneratorPPC::useBoxFixed(MDefinition *mir, Register reg1, Register reg2, bool useAtStart)
 {
-    MOZ_ASSERT(mir->type() == MIRType_Value);
+    MOZ_ASSERT(mir->type() == MIRType::Value);
     MOZ_ASSERT(reg1 != reg2);
 
     ensureDefined(mir);
-    lir->setOperand(n, LUse(reg1, mir->virtualRegister(), useAtStart));
-    lir->setOperand(n + 1, LUse(reg2, VirtualRegisterOfPayload(mir), useAtStart));
+    return LBoxAllocation(LUse(reg1, mir->virtualRegister(), useAtStart),
+                          LUse(reg2, VirtualRegisterOfPayload(mir), useAtStart));
 }
 
 LAllocation
 LIRGeneratorPPC::useByteOpRegister(MDefinition *mir)
 {
     return useRegister(mir);
+}
+
+LAllocation
+LIRGeneratorPPC::useByteOpRegisterAtStart(MDefinition *mir)
+{
+    return useRegisterAtStart(mir);
 }
 
 LAllocation
@@ -50,22 +55,22 @@ LIRGeneratorPPC::tempByteOpRegister()
 void
 LIRGeneratorPPC::lowerConstantDouble(double d, MInstruction *mir)
 {
-    define(new(alloc()) LDouble(d), mir);
+    define(new(alloc()) LDouble(wasm::RawF64(d)), mir);
 }
 
 void
 LIRGeneratorPPC::lowerConstantFloat32(float d, MInstruction *mir)
 {
-    define(new(alloc()) LFloat32(d), mir);
+    define(new(alloc()) LFloat32(wasm::RawF32(d)), mir);
 }
 
 void
 LIRGeneratorPPC::visitConstant(MConstant *ins)
 {
-    if (ins->type() == MIRType_Double)
-        lowerConstantDouble(ins->value().toDouble(), ins);
-    else if (ins->type() == MIRType_Float32)
-        lowerConstantFloat32(ins->value().toDouble(), ins);
+    if (ins->type() == MIRType::Double)
+        define(new(alloc()) LDouble(ins->toRawF64()), ins);
+    else if (ins->type() == MIRType::Float32)
+        define(new(alloc()) LFloat32(ins->toRawF32()), ins);
     else if (ins->canEmitAtUses())
         emitAtUses(ins);
 	else LIRGeneratorShared::visitConstant(ins);
@@ -89,7 +94,7 @@ LIRGeneratorPPC::visitBox(MBox *box)
     }
 
     if (inner->isConstant()) {
-        defineBox(new(alloc()) LValue(inner->toConstant()->value()), box);
+        defineBox(new(alloc()) LValue(inner->toConstant()->toJSValue()), box);
         return;
     }
 
@@ -118,7 +123,7 @@ LIRGeneratorPPC::visitUnbox(MUnbox *unbox)
     MDefinition *inner = unbox->getOperand(0);
 
 	// Fast path for objects.
-    if (inner->type() == MIRType_ObjectOrNull) {
+    if (inner->type() == MIRType::ObjectOrNull) {
         LUnboxObjectOrNull* lir = new(alloc()) LUnboxObjectOrNull(useRegisterAtStart(inner));
         if (unbox->fallible())
             assignSnapshot(lir, unbox->bailoutKind());
@@ -129,7 +134,7 @@ LIRGeneratorPPC::visitUnbox(MUnbox *unbox)
     // An unbox on PPC reads in a type tag (either in memory or a register) and
     // a payload. Unlike most instructions consuming a box, we ask for the type
     // second, so that the result can re-use the first input.
-    MOZ_ASSERT(inner->type() == MIRType_Value);
+    MOZ_ASSERT(inner->type() == MIRType::Value);
 
     ensureDefined(inner);
 
@@ -137,7 +142,7 @@ LIRGeneratorPPC::visitUnbox(MUnbox *unbox)
         LUnboxFloatingPoint *lir = new(alloc()) LUnboxFloatingPoint(unbox->type());
         if (unbox->fallible())
         	assignSnapshot(lir, unbox->bailoutKind()); // infallible
-        useBox(lir, LUnboxFloatingPoint::Input, inner);
+        lir->setBoxOperand(LUnboxFloatingPoint::Input, useBox(inner));
         define(lir, unbox);
         return;
     }
@@ -163,13 +168,143 @@ void
 LIRGeneratorPPC::visitReturn(MReturn *ret)
 {
     MDefinition *opd = ret->getOperand(0);
-    MOZ_ASSERT(opd->type() == MIRType_Value);
+    MOZ_ASSERT(opd->type() == MIRType::Value);
 
     LReturn *ins = new(alloc()) LReturn;
     ins->setOperand(0, LUse(JSReturnReg_Type));
     ins->setOperand(1, LUse(JSReturnReg_Data));
     fillBoxUses(ins, 0, opd);
     add(ins);
+}
+
+void
+LIRGeneratorPPC::defineInt64Phi(MPhi *phi, size_t lirIndex)
+{
+    LPhi *low = current->getPhi(lirIndex + INT64LOW_INDEX);
+    LPhi *high = current->getPhi(lirIndex + INT64HIGH_INDEX);
+
+    uint32_t lowVreg = getVirtualRegister();
+    phi->setVirtualRegister(lowVreg);
+
+    uint32_t highVreg = getVirtualRegister();
+    MOZ_ASSERT(lowVreg + INT64HIGH_INDEX == highVreg + INT64LOW_INDEX);
+
+    low->setDef(0, LDefinition(lowVreg, LDefinition::INT32));
+    high->setDef(0, LDefinition(highVreg, LDefinition::INT32));
+    annotate(high);
+    annotate(low);
+}
+
+void
+LIRGeneratorPPC::lowerInt64PhiInput(MPhi *phi, uint32_t inputPosition,
+                                    LBlock *block, size_t lirIndex)
+{
+    MDefinition *operand = phi->getOperand(inputPosition);
+    LPhi *low = block->getPhi(lirIndex + INT64LOW_INDEX);
+    LPhi *high = block->getPhi(lirIndex + INT64HIGH_INDEX);
+    low->setOperand(inputPosition, LUse(operand->virtualRegister() + INT64LOW_INDEX, LUse::ANY));
+    high->setOperand(inputPosition, LUse(operand->virtualRegister() + INT64HIGH_INDEX, LUse::ANY));
+}
+
+void
+LIRGeneratorPPC::lowerForALUInt64(LInstructionHelper<INT64_PIECES, 2 * INT64_PIECES, 0> *ins,
+                                  MDefinition *mir, MDefinition *lhs, MDefinition *rhs)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::lowerForMulInt64(LMulI64 *ins, MMul *mir, MDefinition *lhs, MDefinition *rhs)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+template<size_t Temps>
+void
+LIRGeneratorPPC::lowerForShiftInt64(
+    LInstructionHelper<INT64_PIECES, INT64_PIECES + 1, Temps> *ins, MDefinition *mir,
+    MDefinition *lhs, MDefinition *rhs)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+template void LIRGeneratorPPC::lowerForShiftInt64(
+    LInstructionHelper<INT64_PIECES, INT64_PIECES + 1, 0> *ins, MDefinition *mir,
+    MDefinition *lhs, MDefinition *rhs);
+template void LIRGeneratorPPC::lowerForShiftInt64(
+    LInstructionHelper<INT64_PIECES, INT64_PIECES + 1, 1> *ins, MDefinition *mir,
+    MDefinition *lhs, MDefinition *rhs);
+
+void
+LIRGeneratorPPC::lowerDivI64(MDiv *div)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::lowerModI64(MMod *mod)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::lowerUDivI64(MDiv *div)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::lowerUModI64(MMod *mod)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::visitWasmLoad(MWasmLoad *ins)
+{
+    MOZ_CRASH("wasm is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::visitWasmStore(MWasmStore *ins)
+{
+    MOZ_CRASH("wasm is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::visitWasmSelect(MWasmSelect *ins)
+{
+    MOZ_CRASH("wasm is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::visitWasmTruncateToInt64(MWasmTruncateToInt64 *ins)
+{
+    MOZ_CRASH("wasm is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::visitInt64ToFloatingPoint(MInt64ToFloatingPoint *ins)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::visitExtendInt32ToInt64(MExtendInt32ToInt64 *ins)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::visitSignExtendInt64(MSignExtendInt64 *ins)
+{
+    MOZ_CRASH("wasm/int64 is not supported on PPC");
+}
+
+void
+LIRGeneratorPPC::visitCopySign(MCopySign *ins)
+{
+    MOZ_CRASH("copySign is not supported on PPC");
 }
 
 // x = !y
@@ -291,7 +426,7 @@ LIRGeneratorPPC::lowerDivI(MDiv *div)
     // Division instructions are slow. Division by constant denominators can be
     // rewritten to use other instructions.
     if (div->rhs()->isConstant()) {
-        int32_t rhs = div->rhs()->toConstant()->value().toInt32();
+        int32_t rhs = div->rhs()->toConstant()->toInt32();
         // Check for division by a positive power of two, which is an easy and
         // important case to optimize. Note that other optimizations are also
         // possible; division by negative powers of two can be optimized in a
@@ -331,7 +466,7 @@ LIRGeneratorPPC::lowerModI(MMod *mod)
     }
 
     if (mod->rhs()->isConstant()) {
-        int32_t rhs = mod->rhs()->toConstant()->value().toInt32();
+        int32_t rhs = mod->rhs()->toConstant()->toInt32();
         int32_t shift = FloorLog2(rhs);
         if (rhs > 0 && 1 << shift == rhs) {
             LModPowTwoI *lir = new(alloc()) LModPowTwoI(useRegister(mod->lhs()), shift);
@@ -353,7 +488,7 @@ void
 LIRGeneratorPPC::visitPowHalf(MPowHalf *ins)
 {
     MDefinition *input = ins->input();
-    MOZ_ASSERT(input->type() == MIRType_Double);
+    MOZ_ASSERT(input->type() == MIRType::Double);
     LPowHalfD *lir = new(alloc()) LPowHalfD(useRegisterAtStart(input));
     defineReuseInput(lir, ins, 0);
 }
@@ -368,31 +503,32 @@ LIRGeneratorPPC::newLTableSwitch(const LAllocation &in, const LDefinition &input
 LTableSwitchV *
 LIRGeneratorPPC::newLTableSwitchV(MTableSwitch *tableswitch)
 {
-    return new(alloc()) LTableSwitchV(temp(), tempDouble(), temp(), tableswitch);
+    return new(alloc()) LTableSwitchV(useBox(tableswitch->getOperand(0)),
+                                      temp(), tempDouble(), temp(), tableswitch);
 }
 
 void
 LIRGeneratorPPC::visitGuardShape(MGuardShape *ins)
 {
-    MOZ_ASSERT(ins->obj()->type() == MIRType_Object);
+    MOZ_ASSERT(ins->object()->type() == MIRType::Object);
 
     LDefinition tempObj = temp(LDefinition::OBJECT);
-    LGuardShape *guard = new(alloc()) LGuardShape(useRegister(ins->obj()), tempObj);
+    LGuardShape *guard = new(alloc()) LGuardShape(useRegister(ins->object()), tempObj);
     assignSnapshot(guard, ins->bailoutKind());
     add(guard, ins);
-    redefine(ins, ins->obj());
+    redefine(ins, ins->object());
 }
 
 void
 LIRGeneratorPPC::visitGuardObjectGroup(MGuardObjectGroup *ins)
 {
-    MOZ_ASSERT(ins->obj()->type() == MIRType_Object);
+    MOZ_ASSERT(ins->object()->type() == MIRType::Object);
 
     LDefinition tempObj = temp(LDefinition::OBJECT);
-    LGuardObjectGroup *guard = new(alloc()) LGuardObjectGroup(useRegister(ins->obj()), tempObj);
+    LGuardObjectGroup *guard = new(alloc()) LGuardObjectGroup(useRegister(ins->object()), tempObj);
     assignSnapshot(guard, ins->bailoutKind());
     add(guard, ins);
-    redefine(ins, ins->obj());
+    redefine(ins, ins->object());
 }
 
 void
@@ -401,8 +537,8 @@ LIRGeneratorPPC::lowerUrshD(MUrsh *mir)
     MDefinition *lhs = mir->lhs();
     MDefinition *rhs = mir->rhs();
 
-    MOZ_ASSERT(lhs->type() == MIRType_Int32);
-    MOZ_ASSERT(rhs->type() == MIRType_Int32);
+    MOZ_ASSERT(lhs->type() == MIRType::Int32);
+    MOZ_ASSERT(rhs->type() == MIRType::Int32);
 
     LUrshD *lir = new(alloc()) LUrshD(useRegister(lhs), useRegisterOrConstant(rhs), temp());
     define(lir, mir);
@@ -411,12 +547,12 @@ LIRGeneratorPPC::lowerUrshD(MUrsh *mir)
 void
 LIRGeneratorPPC::visitAsmJSNeg(MAsmJSNeg *ins)
 {
-    if (ins->type() == MIRType_Int32)
+    if (ins->type() == MIRType::Int32)
         define(new(alloc()) LNegI(useRegisterAtStart(ins->input())), ins);
-    else if (ins->type() == MIRType_Float32)
+    else if (ins->type() == MIRType::Float32)
         define(new(alloc()) LNegF(useRegisterAtStart(ins->input())), ins);
     else {
-    	MOZ_ASSERT(ins->type() == MIRType_Double);
+    	MOZ_ASSERT(ins->type() == MIRType::Double);
     	define(new(alloc()) LNegD(useRegisterAtStart(ins->input())), ins);
     }
 }
@@ -450,35 +586,37 @@ LIRGeneratorPPC::lowerUMod(MMod *mod)
 }
 
 void
-LIRGeneratorPPC::visitAsmJSUnsignedToDouble(MAsmJSUnsignedToDouble *ins)
+LIRGeneratorPPC::visitWasmUnsignedToDouble(MWasmUnsignedToDouble *ins)
 {
-    MOZ_ASSERT(ins->input()->type() == MIRType_Int32);
-    LAsmJSUInt32ToDouble *lir = new(alloc()) LAsmJSUInt32ToDouble(useRegisterAtStart(ins->input()));
+    MOZ_ASSERT(ins->input()->type() == MIRType::Int32);
+    LWasmUint32ToDouble *lir = new(alloc()) LWasmUint32ToDouble(useRegisterAtStart(ins->input()));
     define(lir, ins);
 }
 
 void
-LIRGeneratorPPC::visitAsmJSUnsignedToFloat32(MAsmJSUnsignedToFloat32 *ins)
+LIRGeneratorPPC::visitWasmUnsignedToFloat32(MWasmUnsignedToFloat32 *ins)
 {
-    MOZ_ASSERT(ins->input()->type() == MIRType_Int32);
-    LAsmJSUInt32ToFloat32 *lir = new(alloc()) LAsmJSUInt32ToFloat32(useRegisterAtStart(ins->input()));
+    MOZ_ASSERT(ins->input()->type() == MIRType::Int32);
+    LWasmUint32ToFloat32 *lir = new(alloc()) LWasmUint32ToFloat32(useRegisterAtStart(ins->input()));
     define(lir, ins);
 }
 
 void
 LIRGeneratorPPC::visitAsmJSLoadHeap(MAsmJSLoadHeap *ins)
 {
-    MDefinition *ptr = ins->ptr();
-    MOZ_ASSERT(ptr->type() == MIRType_Int32);
+    MOZ_ASSERT(ins->access().offset() == 0);
+
+    MDefinition *ptr = ins->base();
+    MOZ_ASSERT(ptr->type() == MIRType::Int32);
     LAllocation ptrAlloc;
 
     // For PowerPC it would be better to keep the pointer in a register
     // if bounds checking is needed.
     if (ptr->isConstant() && !ins->needsBoundsCheck()) {
-        int32_t ptrValue = ptr->toConstant()->value().toInt32();
+        int32_t ptrValue = ptr->toConstant()->toInt32();
         // A bounds check is only skipped for a positive index.
         MOZ_ASSERT(ptrValue >= 0);
-        ptrAlloc = LAllocation(ptr->toConstant()->vp());
+        ptrAlloc = LAllocation(ptr->toConstant());
     } else
         ptrAlloc = useRegisterAtStart(ptr);
 
@@ -488,13 +626,15 @@ LIRGeneratorPPC::visitAsmJSLoadHeap(MAsmJSLoadHeap *ins)
 void
 LIRGeneratorPPC::visitAsmJSStoreHeap(MAsmJSStoreHeap *ins)
 {
-    MDefinition *ptr = ins->ptr();
-    MOZ_ASSERT(ptr->type() == MIRType_Int32);
+    MOZ_ASSERT(ins->access().offset() == 0);
+
+    MDefinition *ptr = ins->base();
+    MOZ_ASSERT(ptr->type() == MIRType::Int32);
     LAllocation ptrAlloc;
 
     if (ptr->isConstant() && !ins->needsBoundsCheck()) {
-        MOZ_ASSERT(ptr->toConstant()->value().toInt32() >= 0);
-        ptrAlloc = LAllocation(ptr->toConstant()->vp());
+        MOZ_ASSERT(ptr->toConstant()->toInt32() >= 0);
+        ptrAlloc = LAllocation(ptr->toConstant());
     } else
         ptrAlloc = useRegisterAtStart(ptr);
 
@@ -502,16 +642,10 @@ LIRGeneratorPPC::visitAsmJSStoreHeap(MAsmJSStoreHeap *ins)
 }
 
 void
-LIRGeneratorPPC::visitAsmJSLoadFuncPtr(MAsmJSLoadFuncPtr *ins)
-{
-    define(new(alloc()) LAsmJSLoadFuncPtr(useRegister(ins->index())), ins);
-}
-
-void
 LIRGeneratorPPC::lowerTruncateDToInt32(MTruncateToInt32 *ins)
 {
     MDefinition *opd = ins->input();
-    MOZ_ASSERT(opd->type() == MIRType_Double);
+    MOZ_ASSERT(opd->type() == MIRType::Double);
 
     define(new(alloc()) LTruncateDToInt32(useRegister(opd), LDefinition::BogusTemp()), ins);
 }
@@ -520,7 +654,7 @@ void
 LIRGeneratorPPC::lowerTruncateFToInt32(MTruncateToInt32 *ins)
 {
     MDefinition *opd = ins->input();
-    MOZ_ASSERT(opd->type() == MIRType_Float32);
+    MOZ_ASSERT(opd->type() == MIRType::Float32);
 
     define(new(alloc()) LTruncateFToInt32(useRegister(opd), LDefinition::BogusTemp()), ins);
 }
@@ -540,30 +674,6 @@ LIRGeneratorPPC::visitSubstr(MSubstr *ins)
 
 void
 LIRGeneratorPPC::visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStatic *ins)
-{
-    MOZ_CRASH("NYI");
-}
-
-void
-LIRGeneratorPPC::visitSimdBinaryArith(MSimdBinaryArith* ins)
-{
-    MOZ_CRASH("NYI");
-}
-
-void
-LIRGeneratorPPC::visitSimdSelect(MSimdSelect* ins)
-{
-    MOZ_CRASH("NYI");
-}
-
-void
-LIRGeneratorPPC::visitSimdSplatX4(MSimdSplatX4 *ins)
-{
-    MOZ_CRASH("NYI");
-}
-
-void
-LIRGeneratorPPC::visitSimdValueX4(MSimdValueX4 *ins)
 {
     MOZ_CRASH("NYI");
 }
@@ -608,6 +718,8 @@ void
 LIRGeneratorPPC::visitRandom(MRandom* ins)
 {
     LRandom *lir = new(alloc()) LRandom(temp(),
+                                        temp(),
+                                        temp(),
                                         temp(),
                                         temp(),
                                         temp(),

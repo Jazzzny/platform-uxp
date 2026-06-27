@@ -963,6 +963,10 @@ mips*-*)
     ENABLE_ION=1
     AC_DEFINE(JS_CPU_MIPS)
     ;;
+powerpc-apple-darwin*|ppc-apple-darwin*)
+    ENABLE_ION=1
+    AC_DEFINE(JS_CPU_PPC_OSX)
+    ;;
 esac
 
 if test "$HAVE_64BIT_BUILD" ; then
@@ -1510,6 +1514,8 @@ if test -n "$ZLIB_IN_MOZGLUE"; then
 fi
 AC_SUBST(ZLIB_IN_MOZGLUE)
 
+MOZ_CONFIG_ICU()
+
 dnl ========================================================
 dnl =
 dnl = Application
@@ -1766,6 +1772,9 @@ elif test "$CPU_ARCH" = "mips" || test "$CPU_ARCH" = "mips32" || test "$CPU_ARCH
         AC_DEFINE(JS_CODEGEN_MIPS64)
         JS_CODEGEN_MIPS64=1
     fi
+elif test "$CPU_ARCH" = "ppc" -a "$OS_ARCH" = "Darwin"; then
+    AC_DEFINE(JS_CODEGEN_PPC_OSX)
+    JS_CODEGEN_PPC_OSX=1
 fi
 
 AC_SUBST(JS_SIMULATOR)
@@ -1777,6 +1786,7 @@ AC_SUBST(JS_CODEGEN_ARM)
 AC_SUBST(JS_CODEGEN_ARM64)
 AC_SUBST(JS_CODEGEN_MIPS32)
 AC_SUBST(JS_CODEGEN_MIPS64)
+AC_SUBST(JS_CODEGEN_PPC_OSX)
 AC_SUBST(JS_CODEGEN_X86)
 AC_SUBST(JS_CODEGEN_X64)
 AC_SUBST(JS_CODEGEN_NONE)

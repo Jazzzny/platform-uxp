@@ -76,7 +76,7 @@ class Registers
         r31,
         invalid_reg
     };
-    typedef RegisterID Code;
+    typedef uint8_t Code;
     typedef RegisterID Encoding;
     
     // Content spilled during bailouts.
@@ -251,7 +251,7 @@ class FloatRegisters
         f31,
         invalid_freg
     };
-    typedef FPRegisterID Code;
+    typedef uint8_t Code;
     typedef FPRegisterID Encoding;
     
     // Content spilled during bailouts.
@@ -288,6 +288,7 @@ class FloatRegisters
 
     static const uint32_t TotalPhys = 32;
     static const uint32_t AllDoubleMask = 0xffffffff;
+    static const uint32_t AllSingleMask = AllDoubleMask;
     static const uint32_t AllMask = AllDoubleMask;
 
     static const uint32_t VolatileMask = 
@@ -375,10 +376,10 @@ class FloatRegister
 
     Code code_;
 
-    MOZ_CONSTEXPR FloatRegister(uint32_t code)
+    constexpr FloatRegister(uint32_t code)
       : code_ (Code(code))
     { }
-    MOZ_CONSTEXPR FloatRegister()
+    constexpr FloatRegister()
       : code_(Code(FloatRegisters::invalid_freg))
     { }
 
@@ -418,7 +419,7 @@ class FloatRegister
     }
     Encoding encoding() {
     	MOZ_ASSERT(!isInvalid());
-    	return code_;
+    	return Encoding(code_);
     }
     uint32_t id() const {
         return code_;
@@ -587,6 +588,7 @@ has_sqrt() {
 // offset field of AsmJSHeapAccess.
 static const size_t AsmJSCheckedImmediateRange = 0;
 static const size_t AsmJSImmediateRange = 0;
+static const uint32_t JumpImmediateRange = UINT32_MAX;
 
 } // namespace jit
 } // namespace js

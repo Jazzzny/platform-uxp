@@ -63,6 +63,10 @@ extern  "C" void sync_instruction_memory(caddr_t v, u_int len);
 #endif
 #endif
 
+#ifdef JS_CPU_PPC_OSX
+extern "C" void sys_icache_invalidate(const void* addr, size_t len);
+#endif
+
 #if defined(__linux__) &&                                             \
      (defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)) &&    \
      (!defined(JS_SIMULATOR_MIPS32) && !defined(JS_SIMULATOR_MIPS64))
@@ -293,6 +297,11 @@ class ExecutableAllocator
     static void cacheFlush(void* code, size_t size)
     {
         sync_instruction_memory((caddr_t)code, size);
+    }
+#elif JS_CPU_PPC_OSX
+    static void cacheFlush(void* code, size_t size)
+    {
+        sys_icache_invalidate(code, size);
     }
 #endif
 

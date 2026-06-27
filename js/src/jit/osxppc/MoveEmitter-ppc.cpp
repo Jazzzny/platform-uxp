@@ -91,15 +91,14 @@ MoveEmitterPPC::breakCycle(const MoveOperand &from, const MoveOperand &to,
       case MoveOp::FLOAT32:
         if (to.isMemory()) {
             FloatRegister temp = ScratchFloat32Reg;
-masm.x_mtrap();
             masm.loadFloat32(getAdjustedAddress(to), temp);
             // Since it is uncertain if the load will be aligned or not
             // just fill both of them with the same value.
             masm.storeFloat32(temp, cycleSlot(slotId, 0));
             masm.storeFloat32(temp, cycleSlot(slotId, 4));
         } else {
-            // Just always store the largest possible size.
-            masm.storeDouble(from.floatReg(), cycleSlot(slotId, 0));
+            masm.storeFloat32(to.floatReg(), cycleSlot(slotId, 0));
+            masm.storeFloat32(to.floatReg(), cycleSlot(slotId, 4));
         }
         break;
       case MoveOp::DOUBLE:
@@ -219,9 +218,8 @@ MoveEmitterPPC::emitMove(const MoveOperand &from, const MoveOperand &to)
 void
 MoveEmitterPPC::emitFloat32Move(const MoveOperand &from, const MoveOperand &to)
 {
-    // Don't clobber the temp register, if it's the source.
-    MOZ_ASSERT_IF(from.isFloatReg(), from.floatReg() != fpTempRegister);
-    MOZ_ASSERT_IF(to.isFloatReg(), to.floatReg() != fpTempRegister);
+    MOZ_ASSERT_IF(from.isFloatReg(), from.floatReg().isSingle());
+    MOZ_ASSERT_IF(to.isFloatReg(), to.floatReg().isSingle());
 
     if (from.isFloatReg()) {
         if (to.isFloatReg()) {
@@ -252,9 +250,8 @@ MoveEmitterPPC::emitFloat32Move(const MoveOperand &from, const MoveOperand &to)
 void
 MoveEmitterPPC::emitDoubleMove(const MoveOperand &from, const MoveOperand &to)
 {
-    // Don't clobber the temp register, if it's the source.
-    MOZ_ASSERT_IF(from.isFloatReg(), from.floatReg() != fpTempRegister);
-    MOZ_ASSERT_IF(to.isFloatReg(), to.floatReg() != fpTempRegister);
+    MOZ_ASSERT_IF(from.isFloatReg(), from.floatReg().isDouble());
+    MOZ_ASSERT_IF(to.isFloatReg(), to.floatReg().isDouble());
 
     if (from.isFloatReg()) {
         if (to.isFloatReg()) {

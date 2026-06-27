@@ -91,6 +91,7 @@ class CodeGeneratorPPC : public CodeGeneratorShared
         bailoutFrom(&bail, snapshot);
     }
 
+    void bailoutIf(Assembler::Condition condition, LSnapshot *snapshot);
     void bailoutFrom(Label *label, LSnapshot *snapshot);
     void bailout(LSnapshot *snapshot);
 
@@ -201,8 +202,8 @@ class CodeGeneratorPPC : public CodeGeneratorShared
     virtual void visitCompareBitwise(LCompareBitwise* lir);
     virtual void visitCompareBitwiseAndBranch(LCompareBitwiseAndBranch* lir);
     virtual void visitBitAndAndBranch(LBitAndAndBranch *lir);
-    virtual void visitAsmJSUInt32ToDouble(LAsmJSUInt32ToDouble *lir);
-    virtual void visitAsmJSUInt32ToFloat32(LAsmJSUInt32ToFloat32 *lir);
+    virtual void visitWasmUint32ToDouble(LWasmUint32ToDouble *lir);
+    virtual void visitWasmUint32ToFloat32(LWasmUint32ToFloat32 *lir);
     virtual void visitNotI(LNotI *ins);
     virtual void visitNotD(LNotD *ins);
     virtual void visitNotF(LNotF *ins);
@@ -250,17 +251,10 @@ class CodeGeneratorPPC : public CodeGeneratorShared
     void visitNegF(LNegF *lir);
     void visitLoadTypedArrayElementStatic(LLoadTypedArrayElementStatic *ins);
     void visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStatic *ins);
-    void visitAsmJSCall(LAsmJSCall *ins);
     void visitAsmJSLoadHeap(LAsmJSLoadHeap *ins);
     void visitAsmJSStoreHeap(LAsmJSStoreHeap *ins);
     void visitAsmJSCompareExchangeHeap(LAsmJSCompareExchangeHeap* ins);
     void visitAsmJSAtomicBinopHeap(LAsmJSAtomicBinopHeap* ins);
-    void visitAsmJSLoadGlobalVar(LAsmJSLoadGlobalVar *ins);
-    void visitAsmJSStoreGlobalVar(LAsmJSStoreGlobalVar *ins);
-    void visitAsmJSLoadFuncPtr(LAsmJSLoadFuncPtr *ins);
-    void visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins);
-
-    void visitAsmJSPassStackArg(LAsmJSPassStackArg *ins);
 
     void generateInvalidateEpilogue();
 
@@ -270,22 +264,6 @@ class CodeGeneratorPPC : public CodeGeneratorShared
     void visitEffectiveAddress(LEffectiveAddress *ins);
     void visitUDivOrMod(LUDivOrMod *ins);
 
-  public:
-    // Unimplemented SIMD instructions
-    void visitSimdSplatX4(LSimdSplatX4* lir) { MOZ_CRASH("NYI"); }
-    void visitInt32x4(LInt32x4* ins) { MOZ_CRASH("NYI"); }
-    void visitFloat32x4(LFloat32x4* ins) { MOZ_CRASH("NYI"); }
-    void visitSimdReinterpretCast(LSimdReinterpretCast* ins) { MOZ_CRASH("NYI"); }
-    void visitSimdExtractElementI(LSimdExtractElementI* ins) { MOZ_CRASH("NYI"); }
-    void visitSimdExtractElementF(LSimdExtractElementF* ins) { MOZ_CRASH("NYI"); }
-    void visitSimdSignMaskX4(LSimdSignMaskX4* ins) { MOZ_CRASH("NYI"); }
-    void visitSimdBinaryCompIx4(LSimdBinaryCompIx4* lir) { MOZ_CRASH("NYI"); }
-    void visitSimdBinaryCompFx4(LSimdBinaryCompFx4* lir) { MOZ_CRASH("NYI"); }
-    void visitSimdBinaryArithIx4(LSimdBinaryArithIx4* lir) { MOZ_CRASH("NYI"); }
-    void visitSimdBinaryArithFx4(LSimdBinaryArithFx4* lir) { MOZ_CRASH("NYI"); }
-    void visitSimdBinaryBitwiseX4(LSimdBinaryBitwiseX4* lir) { MOZ_CRASH("NYI"); }
-    void visitSimdGeneralShuffleI(LSimdGeneralShuffleI* lir) { MOZ_CRASH("NYI"); }
-    void visitSimdGeneralShuffleF(LSimdGeneralShuffleF* lir) { MOZ_CRASH("NYI"); }
 };
 
 typedef CodeGeneratorPPC CodeGeneratorSpecific;

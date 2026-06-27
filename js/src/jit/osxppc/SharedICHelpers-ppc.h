@@ -119,7 +119,7 @@ EmitBaselineTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
     // Push frame descriptor and perform the tail call. The call is to
     // Ion code, so it does not need to be ABI compliant.
     masm.addi(stackPointerRegister, stackPointerRegister, -((uint16_t)sizeof(CommonFrameLayout)));
-    masm.makeFrameDescriptor(r3, JitFrame_BaselineJS);
+    masm.makeFrameDescriptor(r3, JitFrame_BaselineJS, ExitFrameLayout::Size());
     masm.stw(ICTailCallReg, stackPointerRegister, CommonFrameLayout::offsetOfReturnAddress());
     masm.stw(r3, stackPointerRegister, CommonFrameLayout::offsetOfDescriptor());
     masm.branch(target);
@@ -147,14 +147,14 @@ EmitIonTailCallVM(JitCode* target, MacroAssembler& masm, uint32_t stackSize)
     // Push frame descriptor and perform the tail call. The call is to
     // Ion code, so it does not need to be ABI compliant.
     // XXX: could be mtctr/mFD/push2/bctr
-    masm.makeFrameDescriptor(r3, JitFrame_IonJS);
+    masm.makeFrameDescriptor(r3, JitFrame_IonJS, ExitFrameLayout::Size());
     masm.push2(r3, ICTailCallReg);
     masm.branch(target);
     ispew("   EmitIonTailCallVM ]]");
 }
 
 inline void
-EmitBaselineCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
+EmitBaselineCreateStubFrameDescriptor(MacroAssembler &masm, Register reg, uint32_t headerSize)
 {
     // Compute stub frame size. We have to add two pointers: the stub reg
     // and previous fake-o frame pointer pushed by EmitEnterStubFrame.
@@ -164,7 +164,7 @@ EmitBaselineCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
     masm.x_mr(reg, BaselineFrameReg);
     masm.addi(reg, reg, sizeof(void *) * 2); // should be 8, should fit
     masm.subf(reg, BaselineStackReg, reg); // fp > sp
-    masm.makeFrameDescriptor(reg, JitFrame_BaselineStub);
+    masm.makeFrameDescriptor(reg, JitFrame_BaselineStub, headerSize);
 }
 
 inline void
@@ -173,7 +173,7 @@ EmitBaselineCallVM(JitCode *target, MacroAssembler &masm)
     ispew("[[ EmitBaselineCallVM");
 
     // Use r12, since we can't use r0 with the addi.
-    EmitBaselineCreateStubFrameDescriptor(masm, r12);
+    EmitBaselineCreateStubFrameDescriptor(masm, r12, ExitFrameLayout::Size());
     masm.push(r12);
     masm.call(target);
 
@@ -192,7 +192,8 @@ EmitIonCallVM(JitCode* target, size_t stackSlots, MacroAssembler& masm)
     // fix it here by subtracting it or else it would be counted twice.
     uint32_t framePushed = masm.framePushed() - sizeof(void*);
 
-    uint32_t descriptor = MakeFrameDescriptor(framePushed, JitFrame_IonStub);
+    uint32_t descriptor = MakeFrameDescriptor(framePushed, JitFrame_IonStub,
+                                              ExitFrameLayout::Size());
     masm.Push(Imm32(descriptor));
     masm.call(target);
 
@@ -233,7 +234,7 @@ EmitBaselineEnterStubFrame(MacroAssembler &masm, Register scratch)
         Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
 
     // Push frame descriptor and return address.
-    masm.makeFrameDescriptor(scratch, JitFrame_BaselineJS);
+    masm.makeFrameDescriptor(scratch, JitFrame_BaselineJS, BaselineStubFrameLayout::Size());
     masm.addi(stackPointerRegister, stackPointerRegister, -((uint16_t)STUB_FRAME_SIZE));
     masm.stw(scratch, stackPointerRegister, offsetof(BaselineStubFrame, descriptor));
     masm.stw(ICTailCallReg, stackPointerRegister, offsetof(BaselineStubFrame, returnAddress));

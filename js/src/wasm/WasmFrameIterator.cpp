@@ -242,7 +242,7 @@ static const unsigned PushedRetAddr = 8;
 static const unsigned PushedFP = 32;
 static const unsigned StoredFP = 36;
 static const unsigned PostStorePrePopFP = 4;
-#elif defined(JS_CODEGEN_NONE)
+#elif defined(JS_CODEGEN_NONE) || defined(JS_CODEGEN_PPC_OSX)
 # if defined(DEBUG)
 static const unsigned PushedRetAddr = 0;
 static const unsigned PostStorePrePopFP = 0;
@@ -311,7 +311,8 @@ GenerateProfilingEpilogue(MacroAssembler& masm, unsigned framePushed, ExitReason
 {
     Register scratch = ABINonArgReturnReg0;
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || \
-    defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
+    defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64) || \
+    defined(JS_CODEGEN_PPC_OSX)
     Register scratch2 = ABINonArgReturnReg1;
 #endif
 
@@ -338,7 +339,8 @@ GenerateProfilingEpilogue(MacroAssembler& masm, unsigned framePushed, ExitReason
         // time and still points to the current frame, be careful to only update
         // sp after activation.fp has been repointed to the caller's frame.
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || \
-    defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
+    defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64) || \
+    defined(JS_CODEGEN_PPC_OSX)
         masm.loadPtr(Address(masm.getStackPointer(), 0), scratch2);
         masm.storePtr(scratch2, Address(scratch, WasmActivation::offsetOfFP()));
         DebugOnly<uint32_t> prePop = masm.currentOffset();
@@ -826,9 +828,10 @@ wasm::ToggleProfiling(const Code& code, const CallSite& callSite, bool enabled)
     BOffImm16 calleeOffset;
     callerInsn->extractImm16(&calleeOffset);
     void* callee = calleeOffset.getDest(reinterpret_cast<Instruction*>(caller));
-#elif defined(JS_CODEGEN_NONE)
+#elif defined(JS_CODEGEN_NONE) || defined(JS_CODEGEN_PPC_OSX)
     MOZ_CRASH();
     void* callee = nullptr;
+    (void)callerRetAddr;
 #else
 # error "Missing architecture"
 #endif
@@ -853,7 +856,8 @@ wasm::ToggleProfiling(const Code& code, const CallSite& callSite, bool enabled)
     MOZ_CRASH();
 #elif defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
     new (caller) InstImm(op_regimm, zero, rt_bgezal, BOffImm16(to - caller));
-#elif defined(JS_CODEGEN_NONE)
+#elif defined(JS_CODEGEN_NONE) || defined(JS_CODEGEN_PPC_OSX)
+    (void)to;
     MOZ_CRASH();
 #else
 # error "Missing architecture"

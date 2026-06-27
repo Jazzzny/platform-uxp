@@ -2488,6 +2488,94 @@ js::GetTypedObjectModule(JSContext* cx, unsigned argc, Value* vp)
     return true;
 }
 
+template<typename T>
+static inline T
+LoadTypedObjectScalar(T* target)
+{
+    return *target;
+}
+
+template<typename T>
+static inline void
+StoreTypedObjectScalar(T* target, T value)
+{
+    *target = value;
+}
+
+#if defined(JS_CODEGEN_PPC_OSX)
+static inline int16_t
+LoadTypedObjectScalar(int16_t* target)
+{
+    return int16_t(__builtin_bswap16(*target));
+}
+
+static inline uint16_t
+LoadTypedObjectScalar(uint16_t* target)
+{
+    return __builtin_bswap16(*target);
+}
+
+static inline int32_t
+LoadTypedObjectScalar(int32_t* target)
+{
+    return int32_t(__builtin_bswap32(*target));
+}
+
+static inline uint32_t
+LoadTypedObjectScalar(uint32_t* target)
+{
+    return __builtin_bswap32(*target);
+}
+
+static inline int64_t
+LoadTypedObjectScalar(int64_t* target)
+{
+    return int64_t(__builtin_bswap64(*target));
+}
+
+static inline uint64_t
+LoadTypedObjectScalar(uint64_t* target)
+{
+    return __builtin_bswap64(*target);
+}
+
+static inline void
+StoreTypedObjectScalar(int16_t* target, int16_t value)
+{
+    *target = int16_t(__builtin_bswap16(value));
+}
+
+static inline void
+StoreTypedObjectScalar(uint16_t* target, uint16_t value)
+{
+    *target = uint16_t(__builtin_bswap16(value));
+}
+
+static inline void
+StoreTypedObjectScalar(int32_t* target, int32_t value)
+{
+    *target = int32_t(__builtin_bswap32(value));
+}
+
+static inline void
+StoreTypedObjectScalar(uint32_t* target, uint32_t value)
+{
+    *target = uint32_t(__builtin_bswap32(value));
+}
+
+static inline void
+StoreTypedObjectScalar(int64_t* target, int64_t value)
+{
+    *target = int64_t(__builtin_bswap64(value));
+}
+
+static inline void
+StoreTypedObjectScalar(uint64_t* target, uint64_t value)
+{
+    *target = uint64_t(__builtin_bswap64(value));
+}
+#endif
+
 #define JS_STORE_SCALAR_CLASS_IMPL(_constant, T, _name)                         \
 bool                                                                            \
 js::StoreScalar##T::Func(JSContext* cx, unsigned argc, Value* vp)               \
@@ -2507,7 +2595,7 @@ js::StoreScalar##T::Func(JSContext* cx, unsigned argc, Value* vp)               
     JS::AutoCheckCannotGC nogc(cx);                                             \
     T* target = reinterpret_cast<T*>(typedObj.typedMem(offset, nogc));          \
     double d = args[2].toNumber();                                              \
-    *target = ConvertScalar<T>(d);                                              \
+    StoreTypedObjectScalar(target, ConvertScalar<T>(d));                        \
     args.rval().setUndefined();                                                 \
     return true;                                                                \
 }
@@ -2557,7 +2645,7 @@ js::LoadScalar##T::Func(JSContext* cx, unsigned argc, Value* vp)                
                                                                                         \
     JS::AutoCheckCannotGC nogc(cx);                                                     \
     T* target = reinterpret_cast<T*>(typedObj.typedMem(offset, nogc));                  \
-    args.rval().setNumber((double) *target);                                            \
+    args.rval().setNumber((double) LoadTypedObjectScalar(target));                      \
     return true;                                                                        \
 }
 

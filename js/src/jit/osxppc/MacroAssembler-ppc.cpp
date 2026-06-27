@@ -7,11 +7,11 @@
 /*
 
    IonPower (C)2015 Contributors to TenFourFox. All rights reserved.
- 
+
    Authors: Cameron Kaiser <classilla@floodgap.com>
-   with thanks to Ben Stuhl and David Kilbridge 
+   with thanks to Ben Stuhl and David Kilbridge
    and the authors of the ARM and MIPS ports
- 
+
  */
 
 #include "jit/osxppc/MacroAssembler-ppc.h"
@@ -33,6 +33,23 @@ using mozilla::Abs;
 
 static const int32_t PAYLOAD_OFFSET = NUNBOX32_PAYLOAD_OFFSET;
 static const int32_t TAG_OFFSET = NUNBOX32_TYPE_OFFSET;
+
+void
+MacroAssembler::comment(const char*)
+{
+}
+
+void
+MacroAssembler::patchNopToNearJump(uint8_t*, uint8_t*)
+{
+    MOZ_CRASH("wasm is not supported on PPC");
+}
+
+void
+MacroAssembler::patchNearJumpToNop(uint8_t*)
+{
+    MOZ_CRASH("wasm is not supported on PPC");
+}
 
 // From -ppc.h
     void MacroAssemblerPPCCompat::Push2(const Register &rr0, const Register &rr1) {
@@ -89,7 +106,7 @@ static const int32_t TAG_OFFSET = NUNBOX32_TYPE_OFFSET;
         ma_push(f);
         adjustFrame(sizeof(double));
     }
-    
+
     void MacroAssembler::Pop(Register reg) { // "fake LR" supported
         ma_pop(reg);
         adjustFrame(-sizeof(intptr_t));
@@ -103,7 +120,7 @@ void
 MacroAssemblerPPC::convertBoolToInt32(Register src, Register dest)
 {
 	ispew("convertBoolToInt32(reg, reg)");
-	
+
     // Although native PPC boolean is word-size, preserve Ion's expectations
     // by masking off the higher-order bits.
     andi_rc(dest, src, 0xff);
@@ -114,7 +131,7 @@ MacroAssemblerPPC::convertInt32ToDouble(Register src, FloatRegister dest)
 {
 	ispew("convertInt32ToDouble(reg, fpr)");
 	MOZ_ASSERT(src != tempRegister);
-	
+
 	// No GPR<->FPR moves! Use the library routine.
 	dangerous_convertInt32ToDouble(src, dest,
 		(dest == fpTempRegister) ? fpConversionRegister : // Baseline
@@ -148,18 +165,18 @@ MacroAssemblerPPC::convertUInt32ToDouble(Register src, FloatRegister dest)
 	// is 0x4330 0000 0000 0000 (not 8000), and we don't xoris the sign.
 	// See also OPPCC chapter 8 p.157.
 	ispew("[[ convertUInt32ToDouble(reg, fpr)");
-	
+
 	// It's possible to call this for temp registers, so use spares.
 	FloatRegister fpTemp = (dest == fpTempRegister) ? fpConversionRegister
 		: fpTempRegister;
-	Register temp = (src == tempRegister) ? addressTempRegister 
+	Register temp = (src == tempRegister) ? addressTempRegister
 		: tempRegister;
-		
+
 	// Build temporary frame with zero constant.
 	x_lis(temp, 0x4330);
 	stwu(temp, stackPointerRegister, -8); // cracked on G5
 	x_lis(temp, 0x0000); // not 8000
-	
+
 	// (2nd G5 dispatch group)
 	stw(src, stackPointerRegister, 4);
 	// Don't flip integer value's sign; use as integer component directly.
@@ -196,7 +213,7 @@ MacroAssemblerPPC::convertUInt32ToDouble(Register src, FloatRegister dest)
 	fsub(dest, dest, fpTemp);
 	// Destroy temporary frame.
 	addi(stackPointerRegister, stackPointerRegister, 8);
-	
+
 	ispew("   convertUInt32ToDouble(reg, fpr) ]]");
 }
 
@@ -207,7 +224,7 @@ MacroAssemblerPPC::mul64(Imm64 imm, const Register64& dest)
     // HIGH32 = LOW(HIGH(dest) * LOW(imm)) [multiply imm into upper bits]
     //        + LOW(LOW(dest) * HIGH(imm)) [multiply dest into upper bits]
     //        + HIGH(LOW(dest) * LOW(imm)) [carry]
-    
+
     /* G5-64:
        convert Register64 to a single 64 bit register
        convert imm to another 64 bit register
@@ -225,7 +242,7 @@ MacroAssemblerPPC::mul64(Imm64 imm, const Register64& dest)
          and dest.lo,dest.lo,r12
     */
     ispew("[[ mul64(imm64, r64)");
-    
+
     // Compute both low and high (LOW(dest) * LOW(imm)).
     // Don't use overflow (we assume overflow). Instead, use mullw and mulhwu.
     x_li32(tempRegister, (uint32_t)(imm.value & LOW_32_MASK));
@@ -234,7 +251,7 @@ MacroAssemblerPPC::mul64(Imm64 imm, const Register64& dest)
     // Push addressTempRegister so we can get it back at the end.
     // XXX: This would be better with a third temp register.
     stwu(addressTempRegister, stackPointerRegister, -4);
-    
+
     // Now we need to add the two LOW() terms. These can be regular mullws.
     // Do the HIGH(dest) part first so that we can use dest.high as
     // its own accumulator.
@@ -243,13 +260,13 @@ MacroAssemblerPPC::mul64(Imm64 imm, const Register64& dest)
     add(dest.high, dest.high, tempRegister); // tempRegister is now free
     x_li32(addressTempRegister, (uint32_t)((imm.value >> 32) & LOW_32_MASK));
     mullw(tempRegister, dest.low, addressTempRegister); // LOW(low(dest) * HIGH(imm))
-    
+
     // Start getting dest.low off the stack.
     lwz(dest.low, stackPointerRegister, 0);
     // Done.
     add(dest.high, dest.high, tempRegister);
     addi(stackPointerRegister, stackPointerRegister, 4);
-    
+
     ispew("   mul64(imm64, r64) ]]");
 
 // Future expansion
@@ -271,8 +288,9 @@ MacroAssemblerPPC::mul64(Imm64 imm, const Register64& dest)
 static const double TO_DOUBLE_HIGH_SCALE = 0x100000000;
 
 void
-MacroAssemblerPPC::convertUInt64ToDouble(Register64 src, Register temp, FloatRegister dest)
+MacroAssemblerPPC::convertUInt64ToDouble(Register64 src, FloatRegister dest, Register temp)
 {
+    (void)temp;
 // XXX: G5-64 has fcfid. Push the register pair, load into an FPR, fcfid to dest.
     convertUInt32ToDouble(src.high, dest);
     ma_lid(ScratchDoubleReg, TO_DOUBLE_HIGH_SCALE);
@@ -305,12 +323,12 @@ MacroAssemblerPPC::branchTruncateDouble(FloatRegister src, Register dest,
 	ispew("[[ branchTruncateDouble(fpreg, reg, l)");
 	MOZ_ASSERT(src != fpTempRegister);
 	MOZ_ASSERT(dest != tempRegister);
-	
+
 	// Again, no GPR<->FPR moves! So, back to the stack.
 	// Turn into a fixed-point integer (i.e., truncate).
 	//
 	// TODO: Is fctiwz_rc with FPSCR exceptions faster than checking constants??
-	// See below. 
+	// See below.
 	// XXX: It looks like it is: see FPSCR VXCVI and the CodeGenerator.
 
 	fctiwz(fpTempRegister, src);
@@ -323,7 +341,7 @@ MacroAssemblerPPC::branchTruncateDouble(FloatRegister src, Register dest,
 	x_li32(tempRegister, 0x7fffffff);
 	// Pull out the lower 32 bits. This is the result.
 	lwz(dest, stackPointerRegister, 4);
-	
+
 	// We don't care if a truncation occurred. In fact, all we care is
 	// that the integer result fits in 32 bits. Fortunately, fctiwz will
 	// tip us off: if src > 2^31-1, then dest becomes 0x7fffffff, the
@@ -331,14 +349,14 @@ MacroAssemblerPPC::branchTruncateDouble(FloatRegister src, Register dest,
 	// 0x80000000, the largest 32-bit negative integer. So we just test
 	// for those two values. If either value is found, fail-branch. Use
 	// unsigned compares, since these are logical values.
-	
+
 	// (tempRegister was loaded already)
 	cmplw(dest, tempRegister);
 	// Destroy the temporary frame before testing, since we might branch.
 	// The cmplw will execute in parallel for "free."
 	addi(stackPointerRegister, stackPointerRegister, 8);
 	bc(Equal, fail);
-	
+
 	x_li32(tempRegister, 0x80000000); // sign extends!
 	cmplw(dest, tempRegister);
 	bc(Equal, fail);
@@ -353,7 +371,7 @@ MacroAssemblerPPC::convertDoubleToInt32(FloatRegister src, Register dest,
 {
 	ispew("[[ convertDoubleToInt32(fpr, reg, l, bool)");
 	MOZ_ASSERT(dest != tempRegister);
-	
+
 	// Turn into a fixed-point integer (i.e., truncate). Set FX for any
 	// exception (inexact or bad conversion), which becomes CR1+LT with
 	// fctiwz_rc. FI is not sticky, so we need not whack it, but XX is.
@@ -363,22 +381,22 @@ MacroAssemblerPPC::convertDoubleToInt32(FloatRegister src, Register dest,
 	mtfsb0(6);  // whack XX
 	mtfsb0(23); // whack VXCVI
 	mtfsb0(0);  // then whack summary FX
-	
+
 	fp2int(src, dest, false);
-	
+
 	// Test and branch if inexact (i.e., if "less than").
 	bc(LessThan, fail, cr1);
-	
+
 	// If negativeZeroCheck is true, we need to also branch to the
 	// failure label if the result is -0 (if false, we don't care).
         // fctiwz. will merrily convert -0 because, well, it's zero!
 	if (negativeZeroCheck) {
 		ispew("<< checking for negativeZero >>");
-		
+
 		// If it's not zero, don't bother.
 		and__rc(tempRegister, dest, dest);
 		BufferOffset nonZero = _bc(0, NonZero, cr0, LikelyB);
-		
+
 		// FP negative zero is 0x8000 0000 0000 0000 in the IEEE 754
 		// standard, so test the upper 32 bits by extracting it on the
 		// stack (similar to our various breakDouble iteractions). We have
@@ -392,7 +410,7 @@ MacroAssemblerPPC::convertDoubleToInt32(FloatRegister src, Register dest,
 		and__rc(addressTempRegister, tempRegister, tempRegister);
 		addi(stackPointerRegister, stackPointerRegister, 8);
 		bc(NonZero, fail);
-		
+
 		bindSS(nonZero);
 	}
 	ispew("  convertDoubleToInt32(fpr, reg, l, bool) ]]");
@@ -483,11 +501,11 @@ MacroAssemblerPPC::inc64(AbsoluteAddress dest)
 
 	// (First G5 dispatch group.) Load effective address.
 	x_li32(addressTempRegister, (uint32_t)dest.addr); // 2 inst
-	
+
 	// Get the LSB and increment it, setting or clearing carry.
 	lwz(tempRegister, addressTempRegister, 4);
 	addic(tempRegister, tempRegister, 1);
-	
+
 	// (Second G5 dispatch group.) Store it.
 	stw(tempRegister, addressTempRegister, 4);
 #ifdef _PPC970_
@@ -857,7 +875,7 @@ MacroAssemblerPPC::ma_load(Register dest, Address address,
       	if (swapped) {
       		lhbrx(dest, address.base, tempRegister);
       		if (ZeroExtend != extension) extsh(dest, dest);
-      	} 
+      	}
       	else if (indexed && extension == ZeroExtend) // indexed, not swapped, zero extension
       		lhzx(dest, address.base, tempRegister);
       	else if (indexed) // indexed, not swapped, sign extension
@@ -897,7 +915,7 @@ MacroAssemblerPPC::ma_store(Register data, Address address, LoadStoreSize size,
 //
 // Address base reg is addressTempRegister and data is tempRegister
 // -> in this case recruit the emergency temp for offset
-// 
+//
 // Data and address base reg are not temp registers
 // -> tempRegister for offset
 //
@@ -1066,11 +1084,11 @@ MacroAssemblerPPC::b(Label *l, bool is_call)
 {
 	// For future expansion.
 	MOZ_ASSERT(!is_call);
-	
+
 	// Our calls are designed so that the return address is always after the bl/bctrl.
 	// Thus, we can always have the option of a short call.
 	m_buffer.ensureSpace(PPC_B_STANZA_LENGTH + 4);
-	
+
 	if (l->bound()) {
 		// Label is already bound, emit an appropriate stanza.
 		// This means that the code was already generated in this buffer.
@@ -1078,7 +1096,7 @@ MacroAssemblerPPC::b(Label *l, bool is_call)
 		int32_t offs = l->offset();
 		int32_t moffs = bo.getOffset();
 		MOZ_ASSERT(moffs >= offs);
-		
+
 		moffs = offs - (moffs + PPC_B_STANZA_LENGTH - 4);
 		if (JOffImm26::IsInRange(moffs)) {
 			// Emit a four instruction short jump.
@@ -1091,7 +1109,7 @@ MacroAssemblerPPC::b(Label *l, bool is_call)
 			addLongJump(nextOffset());
             // The offset could be short, so make it patchable.
 			x_p_li32(tempRegister, offs);
-			x_mtctr(r0);
+			x_mtctr(tempRegister);
 			bctr((is_call) ? LinkB : DontLinkB);
 		}
 		MOZ_ASSERT_IF(!oom(), (nextOffset().getOffset() - bo.getOffset()) == PPC_B_STANZA_LENGTH);
@@ -1108,7 +1126,7 @@ MacroAssemblerPPC::b(Label *l, bool is_call)
 	writeInst(nextInChain);
         if (MOZ_LIKELY(!oom())) l->use(bo.getOffset());
     x_nop(); // Spacer
-    
+
     Assembler::b(4, RelativeBranch, (is_call) ? LinkB : DontLinkB); // Will be patched by bind()
     // If we're out of memory, we generated defective code already.
     MOZ_ASSERT_IF(!oom(),
@@ -1125,7 +1143,7 @@ void
 MacroAssemblerPPC::bc(uint32_t rawcond, Label *l)
 {
 	m_buffer.ensureSpace(PPC_BC_STANZA_LENGTH + 4); // paranoia strikes deep in the heartland
-	
+
 	if (l->bound()) {
 		// Label is already bound, emit an appropriate stanza.
 		// This means that the code was already generated in this buffer.
@@ -1133,7 +1151,7 @@ MacroAssemblerPPC::bc(uint32_t rawcond, Label *l)
 		int32_t offs = l->offset();
 		int32_t moffs = bo.getOffset();
 		MOZ_ASSERT(moffs >= offs);
-		
+
 		moffs = offs - (moffs + PPC_BC_STANZA_LENGTH - 4);
 		if (BOffImm16::IsInSignedRange(moffs)) {
 			// Emit a five instruction short conditional.
@@ -1146,7 +1164,7 @@ MacroAssemblerPPC::bc(uint32_t rawcond, Label *l)
 			// Emit a five instruction long conditional, inverting the bit sense for the first branch.
 			MOZ_ASSERT(!(rawcond & 1)); // Always and similar conditions not yet handled
 			rawcond ^= 8; // flip 00x00 (see OPPCC p.372)
-			
+
 			Assembler::bc(PPC_BC_STANZA_LENGTH, rawcond);
 			addLongJump(nextOffset());
 			// The offset could be "short," so make it patchable.
@@ -1167,11 +1185,11 @@ MacroAssemblerPPC::bc(uint32_t rawcond, Label *l)
 #endif
 	writeInst(nextInChain);
         if (MOZ_LIKELY(!oom())) l->use(bo.getOffset());
-	
+
 	// Leave sufficient space in case this gets patched long. We need two more nops.
     x_nop();
     x_nop();
-    
+
 	// Finally, emit a dummy bc with the right bits set so that bind() will fix it later.
     Assembler::bc(4, rawcond);
     MOZ_ASSERT_IF(!oom(),
@@ -1353,9 +1371,9 @@ MacroAssemblerPPC::ma_cmp(Register lhs, Register rhs, Assembler::Condition c)
 	// Replaces cmp32.
 	// DO NOT CALL computeConditionCode here. We don't have enough context.
 	// Work with the raw condition only.
-	
+
 	MOZ_ASSERT(!(c & ConditionOnlyXER) && c != Always);
-	
+
 	if ((c == Zero || c == NonZero || c == Signed || c == NotSigned) && (lhs == rhs)) {
 		// If same register, equality may cause this to pass, so we bit test or explicitly
 		// compare to immediate zero for these special cases.
@@ -1377,14 +1395,14 @@ Assembler::Condition
 MacroAssemblerPPC::ma_cmp(Register lhs, Imm32 rhs, Condition c)
 {
 	MOZ_ASSERT(!(c & ConditionOnlyXER) && c != Always);
-	
+
 	// Because lhs could be either tempRegister or addressTempRegister
 	// depending on what's loading it, we have to handle both situations.
 	// (Damn r0 restrictions.)
 	Register t = (lhs == tempRegister) ? addressTempRegister : tempRegister;
-	
+
 	if (PPC_USE_UNSIGNED_COMPARE(c)) {
-		if (!Imm16::IsInUnsignedRange(rhs.value)) {	
+		if (!Imm16::IsInUnsignedRange(rhs.value)) {
 			x_li32(t, rhs.value);
 			return ma_cmp(lhs, t, c);
 		}
@@ -1461,7 +1479,7 @@ MacroAssemblerPPC::ma_cr_set_slow(Assembler::Condition c, Register dest)
 	x_li(dest, 1);
 	BufferOffset end = _bc(0, c);
 	x_li(dest, 0);
-	
+
 	bindSS(end);
 }
 void
@@ -1476,7 +1494,7 @@ MacroAssemblerPPC::ma_cr_set_slow(Assembler::DoubleCondition c, Register dest)
 	x_li(dest, 1);
 	BufferOffset end = _bc(0, c);
 	x_li(dest, 0);
-	
+
         bindSS(end);
 }
 void
@@ -1531,7 +1549,8 @@ MacroAssemblerPPC::ma_cr_set(Assembler::DoubleCondition cond, Register dest)
 		// Evaluate the same way we do for the branched form and
 		// emit needed condregops for the tests to succeed.
 
-		Assembler::DoubleCondition baseDCond = Assembler::computeConditionCode(cond);
+		Assembler::DoubleCondition baseDCond =
+            Assembler::DoubleCondition(Assembler::computeConditionCode(cond));
 		if (baseDCond == Assembler::DoubleEqual) {
 			MFCR0(r0);
 			rlwinm(dest, r0, 3, 31, 31); // get CR0[FE]
@@ -1568,12 +1587,12 @@ MacroAssemblerPPC::ma_cmp_set(Assembler::Condition cond, Register lhs, Register 
 	// especially since we may be called with at least one temporary register.
 	// TODO: Add subfe and subfze to support unsigned Above/Below, though
 	// these are probably used a lot less.
-	
+
 	ispew("ma_cmp_set(cond, reg, reg, reg)");
 	MOZ_ASSERT(lhs != tempRegister);
 	MOZ_ASSERT(rhs != tempRegister);
 	MOZ_ASSERT(dest != tempRegister);
-	
+
 	if (cond == Assembler::Equal) {
 		subf(r0, rhs, lhs); // p.141
 		cntlzw(r0, r0);
@@ -1681,7 +1700,8 @@ MacroAssemblerPPCCompat::buildFakeExitFrame(Register scratch, uint32_t *offset)
     CodeLabel cl;
     ma_li32(scratch, cl.dest());
 
-    uint32_t descriptor = MakeFrameDescriptor(asMasm().framePushed(), JitFrame_IonJS);
+    uint32_t descriptor = MakeFrameDescriptor(asMasm().framePushed(), JitFrame_IonJS,
+                                              ExitFrameLayout::Size());
     asMasm().Push(Imm32(descriptor));
     asMasm().Push(scratch);
 
@@ -1698,7 +1718,8 @@ bool
 MacroAssemblerPPCCompat::buildOOLFakeExitFrame(void *fakeReturnAddr)
 {
 	ispew("[[ buildOOLFakeExitFrame(void *)");
-    uint32_t descriptor = MakeFrameDescriptor(asMasm().framePushed(), JitFrame_IonJS);
+    uint32_t descriptor = MakeFrameDescriptor(asMasm().framePushed(), JitFrame_IonJS,
+                                              ExitFrameLayout::Size());
 
     asMasm().Push(Imm32(descriptor)); // descriptor_
     asMasm().Push(ImmPtr(fakeReturnAddr));
@@ -1711,7 +1732,8 @@ void
 MacroAssemblerPPCCompat::callWithExitFrame(Label *target)
 {
 	ispew("[[ callWithExitFrame(l)");
-    uint32_t descriptor = MakeFrameDescriptor(asMasm().framePushed(), JitFrame_IonJS);
+    uint32_t descriptor = MakeFrameDescriptor(asMasm().framePushed(), JitFrame_IonJS,
+                                              ExitFrameLayout::Size());
     asMasm().Push(Imm32(descriptor)); // descriptor
 
     ma_callJitHalfPush(target);
@@ -1722,7 +1744,8 @@ void
 MacroAssemblerPPCCompat::callWithExitFrame(JitCode *target)
 {
 	ispew("[[ callWithExitFrame(jitcode)");
-    uint32_t descriptor = MakeFrameDescriptor(asMasm().framePushed(), JitFrame_IonJS);
+    uint32_t descriptor = MakeFrameDescriptor(asMasm().framePushed(), JitFrame_IonJS,
+                                              ExitFrameLayout::Size());
     asMasm().Push(Imm32(descriptor)); // descriptor
 
     addPendingJump(m_buffer.nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
@@ -1736,7 +1759,7 @@ MacroAssemblerPPCCompat::callWithExitFrame(JitCode *target, Register dynStack)
 {
 	ispew("[[ callWithExitFrame(jitcode, reg)");
     ma_addu(dynStack, dynStack, Imm32(asMasm().framePushed()));
-    makeFrameDescriptor(dynStack, JitFrame_IonJS);
+    makeFrameDescriptor(dynStack, JitFrame_IonJS, ExitFrameLayout::Size());
     asMasm().Push(dynStack); // descriptor
 
     addPendingJump(m_buffer.nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
@@ -1762,21 +1785,13 @@ MacroAssemblerPPCCompat::callJitFromAsmJS(Register callee) // XXX
 }
 
 void
-MacroAssembler::reserveStack(uint32_t amount)
-{
-    if (amount)
-        ma_subu(stackPointerRegister, stackPointerRegister, Imm32(amount));
-    adjustFrame(amount);
-}
-
-void
 MacroAssembler::PushRegsInMask(LiveRegisterSet set)
-{    
+{
 	// TODO: We don't need two reserveStacks.
 	int32_t diffF = set.fpus().size() * sizeof(double);
 	int32_t diffG = set.gprs().size() * sizeof(intptr_t);
 	reserveStack(diffG);
-	for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); iter++) {
+	for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ++iter) {
 	    diffG -= sizeof(intptr_t);
 	    if (*iter == lr) { // "Fake LR"
 	    	x_mflr(tempRegister);
@@ -1786,7 +1801,7 @@ MacroAssembler::PushRegsInMask(LiveRegisterSet set)
 	}
 	MOZ_ASSERT(diffG == 0);
 	reserveStack(diffF);
-	for (FloatRegisterBackwardIterator iter(set.fpus()); iter.more(); iter++) {
+	for (FloatRegisterBackwardIterator iter(set.fpus()); iter.more(); ++iter) {
 	    diffF -= sizeof(double);
 	    storeDouble(*iter, Address(StackPointer, diffF));
 	}
@@ -1803,7 +1818,7 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
 
 	// TODO: We don't need two freeStacks.
 	{
-	    for (FloatRegisterBackwardIterator iter(set.fpus()); iter.more(); iter++) {
+	    for (FloatRegisterBackwardIterator iter(set.fpus()); iter.more(); ++iter) {
 	        diffF -= sizeof(double);
 	        if (!ignore.has(*iter))
 	            loadDouble(Address(StackPointer, diffF), *iter);
@@ -1812,7 +1827,7 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
 	}
 	MOZ_ASSERT(diffF == 0);
 	{
-	    for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); iter++) {
+	    for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ++iter) {
 	        diffG -= sizeof(intptr_t);
 	        if (!ignore.has(*iter)) {
 	        	if (*iter == lr) { // Fake "LR"
@@ -1954,7 +1969,7 @@ void
 MacroAssemblerPPCCompat::movePtr(wasm::SymbolicAddress imm, Register dest)
 {
 	ispew("movePtr(wasmsa, reg)");
-    append(AsmJSAbsoluteLink(CodeOffset(nextOffset().getOffset()), imm));
+    append(wasm::SymbolicAccess(CodeOffset(nextOffset().getOffset()), imm));
     ma_li32Patchable(dest, Imm32(-1));
 }
 
@@ -2728,6 +2743,19 @@ MacroAssemblerPPCCompat::branchTestSymbol(Condition cond, const BaseIndex &src, 
 }
 
 void
+MacroAssemblerPPCCompat::branchTestBigInt(Condition cond, const ValueOperand &value, Label *label)
+{
+    branchTestBigInt(cond, value.typeReg(), label);
+}
+void
+MacroAssemblerPPCCompat::branchTestBigInt(Condition cond, Register tag, Label *label)
+{
+    ispew("branchTestBigInt(cond, reg, l)");
+    MOZ_ASSERT(cond == Equal || cond == NotEqual);
+    bc(ma_cmp(tag, ImmTag(JSVAL_TAG_BIGINT), cond), label);
+}
+
+void
 MacroAssemblerPPCCompat::branchTestUndefined(Condition cond, const ValueOperand &value,
                                               Label *label)
 {
@@ -2814,7 +2842,7 @@ MacroAssemblerPPCCompat::branchTestValue(Condition cond, const ValueOperand &val
 
     if (cond == Equal) {
         BufferOffset done = _bc(0, NotEqual);
-        bc(ma_cmp(value.typeReg(), Imm32(getType(v)), Equal), label); 
+        bc(ma_cmp(value.typeReg(), Imm32(getType(v)), Equal), label);
 
         bindSS(done);
     } else {
@@ -2889,7 +2917,7 @@ void
 MacroAssemblerPPCCompat::unboxDouble(const ValueOperand &operand, FloatRegister dest)
 {
 	ispew("[[ unboxDouble(vo, fpr)");
-	
+
 	// ENDIAN!
 	stwu(operand.payloadReg(), stackPointerRegister, -4);
 	stwu(operand.typeReg(), stackPointerRegister, -4); // both cracked
@@ -2899,7 +2927,7 @@ MacroAssemblerPPCCompat::unboxDouble(const ValueOperand &operand, FloatRegister 
 #endif
 	lfd(dest, stackPointerRegister, 0);
 	addi(stackPointerRegister, stackPointerRegister, 8);
-	
+
 	ispew("   unboxDouble(vo, fpr) ]]");
 }
 
@@ -2922,7 +2950,7 @@ MacroAssemblerPPCCompat::unboxDouble(const Address &src, FloatRegister dest)
 #endif
 	lfd(dest, stackPointerRegister, 0);
 	addi(stackPointerRegister, stackPointerRegister, 8);
-	
+
 	ispew("   unboxDouble(adr, fpr) ]]");
 }
 
@@ -2958,7 +2986,7 @@ void
 MacroAssemblerPPCCompat::unboxObject(const BaseIndex &bi, Register dest)
 {
 	ispew("unboxObject(bi, reg)");
-	
+
 	MOZ_ASSERT(bi.base != addressTempRegister);
 	computeScaledAddress(bi, addressTempRegister);
 	ma_lw(dest, Address(addressTempRegister, PAYLOAD_OFFSET));
@@ -2970,13 +2998,13 @@ MacroAssemblerPPCCompat::unboxValue(const ValueOperand &src, AnyRegister dest)
     ispew("[[ unboxValue(vo, anyreg)");
     if (dest.isFloat()) {
         BufferOffset notInt32, end;
-        
+
         notInt32 = _bc(0,
             ma_cmp(src.typeReg(), ImmType(JSVAL_TYPE_INT32),
                 Assembler::NotEqual));
         convertInt32ToDouble(src.payloadReg(), dest.fpu());
         end = _b(0);
-        
+
         bindSS(notInt32);
         unboxDouble(src, dest.fpu());
         bindSS(end);
@@ -3051,11 +3079,17 @@ MacroAssemblerPPCCompat::loadConstantFloat32(float f, FloatRegister dest)
 }
 
 void
+MacroAssemblerPPCCompat::loadConstantFloat32(wasm::RawF32 f, FloatRegister dest)
+{
+    loadConstantFloat32(f.fp(), dest);
+}
+
+void
 MacroAssemblerPPCCompat::loadInt32OrDouble(const Address &src, FloatRegister dest)
 {
     ispew("[[ loadInt32OrDouble(adr, fpr)");
     BufferOffset notInt32, end;
-    
+
     // If it's an int, convert it to double.
     ma_lw(tempRegister, Address(src.base, src.offset + TAG_OFFSET));
     notInt32 = _bc(0,
@@ -3112,6 +3146,12 @@ MacroAssemblerPPCCompat::loadConstantDouble(double dp, FloatRegister dest)
 }
 
 void
+MacroAssemblerPPCCompat::loadConstantDouble(wasm::RawF64 dp, FloatRegister dest)
+{
+    loadConstantDouble(dp.fp(), dest);
+}
+
+void
 MacroAssemblerPPCCompat::branchTestInt32Truthy(bool b, const ValueOperand &value, Label *label)
 {
 	ispew("branchTestInt32Truthy(bool, vo, l)");
@@ -3125,6 +3165,16 @@ MacroAssemblerPPCCompat::branchTestStringTruthy(bool b, const ValueOperand &valu
 	ispew("branchTestStringTruthy(bool, vo, l)");
     Register string = value.payloadReg();
     ma_lw(tempRegister, Address(string, JSString::offsetOfLength()));
+    cmpwi(tempRegister, 0);
+    bc(b ? NotEqual : Equal, label);
+}
+
+void
+MacroAssemblerPPCCompat::branchTestBigIntTruthy(bool b, const ValueOperand &value, Label *label)
+{
+    ispew("branchTestBigIntTruthy(bool, vo, l)");
+    Register bi = value.payloadReg();
+    ma_lw(tempRegister, Address(bi, BigInt::offsetOfLengthSignAndReservedBits()));
     cmpwi(tempRegister, 0);
     bc(b ? NotEqual : Equal, label);
 }
@@ -3172,8 +3222,7 @@ MacroAssemblerPPCCompat::extractTag(const BaseIndex &address, Register scratch)
 uint32_t
 MacroAssemblerPPCCompat::getType(const Value &val)
 {
-    jsval_layout jv = JSVAL_TO_IMPL(val);
-    return jv.s.tag;
+    return val.toNunboxTag();
 }
 
 // ENDIAN!
@@ -3215,7 +3264,7 @@ MacroAssemblerPPCCompat::storeUnboxedValue(ConstantOrRegister value, MIRType val
                                             MIRType slotType)
 {
 	ispew("[[ storeUnboxedValue(cor, mirtype, T, mirtype)");
-    if (valueType == MIRType_Double) {
+    if (valueType == MIRType::Double) {
         storeDouble(value.reg().typedReg().fpu(), dest);
         return;
     }
@@ -3244,11 +3293,10 @@ void
 MacroAssemblerPPCCompat::moveData(const Value &val, Register data)
 {
 	ispew("moveData(v, reg)");
-    jsval_layout jv = JSVAL_TO_IMPL(val);
-    if (val.isMarkable())
-        ma_li32(data, ImmGCPtr(reinterpret_cast<gc::Cell *>(val.toGCThing())));
+    if (val.isGCThing())
+        ma_li32(data, ImmGCPtr(val.toGCThing()));
     else
-        ma_li32(data, Imm32(jv.s.payload.i32));
+        ma_li32(data, Imm32(val.toNunboxPayload()));
 }
 
 void
@@ -3274,7 +3322,8 @@ MacroAssemblerPPCCompat::backedgeJump(RepatchLabel *label, Label* documentation)
     MOZ_ASSERT(!label->used());
     uint32_t dest = label->bound() ? label->offset() : LabelBase::INVALID_OFFSET;
     BufferOffset bo = nextOffset();
-    if (MOZ_UNLIKELY(oom())) return;
+    if (MOZ_UNLIKELY(oom()))
+        return CodeOffsetJump();
     label->use(bo.getOffset());
 
     // Backedges are short jumps when bound, but can become long when patched.
@@ -3288,7 +3337,7 @@ MacroAssemblerPPCCompat::backedgeJump(RepatchLabel *label, Label* documentation)
         // PatchBackedge may be able to help us later.
         Assembler::b(4);
     }
-    
+
     // Stanza 1: loop header.
     x_p_li32(tempRegister, dest);
     x_mtctr(tempRegister);
@@ -3310,7 +3359,7 @@ MacroAssemblerPPCCompat::jumpWithPatch(RepatchLabel *label, Condition cond, Labe
     // Only one branch per label.
     MOZ_ASSERT(!label->used());
     MOZ_ASSERT(cond == Always); // Not tested (but should work).
-    
+
     // Put some extra space in, just in case bcctr() generates additional instructions.
     m_buffer.ensureSpace(((cond == Always) ? 5 : 8) * sizeof(uint32_t));
     uint32_t dest = label->bound() ? label->offset() : LabelBase::INVALID_OFFSET;
@@ -3320,7 +3369,7 @@ MacroAssemblerPPCCompat::jumpWithPatch(RepatchLabel *label, Condition cond, Labe
     addLongJump(bo);
     x_p_li32(tempRegister, dest);
     x_mtctr(tempRegister);
-    
+
     // If always, use bctr(). If not, use bcctr() with the appropriate condition.
     // Assume the comparison already occurred.
     if (cond == Always) {
@@ -3410,7 +3459,7 @@ MacroAssemblerPPCCompat::storeValue(const Value &val, BaseIndex dest)
 	ispew("storeValue(v, bi)");
 	MOZ_ASSERT(dest.base != tempRegister);
 	MOZ_ASSERT(dest.base != addressTempRegister);
-	
+
     computeScaledAddress(dest, addressTempRegister);
 
     int32_t offset = dest.offset;
@@ -3434,7 +3483,7 @@ void
 MacroAssemblerPPCCompat::loadValue(Address src, ValueOperand val)
 {
 	ispew("loadValue(adr, vo)");
-	
+
     // Ensure that loading the payload does not erase the pointer to the
     // Value in memory.
     if (src.base != val.payloadReg()) {
@@ -3460,7 +3509,7 @@ MacroAssemblerPPCCompat::tagValue(JSValueType type, Register payload, ValueOpera
         x_mr(dest.payloadReg(), tempRegister);
         return;
     }
-    
+
     ma_li32(dest.typeReg(), ImmType(type));
     if (payload != dest.payloadReg())
         x_mr(dest.payloadReg(), payload);
@@ -3470,7 +3519,7 @@ void
 MacroAssemblerPPCCompat::pushValue(ValueOperand val)
 {
 	ispew("pushValue(vo)");
-	
+
 	// Endian! Payload on first.
 	stwu(val.payloadReg(), stackPointerRegister, -4);
 	stwu(val.typeReg(), stackPointerRegister, -4);
@@ -3480,7 +3529,7 @@ void
 MacroAssemblerPPCCompat::pushValue(const Address &addr)
 {
 	ispew("pushValue(adr)");
-	
+
     // Allocate stack slots for type and payload. One for each.
     ma_subu(stackPointerRegister, stackPointerRegister, Imm32(sizeof(Value)));
     // Store type and payload.
@@ -3494,7 +3543,7 @@ void
 MacroAssemblerPPCCompat::popValue(ValueOperand val)
 {
 	ispew("popValue(vo)");
-	
+
     // Load payload and type.
     lwz(val.payloadReg(), stackPointerRegister, PAYLOAD_OFFSET);
     lwz(val.typeReg(), stackPointerRegister, TAG_OFFSET);
@@ -3506,7 +3555,7 @@ void
 MacroAssemblerPPCCompat::storePayload(const Value &val, Address dest)
 {
 	ispew("storePayload(v, adr)");
-	
+
     moveData(val, addressTempRegister);
     ma_sw(addressTempRegister, Address(dest.base, dest.offset + PAYLOAD_OFFSET));
 }
@@ -3579,7 +3628,7 @@ void
 MacroAssemblerPPC::ma_callJit(const Register r)
 {
 	ispew("ma_callJit(reg)");
-	
+
 	// This is highly troublesome on PowerPC because the normal ABI expects
 	// the *callee* to save LR, and the instruction set is written with this
 	// in mind (MIPS gets around this problem by saving $ra in the delay slot,
@@ -3589,15 +3638,15 @@ MacroAssemblerPPC::ma_callJit(const Register r)
 	//
 	// Instead, we simply compute a return address and store that, and return to
 	// that instead, so that we basically act like x86.
-	
+
 	CodeLabel returnPoint;
-	
+
 	x_mtctr(r); // new dispatch group
 	ma_li32(tempRegister, returnPoint.patchAt()); // push computed return address
 	stwu(tempRegister, stackPointerRegister, -4);
 	// This is guaranteed to be in a different dispatch group, so no nops needed.
 	bctr(DontLinkB);
-	
+
 	// Return point is here.
 	bind(returnPoint.target());
 	addCodeLabel(returnPoint);
@@ -3607,14 +3656,14 @@ void
 MacroAssemblerPPC::ma_callJitHalfPush(Label *label) // XXX probably should change the name.
 {
 	ispew("!!!>>> ma_callJitHalfPush (label) <<<!!!");
-	
+
 	// Same limitation applies.
 	CodeLabel returnPoint;
-	
+
 	ma_li32(tempRegister, returnPoint.patchAt()); // push computed return address
 	stwu(tempRegister, stackPointerRegister, -4);
-	b(label);	
-	
+	b(label);
+
 	// Return point is here.
 	bind(returnPoint.target());
 	addCodeLabel(returnPoint);
@@ -3641,10 +3690,10 @@ MacroAssemblerPPC::ma_jump(ImmPtr dest)
 
 /* Assume these calls and returns are JitCode, because anything calling a PowerOpen ABI
    routine would go through callWithABI() and blr(). */
-   
+
 /* As of Firefox 42 or something, these are now part of the MacroAssembler, not the
    platform-specific one. */
-   
+
 CodeOffset
 MacroAssembler::call(const Register r) {
 	ispew("call -> callJit");
@@ -3657,6 +3706,18 @@ MacroAssembler::call(Label *l) {
 	ispew("call(l) -> callJit");
 	ma_callJitHalfPush(l); // XXX
         return CodeOffset(currentOffset());
+}
+
+void
+MacroAssembler::callAndPushReturnAddress(Register reg)
+{
+    ma_callJit(reg);
+}
+
+void
+MacroAssembler::callAndPushReturnAddress(Label* label)
+{
+    ma_callJitHalfPush(label);
 }
 
 /* Based on:
@@ -3688,6 +3749,41 @@ MacroAssembler::callWithPatch()
 #else
     return call(tempRegister);
 #endif
+}
+
+void
+MacroAssembler::subFromStackPtr(Imm32 imm32)
+{
+    if (imm32.value)
+        subPtr(imm32, StackPointer);
+}
+
+void
+MacroAssembler::pushReturnAddress()
+{
+    x_mflr(tempRegister);
+    Push(tempRegister);
+}
+
+void
+MacroAssembler::popReturnAddress()
+{
+    Pop(tempRegister);
+    x_mtlr(tempRegister);
+}
+
+void
+MacroAssembler::branchPtrInNurseryChunk(Condition cond, Register ptr, Register temp,
+                                        Label* label)
+{
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    Register scratch = temp == InvalidReg ? addressTempRegister : temp;
+    MOZ_ASSERT(ptr != scratch);
+
+    movePtr(ptr, scratch);
+    orPtr(Imm32(gc::ChunkMask), scratch);
+    branch32(cond, Address(scratch, gc::ChunkLocationOffsetFromLastByte),
+             Imm32(int32_t(gc::ChunkLocation::Nursery)), label);
 }
 
 void
@@ -3734,24 +3830,17 @@ MacroAssembler::pushFakeReturnAddress(Register scratch)
         ma_li32Patchable(addressTempRegister, Imm32((uint32_t)c->raw()));
         ma_callJitHalfPush(addressTempRegister); // XXX
     }
-    void MacroAssembler::callAndPushReturnAddress(Register reg) {
-    	ma_callJit(reg);
-    }
-    void MacroAssembler::callAndPushReturnAddress(Label *label) {
-    	ma_callJitHalfPush(label); // XXX
-    }
-
 void
 MacroAssemblerPPCCompat::retn(Imm32 n)
 {
 	ispew("retn");
 	// The return address is on top of the stack, not LR.
 	
-	lwz(tempRegister, stackPointerRegister, 0);
-	x_mtctr(tempRegister); // LR is now restored, new dispatch group
-	addi(stackPointerRegister, stackPointerRegister, n.value);
-	// Branch.
-	bctr(DontLinkB);
+    lwz(tempRegister, stackPointerRegister, 0);
+    x_mtctr(tempRegister); // LR is now restored, new dispatch group
+    addi(stackPointerRegister, stackPointerRegister, n.value);
+    // Branch.
+    bctr(DontLinkB);
 }
 
 void
@@ -3767,7 +3856,7 @@ MacroAssemblerPPCCompat::ensureDouble(const ValueOperand &source, FloatRegister 
                                        Label *failure)
 {
     ispew("ensureDouble(vo, fpr, l)");
-	
+
     BufferOffset isDouble, done;
     isDouble = _bc(0,
         ma_cmp(source.typeReg(), ImmTag(JSVAL_TAG_CLEAR), Assembler::Below));
@@ -3818,7 +3907,7 @@ MacroAssembler::callWithABIPre(uint32_t *stackAdjust, bool callFromAsmJS)
 {
     MOZ_ASSERT(inCall_);
     MOZ_ASSERT(!callFromAsmJS); // should NEVER happen
-    
+
     // stackAdjust is always zero, because stack realignment occurs without
     // Ion being aware of it.
     *stackAdjust = 0;
@@ -3846,7 +3935,7 @@ MacroAssembler::callWithABIPre(uint32_t *stackAdjust, bool callFromAsmJS)
 	subf(stackPointerRegister, tempRegister, stackPointerRegister);
 	// Pull down 512 bytes for a generous stack frame that should accommodate anything.
 	x_subi(stackPointerRegister, stackPointerRegister, 512);
-	
+
 	// Store the trampoline SP as the phony backreference. This lets the called routine
 	// skip anything Ion or Baseline pushed on the stack (the trampoline saved this for
 	// us way back when).
@@ -3878,17 +3967,15 @@ MacroAssemblerPPCCompat::callWithABIOptimized(void *fun, MoveOp::Type result)
 {
 /* As of Firefox 43 Ion tries to do this itself by calling call(), but our call()s are
    not ABI compliant, so it just makes a big mess. See MacroAssembler::callWithABINoProfiler(). */
-   
+
 	uint32_t stackAdjust = 0;
 	ispew("vv -- callWithABI(void *, result) -- vv");
 
-    if ((uint32_t)fun & 0xfc000000) { // won't fit in 26 bits
-        x_li32(addressTempRegister, (uint32_t)fun);
-        x_mtctr(addressTempRegister); // Load CTR here to avoid nops later.
-    }
     asMasm().callWithABIPre(&stackAdjust);
     if ((uint32_t)fun & 0xfc000000) { // won't fit in 26 bits
-	bctr(LinkB);	
+        x_li32(addressTempRegister, (uint32_t)fun);
+        x_mtctr(addressTempRegister);
+        bctr(LinkB);
     } else {
         _b((uint32_t)fun, AbsoluteBranch, LinkB);
     }
@@ -3902,13 +3989,13 @@ MacroAssembler::callWithABINoProfiler(const Address &fun, MoveOp::Type result)
 {
     uint32_t stackAdjust = 0;
 	ispew("vv -- callWithABI(adr, result) -- vv");
-	
+
     ma_lw(addressTempRegister, Address(fun.base, fun.offset));
     x_mtctr(addressTempRegister);
     callWithABIPre(&stackAdjust);
-	bctr(LinkB);    
+	bctr(LinkB);
     callWithABIPost(stackAdjust, result);
-    
+
     ispew("^^ -- callWithABI(adr, result) -- ^^");
 }
 
@@ -3917,12 +4004,12 @@ MacroAssembler::callWithABINoProfiler(Register fun, MoveOp::Type result)
 {
     uint32_t stackAdjust = 0;
 	ispew("vv -- callWithABI(reg, result) -- vv");
-	
+
 	x_mtctr(fun);
     callWithABIPre(&stackAdjust);
 	bctr(LinkB);
     callWithABIPost(stackAdjust, result);
-    
+
     ispew("^^ -- callWithABI(reg, result) -- ^^");
 }
 
@@ -3932,7 +4019,7 @@ MacroAssemblerPPCCompat::handleFailureWithHandlerTail(void *handler)
     ispew("vv -- handleFailureWithHandlerTail(void *) -- vv");
     // Call an ABI-compliant handler function, reserving adequate space on the stack
     // for a non-ABI compliant exception frame which we will then analyse.
-	
+
     int size = (sizeof(ResumeFromException) + 16) & ~15;
     x_subi(stackPointerRegister, stackPointerRegister, size);
     // This is going to be our argument, so just grab r3 now and save a MoveEmitter.
@@ -3971,7 +4058,7 @@ MacroAssemblerPPCCompat::handleFailureWithHandlerTail(void *handler)
     moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
     addi(stackPointerRegister, stackPointerRegister, 4);
     bctr();
-	
+
     // Catch handler case:
     // If we found a catch handler, this must be a baseline frame. Restore
     // state and jump to the catch block.
@@ -3984,7 +4071,7 @@ MacroAssemblerPPCCompat::handleFailureWithHandlerTail(void *handler)
     lwz(stackPointerRegister, stackPointerRegister, offsetof(ResumeFromException, stackPointer));
     // and branch.
     bctr();
-	
+
     // Finally block case:
     // If we found a finally block, this must be a baseline frame. Push
     // two values expected by JSOP_RETSUB: BooleanValue(true) and the
@@ -4026,7 +4113,7 @@ MacroAssemblerPPCCompat::handleFailureWithHandlerTail(void *handler)
     // to the caller frame before returning.
     {
     	Label skipProfilingInstrumentation;
-    	
+
     	// Is the profiler enabled?
     	AbsoluteAddress addressOfEnabled(GetJitContext()->runtime->spsProfiler().addressOfEnabled());
     	// This is a short branch, but this is a slow path of a slow path,
@@ -4059,7 +4146,7 @@ MacroAssemblerPPCCompat::toggledJump(Label *label)
     CodeOffset ret(nextOffset().getOffset());
     x_nop(); // This will be patched by ToggleToJmp.
     b(label);
-    
+
     // This should always be a branch+4 bytes long, including the nop.
     // If we're out of memory, however, we're probably already screwed.
     MOZ_ASSERT_IF(!oom(), (nextOffset().getOffset() - ret.offset()) ==
@@ -4075,14 +4162,15 @@ CodeOffset
 MacroAssemblerPPCCompat::toggledCall(JitCode *target, bool enabled)
 {
 	ispew("[[ toggledCall(jitcode, bool)");
-	
+
 #if DEBUG
 	// Currently this code assumes that it will only ever call the debug trap
 	// handler, and that this code is executed after the handler was created.
-	JitCode *handler = GetJitContext()->runtime->jitRuntime()->debugTrapHandler(GetJitContext()->cx);
+	JitCode *handler = const_cast<JitRuntime *>(GetJitContext()->runtime->jitRuntime())->
+        debugTrapHandler(GetJitContext()->cx);
 	MOZ_ASSERT(handler == target);
 #endif
-	
+
 	// This call is always long.
     BufferOffset bo = nextOffset();
     CodeOffset offset(bo.getOffset());
@@ -4098,7 +4186,7 @@ MacroAssemblerPPCCompat::toggledCall(JitCode *target, bool enabled)
         x_nop();
         x_nop();
     }
-    
+
     // This should always be 16 bytes long (if we're out of memory, we're
     // going to fail this anyway).
     MOZ_ASSERT_IF(!oom(),
@@ -4145,7 +4233,7 @@ void
 MacroAssemblerPPCCompat::moveValue(const ValueOperand &src, const ValueOperand &dest)
 {
 	ispew("moveValue(vo, vo)");
-    	
+
 	Register s0 = src.typeReg(), d0 = dest.typeReg(),
 		s1 = src.payloadReg(), d1 = dest.payloadReg();
 
@@ -4181,11 +4269,7 @@ MacroAssemblerPPCCompat::branchPtrInNurseryRange(Condition cond, Register ptr, R
     MOZ_ASSERT(ptr != temp);
     MOZ_ASSERT(ptr != addressTempRegister);
 
-    const Nursery &nursery = GetJitContext()->runtime->gcNursery();
-    movePtr(ImmWord(-ptrdiff_t(nursery.start())), addressTempRegister);
-    addPtr(ptr, addressTempRegister);
-    branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
-              addressTempRegister, Imm32(nursery.nurserySize()), label);
+    asMasm().branchPtrInNurseryChunk(cond, ptr, temp, label);
     ispew("   branchPtrInNurseryRange(cond, reg, reg, l) ]]");
 }
 
@@ -4202,7 +4286,7 @@ MacroAssemblerPPCCompat::branchValueIsNurseryObject(Condition cond, ValueOperand
         done = _bc(0,
             ma_cmp(value.typeReg(), ImmType(JSVAL_TYPE_OBJECT),
                 Assembler::NotEqual));
-    } else 
+    } else
         branchTestObject(Assembler::NotEqual, value, label);
     branchPtrInNurseryRange(cond, value.payloadReg(), temp, label);
 
@@ -4234,7 +4318,7 @@ MacroAssemblerPPC::load16ZeroExtendSwapped(
 {
 	ispew("load16ZeroExtendSwapped(adr, reg)");
 	ma_load(dest, address, SizeHalfWord, ZeroExtend, true);
-} 
+}
 
 void
 MacroAssemblerPPC::load16ZeroExtendSwapped(
@@ -4250,7 +4334,7 @@ MacroAssemblerPPC::load16SignExtendSwapped(
 {
 	ispew("load16SignExtendSwapped(adr, reg)");
 	ma_load(dest, address, SizeHalfWord, SignExtend, true);
-} 
+}
 
 void
 MacroAssemblerPPC::load16SignExtendSwapped(
@@ -4305,4 +4389,3 @@ MacroAssemblerPPC::point5Double(FloatRegister fpr)
     lfs(fpr, stackPointerRegister, 0);
     addi(stackPointerRegister, stackPointerRegister, 4);
 }
-

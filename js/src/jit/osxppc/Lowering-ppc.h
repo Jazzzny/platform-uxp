@@ -20,12 +20,13 @@ class LIRGeneratorPPC : public LIRGeneratorShared
     { }
 
   protected:
-    void useBoxFixed(LInstruction *lir, size_t n, MDefinition *mir, Register reg1, Register reg2,
-                     bool useAtStart = false);
+    LBoxAllocation useBoxFixed(MDefinition *mir, Register reg1, Register reg2,
+                               bool useAtStart = false);
 
     // x86 has constraints on what registers can be formatted for 1-byte
     // stores and loads; on PowerPC all registers are okay.
     LAllocation useByteOpRegister(MDefinition *mir);
+    LAllocation useByteOpRegisterAtStart(MDefinition *mir);
     LAllocation useByteOpRegisterOrNonDoubleConstant(MDefinition *mir);
     LDefinition tempByteOpRegister();
 
@@ -36,12 +37,24 @@ class LIRGeneratorPPC : public LIRGeneratorShared
     bool needTempForPostBarrier() { return false; } // keep bool
 
     // PowerPC has a scratch register, so no need for another temp for dispatch ICs.
-    LDefinition tempForDispatchCache(MIRType outputType = MIRType_None) {
+    LDefinition tempForDispatchCache(MIRType outputType = MIRType::None) {
         return LDefinition::BogusTemp();
     }
 
     void lowerUntypedPhiInput(MPhi *phi, uint32_t inputPosition, LBlock *block, size_t lirIndex);
     void defineUntypedPhi(MPhi *phi, size_t lirIndex);
+    void lowerInt64PhiInput(MPhi *phi, uint32_t inputPosition, LBlock *block, size_t lirIndex);
+    void defineInt64Phi(MPhi *phi, size_t lirIndex);
+    void lowerForALUInt64(LInstructionHelper<INT64_PIECES, 2 * INT64_PIECES, 0> *ins,
+                          MDefinition *mir, MDefinition *lhs, MDefinition *rhs);
+    void lowerForMulInt64(LMulI64 *ins, MMul *mir, MDefinition *lhs, MDefinition *rhs);
+    template<size_t Temps>
+    void lowerForShiftInt64(LInstructionHelper<INT64_PIECES, INT64_PIECES + 1, Temps> *ins,
+                            MDefinition *mir, MDefinition *lhs, MDefinition *rhs);
+    void lowerDivI64(MDiv *div);
+    void lowerModI64(MMod *mod);
+    void lowerUDivI64(MDiv *div);
+    void lowerUModI64(MMod *mod);
     void lowerForShift(LInstructionHelper<1, 2, 0> *ins, MDefinition *mir, MDefinition *lhs,
                        MDefinition *rhs);
     void lowerUrshD(MUrsh *mir);
@@ -60,24 +73,6 @@ class LIRGeneratorPPC : public LIRGeneratorShared
     template<size_t Temps> // ?!?!
     void lowerForFPU(LInstructionHelper<1, 2, Temps> *ins, MDefinition *mir,
                      MDefinition *lhs, MDefinition *rhs);
-    /* ?!?! */
-    void lowerForFPU(LSimdBinaryArithFx4 *ins, MSimdBinaryArith *mir,
-                         MDefinition *lhs, MDefinition *rhs)
-    {
-		MOZ_CRASH();
-	}
-
-    void lowerForCompIx4(LSimdBinaryCompIx4 *ins, MSimdBinaryComp *mir,
-                         MDefinition *lhs, MDefinition *rhs)
-    {
-        return lowerForFPU(ins, mir, lhs, rhs);
-    }
-    void lowerForCompFx4(LSimdBinaryCompFx4 *ins, MSimdBinaryComp *mir,
-                         MDefinition *lhs, MDefinition *rhs)
-    {
-        return lowerForFPU(ins, mir, lhs, rhs);
-    }
-
     void lowerForBitAndAndBranch(LBitAndAndBranch *baab, MInstruction *mir,
                                  MDefinition *lhs, MDefinition *rhs);
     void lowerConstantDouble(double d, MInstruction *ins);
@@ -104,19 +99,22 @@ class LIRGeneratorPPC : public LIRGeneratorShared
     void lowerPhi(MPhi *phi);
     void visitGuardShape(MGuardShape *ins);
     void visitGuardObjectGroup(MGuardObjectGroup *ins);
-    void visitAsmJSUnsignedToDouble(MAsmJSUnsignedToDouble *ins);
-    void visitAsmJSUnsignedToFloat32(MAsmJSUnsignedToFloat32 *ins);
+    void visitWasmUnsignedToDouble(MWasmUnsignedToDouble *ins);
+    void visitWasmUnsignedToFloat32(MWasmUnsignedToFloat32 *ins);
+    void visitWasmLoad(MWasmLoad *ins);
+    void visitWasmStore(MWasmStore *ins);
+    void visitWasmSelect(MWasmSelect *ins);
+    void visitWasmTruncateToInt64(MWasmTruncateToInt64 *ins);
+    void visitInt64ToFloatingPoint(MInt64ToFloatingPoint *ins);
+    void visitExtendInt32ToInt64(MExtendInt32ToInt64 *ins);
+    void visitSignExtendInt64(MSignExtendInt64 *ins);
+    void visitCopySign(MCopySign *ins);
     void visitAsmJSLoadHeap(MAsmJSLoadHeap *ins);
     void visitAsmJSStoreHeap(MAsmJSStoreHeap *ins);
     void visitAsmJSCompareExchangeHeap(MAsmJSCompareExchangeHeap *ins);
     void visitAsmJSAtomicExchangeHeap(MAsmJSAtomicExchangeHeap* ins);
     void visitAsmJSAtomicBinopHeap(MAsmJSAtomicBinopHeap *ins);
-    void visitAsmJSLoadFuncPtr(MAsmJSLoadFuncPtr *ins);
     void visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStatic *ins);
-    void visitSimdBinaryArith(MSimdBinaryArith* ins);
-    void visitSimdSelect(MSimdSelect* ins);
-    void visitSimdSplatX4(MSimdSplatX4 *ins);
-    void visitSimdValueX4(MSimdValueX4 *ins);
     void visitCompareExchangeTypedArrayElement(MCompareExchangeTypedArrayElement* ins);
     void visitAtomicExchangeTypedArrayElement(MAtomicExchangeTypedArrayElement* ins);
     void visitAtomicTypedArrayElementBinop(MAtomicTypedArrayElementBinop *ins);

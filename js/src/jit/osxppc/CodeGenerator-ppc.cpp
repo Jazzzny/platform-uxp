@@ -72,7 +72,7 @@ CodeGeneratorPPC::generatePrologue()
 {
     ADBlock("generatePrologue");
     MOZ_ASSERT(masm.framePushed() == 0);	
-    MOZ_ASSERT(!gen->compilingAsmJS());
+    MOZ_ASSERT(!gen->compilingWasm());
 
     // If profiling, save the current frame pointer to a per-thread global field.
     if (isProfilerInstrumentationEnabled())
@@ -92,7 +92,7 @@ CodeGeneratorPPC::generateEpilogue()
 {
     ADBlock("generateEpilogue");
 	
-    MOZ_ASSERT(!gen->compilingAsmJS());
+    MOZ_ASSERT(!gen->compilingWasm());
     masm.bind(&returnLabel_);
     
     emitTracelogIonStop();
@@ -261,6 +261,14 @@ CodeGeneratorPPC::generateOutOfLineCode()
         masm.branch(handler);
     }
     return !masm.oom();
+}
+
+void
+CodeGeneratorPPC::bailoutIf(Assembler::Condition condition, LSnapshot *snapshot)
+{
+    Label bail;
+    masm.bc(condition, &bail);
+    bailoutFrom(&bail, snapshot);
 }
 
 void
@@ -1834,7 +1842,7 @@ CodeGeneratorPPC::visitBoxFloatingPoint(LBoxFloatingPoint *box)
     const LAllocation *in = box->getOperand(0);
 
     FloatRegister reg = ToFloatRegister(in);
-    if (box->type() == MIRType_Float32) {
+    if (box->type() == MIRType::Float32) {
         masm.convertFloat32ToDouble(reg, fpTempRegister);
         reg = fpTempRegister;
     }
@@ -2138,16 +2146,16 @@ CodeGeneratorPPC::visitBitAndAndBranch(LBitAndAndBranch *lir)
 }
 
 void
-CodeGeneratorPPC::visitAsmJSUInt32ToDouble(LAsmJSUInt32ToDouble *lir)
+CodeGeneratorPPC::visitWasmUint32ToDouble(LWasmUint32ToDouble *lir)
 {
-    ADBlock("XXX visitAsmJSUInt32ToDouble");
+    ADBlock("XXX visitWasmUint32ToDouble");
     masm.convertUInt32ToDouble(ToRegister(lir->input()), ToFloatRegister(lir->output()));
 }
 
 void
-CodeGeneratorPPC::visitAsmJSUInt32ToFloat32(LAsmJSUInt32ToFloat32 *lir)
+CodeGeneratorPPC::visitWasmUint32ToFloat32(LWasmUint32ToFloat32 *lir)
 {
-    ADBlock("XXX visitAsmJSUInt32ToFloat32");
+    ADBlock("XXX visitWasmUint32ToFloat32");
     masm.convertUInt32ToFloat32(ToRegister(lir->input()), ToFloatRegister(lir->output()));
 }
 
@@ -2192,7 +2200,7 @@ CodeGeneratorPPC::visitGuardShape(LGuardShape *guard)
     Register obj = ToRegister(guard->input());
     Register tmp = ToRegister(guard->tempInt());
 
-    masm.loadPtr(Address(obj, JSObject::offsetOfShape()), tmp);
+    masm.loadPtr(Address(obj, ShapedObject::offsetOfShape()), tmp);
     bailoutCmpPtr(Assembler::NotEqual, tmp, ImmGCPtr(guard->mir()->shape()),
                   guard->snapshot());
 }
@@ -2267,12 +2275,6 @@ void
 CodeGeneratorPPC::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStatic *ins)
 {
     MOZ_CRASH("NYI");
-}
-
-void
-CodeGeneratorPPC::visitAsmJSCall(LAsmJSCall *ins)
-{
-    emitAsmJSCall(ins);
 }
 
 void
@@ -2464,29 +2466,6 @@ CodeGeneratorPPC::visitAsmJSAtomicBinopHeap(LAsmJSAtomicBinopHeap* ins)
 }
 
 void
-CodeGeneratorPPC::visitAsmJSPassStackArg(LAsmJSPassStackArg *ins)
-{
-	ADBlock("visitAsmJSPassStackArg");
-	MOZ_CRASH("visitAsmJSPassStackArg WTF!");
-#if(0)
-#error must adjust for infallibility
-    const MAsmJSPassStackArg *mir = ins->mir();
-    if (ins->arg()->isConstant()) {
-        masm.storePtr(ImmWord(ToInt32(ins->arg())), Address(StackPointer, mir->spOffset()));
-    } else {
-        if (ins->arg()->isGeneralReg()) {
-            masm.storePtr(ToRegister(ins->arg()), Address(StackPointer, mir->spOffset()));
-        } else {
-            masm.storeDouble(ToFloatRegister(ins->arg()).doubleOverlay(0),
-                             Address(StackPointer, mir->spOffset()));
-        }
-    }
-
-    return true;
-#endif
-}
-
-void
 CodeGeneratorPPC::visitEffectiveAddress(LEffectiveAddress *ins)
 {
     ADBlock("visitEffectiveAddress");
@@ -2497,80 +2476,6 @@ CodeGeneratorPPC::visitEffectiveAddress(LEffectiveAddress *ins)
 
     BaseIndex address(base, index, mir->scale(), mir->displacement());
     masm.computeEffectiveAddress(address, output);
-}
-
-void
-CodeGeneratorPPC::visitAsmJSLoadGlobalVar(LAsmJSLoadGlobalVar *ins)
-{
-	ADBlock("visitAsmJSLoadGlobalVar");
-	MOZ_CRASH("visitAsmJSLoadGlobalVar WTF!");
-#if(0)
-#error must adjust for infallibility
-    const MAsmJSLoadGlobalVar *mir = ins->mir();
-    unsigned addr = mir->globalDataOffset() - AsmJSGlobalRegBias;
-    if (mir->type() == MIRType_Int32)
-        masm.load32(Address(GlobalReg, addr), ToRegister(ins->output()));
-    else if (mir->type() == MIRType_Float32)
-        masm.loadFloat32(Address(GlobalReg, addr), ToFloatRegister(ins->output()));
-    else
-        masm.loadDouble(Address(GlobalReg, addr), ToFloatRegister(ins->output()));
-    return true;
-#endif
-}
-
-void
-CodeGeneratorPPC::visitAsmJSStoreGlobalVar(LAsmJSStoreGlobalVar *ins)
-{
-	ADBlock("visitAsmJSStoreGlobalVar");
-	MOZ_CRASH("visitAsmJSStoreGlobalVar WTF!");
-#if(0)
-#error must adjust for infallibility
-    const MAsmJSStoreGlobalVar *mir = ins->mir();
-
-    MIRType type = mir->value()->type();
-    MOZ_ASSERT(IsNumberType(type));
-    unsigned addr = mir->globalDataOffset() - AsmJSGlobalRegBias;
-    if (mir->value()->type() == MIRType_Int32)
-        masm.store32(ToRegister(ins->value()), Address(GlobalReg, addr));
-    else if (mir->value()->type() == MIRType_Float32)
-        masm.storeFloat32(ToFloatRegister(ins->value()), Address(GlobalReg, addr));
-    else
-        masm.storeDouble(ToFloatRegister(ins->value()), Address(GlobalReg, addr));
-    return true;
-#endif
-}
-
-void
-CodeGeneratorPPC::visitAsmJSLoadFuncPtr(LAsmJSLoadFuncPtr *ins)
-{
-	ADBlock("visitAsmJSLoadFuncPtr");
-	MOZ_CRASH("visitAsmJSLoadFuncPtr WTF!");
-#if(0)
-#error must adjust for infallibility
-    const MAsmJSLoadFuncPtr *mir = ins->mir();
-
-    Register index = ToRegister(ins->index());
-    Register out = ToRegister(ins->output());
-    unsigned addr = mir->globalDataOffset() - AsmJSGlobalRegBias;
-
-    BaseIndex source(GlobalReg, index, TimesFour, addr);
-    masm.load32(source, out);
-    return true;
-#endif
-}
-
-void
-CodeGeneratorPPC::visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins)
-{
-	ADBlock("visitAsmJSLoadFFIFunc");
-	MOZ_CRASH("visitAsmJSLoadFFIFunc WTF!");
-#if(0)
-#error must adjust for infallibility
-    const MAsmJSLoadFFIFunc *mir = ins->mir();
-    masm.loadPtr(Address(GlobalReg, mir->globalDataOffset() - AsmJSGlobalRegBias),
-                 ToRegister(ins->output()));
-    return true;
-#endif
 }
 
 void

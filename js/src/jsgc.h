@@ -193,9 +193,24 @@ extern const AllocKind slotsToThingKind[];
 static inline AllocKind
 GetGCObjectKind(size_t numSlots)
 {
+#if defined(JS_CODEGEN_PPC_OSX)
+    // Work around bug where GCC uses r2 while we assume it is preserved, avoid r2 usage
+    if (numSlots == 0)
+        return AllocKind::OBJECT0;
+    if (numSlots <= 2)
+        return AllocKind::OBJECT2;
+    if (numSlots <= 4)
+        return AllocKind::OBJECT4;
+    if (numSlots <= 8)
+        return AllocKind::OBJECT8;
+    if (numSlots <= 12)
+        return AllocKind::OBJECT12;
+    return AllocKind::OBJECT16;
+#else
     if (numSlots >= SLOTS_TO_THING_KIND_LIMIT)
         return AllocKind::OBJECT16;
     return slotsToThingKind[numSlots];
+#endif
 }
 
 /* As for GetGCObjectKind, but for dense array allocation. */
@@ -220,8 +235,12 @@ GetGCArrayKind(size_t numElements)
 static inline AllocKind
 GetGCObjectFixedSlotsKind(size_t numFixedSlots)
 {
+#if defined(JS_CODEGEN_PPC_OSX)
+    return GetGCObjectKind(numFixedSlots);
+#else
     MOZ_ASSERT(numFixedSlots < SLOTS_TO_THING_KIND_LIMIT);
     return slotsToThingKind[numFixedSlots];
+#endif
 }
 
 // Get the best kind to use when allocating an object that needs a specific
@@ -458,7 +477,7 @@ class ArenaList {
         check();
         return !*cursorp_;
     }
-	
+
     void moveCursorToEnd() {
         while (!isCursorAtEnd()) {
             cursorp_ = &(*cursorp_)->next;

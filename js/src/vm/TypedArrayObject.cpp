@@ -997,14 +997,22 @@ class TypedArrayObjectTemplate : public TypedArrayObject
     {
         TypedArrayObject& tarray = obj->as<TypedArrayObject>();
         MOZ_ASSERT(index < tarray.length());
+#if defined(JS_CODEGEN_PPC_OSX)
+        return SharedOps::load(tarray.viewDataEither().cast<NativeType*>() + index);
+#else
         return jit::AtomicOperations::loadSafeWhenRacy(tarray.viewDataEither().cast<NativeType*>() + index);
+#endif
     }
 
     static void
     setIndex(TypedArrayObject& tarray, uint32_t index, NativeType val)
     {
         MOZ_ASSERT(index < tarray.length());
+#if defined(JS_CODEGEN_PPC_OSX)
+        SharedOps::store(tarray.viewDataEither().cast<NativeType*>() + index, val);
+#else
         jit::AtomicOperations::storeSafeWhenRacy(tarray.viewDataEither().cast<NativeType*>() + index, val);
+#endif
     }
 
     static bool getElement(ExclusiveContext* cx, TypedArrayObject* tarray, uint32_t index, MutableHandleValue val);

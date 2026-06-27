@@ -21,12 +21,6 @@ using namespace js::jit;
 #define PPC_BC(x,y) BufferOffset bo_##y = masm._bc(0, x)
 #define PPC_B(y) BufferOffset bo_##y = masm._b(0)
 #define PPC_BB(y) masm.bindSS(bo_##y)
-#define LOAD_CTR() {\
-	masm.lwz(tempRegister, stackPointerRegister, 0);\
-	masm.x_mtctr(tempRegister);\
-	masm.addi(stackPointerRegister, stackPointerRegister, 4);\
-}
-
 namespace js {
 namespace jit {
 
@@ -44,13 +38,12 @@ ICCompare_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
     // Compare payload regs of R0 and R1, moving 1 to R0 if they are the
     // same and 0 if they are not.
-    LOAD_CTR();
     Assembler::Condition cond = JSOpToCondition(op, /* signed = */true);
     masm.ma_cmp_set(cond, R0.payloadReg(), R1.payloadReg(), R0.payloadReg());
 
     // Result is implicitly boxed already.
     masm.tagValue(JSVAL_TYPE_BOOLEAN, R0.payloadReg(), R0);
-    masm.bctr();
+    EmitReturnFromIC(masm);
 
     // In the failure case, jump to the next stub.
     PPC_BB(failure);
@@ -67,11 +60,10 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
     masm.ensureDouble(R0, FloatReg0, &failure);
     masm.ensureDouble(R1, FloatReg1, &failure);
 
-    LOAD_CTR();
     Assembler::DoubleCondition doubleCond = JSOpToDoubleCondition(op);
     masm.ma_cmp_set(doubleCond, FloatReg0, FloatReg1, R0.scratchReg());
     masm.tagValue(JSVAL_TYPE_BOOLEAN, R0.scratchReg(), R0);
-    masm.bctr();
+    EmitReturnFromIC(masm);
 
     // Failure case - jump to next stub
     masm.bind(&failure);
@@ -106,10 +98,6 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       // However, we can try to optimize for the non-failure case, if we
       // think that's very likely (probably not for div).
       case JSOP_ADD:
-        // Speculatively load CTR, but don't remove it from the stack yet.
-        masm.lwz(tempRegister, stackPointerRegister, 0);
-        masm.x_mtctr(tempRegister);
-        
         masm.addo(scratchReg, R0.payloadReg(), R1.payloadReg());
 
         // Just jump to failure on overflow.  R0 and R1 are preserved,
@@ -119,24 +107,16 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         // Box the result and return. We know R0.typeReg() already contains
         // the integer tag, so we just need to move the result value into
         // place.
-        masm.addi(stackPointerRegister, stackPointerRegister, 4); // pop return addy
         masm.x_mr(R0.payloadReg(), scratchReg);
         break;
       case JSOP_SUB:
-        masm.lwz(tempRegister, stackPointerRegister, 0);
-        masm.x_mtctr(tempRegister);
-
         // Remember that subfo has weird operand order.
         masm.subfo(scratchReg, R1.payloadReg(), R0.payloadReg()); // D=B-A
         PPC_BC_O(failure2);
         
-        masm.addi(stackPointerRegister, stackPointerRegister, 4); // pop return addy
         masm.x_mr(R0.payloadReg(), scratchReg);
         break;
       case JSOP_MUL: {
-        masm.lwz(tempRegister, stackPointerRegister, 0);
-        masm.x_mtctr(tempRegister);
-
         masm.mullwo(scratchReg, R0.payloadReg(), R1.payloadReg());
         // If zero, it could be -0.
         masm.cmpwi(cr1, scratchReg, 0);
@@ -150,7 +130,6 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         bo_failure9 = masm._bc(0, Assembler::LessThan);
         
         PPC_BB(notNegZero);
-        masm.addi(stackPointerRegister, stackPointerRegister, 4); // pop return addy
         masm.x_mr(R0.payloadReg(), scratchReg);
         break;
       }
@@ -183,7 +162,6 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
             // We don't need the actual remainder, just if there is one.
             // Result is a double if the remainder != 0.
             bo_failure6 = masm._bc(0, Assembler::NotEqual);
-            LOAD_CTR();
             masm.tagValue(JSVAL_TYPE_INT32, scratchReg, R0);
         } else {
             // If X % Y == 0 and X < 0, the result is -0.
@@ -191,41 +169,31 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
             // Re-use the comparison from above.
             bo_failure7 = masm._bc(0, Assembler::LessThan, cr1);
             masm.bindSS(done);
-            LOAD_CTR();
             // Now compute the remainder and store it.
             masm.subf(R0.payloadReg(), r12, R0.payloadReg());
         }
         break;
       }
       case JSOP_BITOR:
-        LOAD_CTR();
         masm.or_(R0.payloadReg(), R1.payloadReg(), R0.payloadReg());
         break;
       case JSOP_BITXOR:
-        LOAD_CTR();
         masm.xor_(R0.payloadReg(), R1.payloadReg(), R0.payloadReg());
         break;
       case JSOP_BITAND:
-        LOAD_CTR();
         masm.and_(R0.payloadReg(), R1.payloadReg(), R0.payloadReg());
         break;
       case JSOP_LSH:
         // Some PowerPC implementations may merrily try to shift by
         // more than 0x1f.
-        LOAD_CTR();
         masm.andi_rc(r0, R1.payloadReg(), 0x1f);
         masm.slw(R0.payloadReg(), R0.payloadReg(), r0);
         break;
       case JSOP_RSH:
-        LOAD_CTR();
         masm.andi_rc(r0, R1.payloadReg(), 0x1f);
         masm.sraw(R0.payloadReg(), R0.payloadReg(), r0);
         break;
       case JSOP_URSH:
-        if (allowDouble_) {
-            // Load CTR now; this can't fail.
-            LOAD_CTR();
-        }
         masm.andi_rc(scratchReg, R1.payloadReg(), 0x1f);
         masm.srw(scratchReg, R0.payloadReg(), scratchReg);
         // Check for negative sign. Use a signed compare here.
@@ -235,7 +203,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 
             // Move result and box for return.
             masm.x_mr(R0.payloadReg(), scratchReg);
-            masm.bctr();
+            EmitReturnFromIC(masm);
 
             PPC_BB(toUint);
             masm.convertUInt32ToDouble(scratchReg, ScratchFloat32Reg);
@@ -243,7 +211,6 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         } else {
             bo_failure8 = masm._bc(0, Assembler::LessThan);
             // Move result for return.
-            LOAD_CTR();
             masm.x_mr(R0.payloadReg(), scratchReg);
         }
         break;
@@ -252,7 +219,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         return false;
     }
 
-    masm.bctr();
+    EmitReturnFromIC(masm);
 
     PPC_BB(failure);
     PPC_BB(failure1);
@@ -273,6 +240,7 @@ bool
 ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 {
     BufferOffset bo_failure2;
+    bool hasFailure2 = false;
 
     // Guard on int.
     masm.x_li32(r0, JSVAL_TAG_INT32);
@@ -282,7 +250,6 @@ ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
     switch (op) {
       case JSOP_BITNOT:
         // We need to xori and xoris both.
-        LOAD_CTR();
         masm.xori(R0.payloadReg(), R0.payloadReg(), -1);
         masm.xoris(R0.payloadReg(), R0.payloadReg(), -1);
         break;
@@ -293,20 +260,37 @@ ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         masm.cmplw(cr1, R0.payloadReg(), r0);
         masm.cror(2, 2, 6);
         bo_failure2 = masm._bc(0, Assembler::Equal);
+        hasFailure2 = true;
 
         // Compile -x as 0 - x.
-        LOAD_CTR();
         masm.neg(R0.payloadReg(), R0.payloadReg());
+        break;
+      case JSOP_INC:
+        masm.x_li32(r0, 0x7fffffff);
+        masm.cmplw(R0.payloadReg(), r0);
+        bo_failure2 = masm._bc(0, Assembler::Equal);
+        hasFailure2 = true;
+
+        masm.addi(R0.payloadReg(), R0.payloadReg(), 1);
+        break;
+      case JSOP_DEC:
+        masm.x_li32(r0, 0x80000000);
+        masm.cmplw(R0.payloadReg(), r0);
+        bo_failure2 = masm._bc(0, Assembler::Equal);
+        hasFailure2 = true;
+
+        masm.addi(R0.payloadReg(), R0.payloadReg(), -1);
         break;
       default:
         MOZ_CRASH("Unexpected op");
         return false;
     }
 
-    masm.bctr();
+    EmitReturnFromIC(masm);
 
     PPC_BB(failure);
-    PPC_BB(failure2);
+    if (hasFailure2)
+        PPC_BB(failure2);
     EmitStubGuardFailure(masm);
     return true;
 }

@@ -70,7 +70,8 @@ struct EnterJITStack
     void *savedR16;     // temporary stack for ABI calls
     void *savedR17;     // temporary stack for Trampoline
     void *savedR18;     // temporary LR for ABI calls
-    // GPRs. We only save r19 through r25 inclusive to save some stack space.
+    // GPRs. Preserve the full PowerOpen nonvolatile set: generated code is
+    // entered as a C-callable function and must not disturb caller state.
     void *savedR19;     // 84(r1)
     void *savedR20;
     void *savedR21;
@@ -78,7 +79,15 @@ struct EnterJITStack
     void *savedR23;
     void *savedR24;
     void *savedR25;
-    // 112(r1)
+    void *savedR26;
+    void *savedR27;
+    void *savedR28;
+    void *savedR29;
+    void *savedR30;
+    void *savedR31;
+    void *padding1;
+    void *padding2;
+    // 144(r1)
 
     // We don't need to save any FPRs; we don't let the allocator use
     // any of the non-volatile ones.
@@ -150,11 +159,11 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // We don't need to save any FPRs.
     // XXX: We save more than we need, but that's probably a good thing.
     uint32_t j = 60;
-    for (uint32_t i = 13; i < 26; i++) {
+    for (uint32_t i = 13; i < 32; i++) {
         masm.stw(Register::FromCode((Register::Code)i), sp, j);
         j+=4;
     }
-    MOZ_ASSERT(j == sizeof(EnterJITStack));
+    MOZ_ASSERT(j == sizeof(EnterJITStack) - 2 * sizeof(void*));
 
     // Save sp to r18 so that we can restore it for ABI calls.
     masm.x_mr(r18, r12);
@@ -236,7 +245,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // we actually have to call an ABI-compliant routine. Add two more words
     // for argv and token.
     masm.addi(r17, r17, 8);
-    masm.makeFrameDescriptor(r17, JitFrame_Entry); // r17 is clobbered
+    masm.makeFrameDescriptor(r17, JitFrame_Entry, JitFrameLayout::Size()); // r17 is clobbered
     masm.push(r17); // frame descriptor with encoded argc
 
     // Save the value pointer in r17, which is now free and is non-volatile.
@@ -275,7 +284,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
             < 32767);
         masm.addi(r12, r12,
             (BaselineFrame::Size() + BaselineFrame::FramePointerOffset));
-        masm.makeFrameDescriptor(r12, JitFrame_BaselineJS);
+        masm.makeFrameDescriptor(r12, JitFrame_BaselineJS, ExitFrameLayout::Size());
         masm.x_li(r0, 0); // Fake return address
         masm.push2(r12, r0);
         masm.enterFakeExitFrame(ExitFrameLayoutBareToken);
@@ -383,8 +392,8 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     
     masm.bind(&epilogue);
     // Restore GPRs. (We have no FPRs to restore.)
-    j -= 4; // otherwise r25 starts at 112!
-    for (uint32_t i = 25; i > 12; i--) {
+    j -= 4; // otherwise r31 starts one word past its saved slot.
+    for (uint32_t i = 31; i > 12; i--) {
         masm.lwz(Register::FromCode(i), sp, j);
         j-=4;
     }
@@ -597,7 +606,7 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
     masm.addi(r8, r8, 1);
     masm.x_slwi(r8, r8, 3);
     // Construct sizeDescriptor.
-    masm.makeFrameDescriptor(r8, JitFrame_Rectifier);
+    masm.makeFrameDescriptor(r8, JitFrame_Rectifier, JitFrameLayout::Size());
 
     // Construct IonJSFrameLayout.
     masm.push3(r3, r4, r8); // nargs, calleeToken; frame descriptor on top
@@ -943,17 +952,23 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     if (outReg != InvalidReg)
         masm.passABIArg(outReg);
 
-	// Manually call the ABI (don't use callWithABI itself; the resolutions may
-	// use r12 and it will overwrite it). CTR was already loaded way back when
-    // if a long call is required.
+    if (!generateTLEnterVM(cx, masm, f))
+        return nullptr;
+
+    // Keep this sequence open-coded: argsBase lives in r12 above, and the
+    // argument move resolver in callWithABIPre still needs it.
     masm.callWithABIPre(&stackAdjust);
-    if ((uint32_t)f.wrapped & 0xfc000000) { // won't fit in 26 bits
+    if ((uint32_t)f.wrapped & 0xfc000000) {
+        masm.x_li32(tempRegister, (uint32_t)f.wrapped);
+        masm.x_mtctr(tempRegister);
         masm.bctr(Assembler::LinkB);
     } else {
-        masm._b((uint32_t)f.wrapped, Assembler::AbsoluteBranch,
-            Assembler::LinkB);
+        masm._b((uint32_t)f.wrapped, Assembler::AbsoluteBranch, Assembler::LinkB);
     }
     masm.callWithABIPost(stackAdjust, MoveOp::GENERAL);
+
+    if (!generateTLExitVM(cx, masm, f))
+        return nullptr;
 
     // Test for failure, according to the various types.
     switch (f.failType()) {
@@ -1054,7 +1069,7 @@ JitRuntime::generatePreBarrier(JSContext *cx, MIRType type)
 typedef bool (*HandleDebugTrapFn)(
     JSContext *, BaselineFrame *, uint8_t *, bool *);
 static const VMFunction HandleDebugTrapInfo =
-    FunctionInfo<HandleDebugTrapFn>(HandleDebugTrap);
+    FunctionInfo<HandleDebugTrapFn>(HandleDebugTrap, "HandleDebugTrap");
 
 JitCode *
 JitRuntime::generateDebugTrapHandler(JSContext *cx)

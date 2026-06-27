@@ -846,7 +846,7 @@ ICStubCompiler::emitPostWriteBarrierSlot(MacroAssembler& masm, Register obj, Val
     masm.branchValueIsNurseryObject(Assembler::NotEqual, val, scratch, &skipBarrier);
 
     // void PostWriteBarrier(JSRuntime* rt, JSObject* obj);
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64) || defined(JS_CODEGEN_PPC_OSX)
     saveRegs.add(ICTailCallReg);
 #endif
     saveRegs.set() = GeneralRegisterSet::Intersect(saveRegs.set(), GeneralRegisterSet::Volatile());
@@ -2454,6 +2454,9 @@ TryAttachNativeGetAccessorPropStub(JSContext* cx, SharedStubInfo* info,
     {
         return false;
     }
+
+    if (prop.isNonNativeProperty())
+        return true;
 
     RootedShape shape(cx, prop.maybeShape());
     ICStub* monitorStub = stub->fallbackMonitorStub()->firstMonitorStub();

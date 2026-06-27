@@ -63,15 +63,15 @@ ABIArgGenerator::next(MIRType type)
     // TODO:
     // This does not yet handle the situation where we overflow the argregs.
     switch (type) {
-      case MIRType_Int32:
-      case MIRType_Pointer:
+      case MIRType::Int32:
+      case MIRType::Pointer:
 		if (usedGPRs_ == 8) // i.e., we already allocated r10
 			MOZ_CRASH("ABIArgGenerator overflowed (GPR)");
 		current_ = ABIArg(Register::FromCode((Register::Code)(usedGPRs_ + 3)));
 		usedGPRs_++;
 		break;
-      case MIRType_Float32:
-      case MIRType_Double:
+      case MIRType::Float32:
+      case MIRType::Double:
 		if (usedFPRs_ == 12) // i.e., we already allocated f13
 			MOZ_CRASH("ABIArgGenerator overflowed (FPR)");
 		current_ = ABIArg(FloatRegister::FromCode((Register::Code)(usedFPRs_ + 1)));
@@ -1285,6 +1285,11 @@ BufferOffset Assembler::x_bdnz(int16_t off, LikelyBit lkb, LinkBit lb) {
 BufferOffset Assembler::x_mtctr(Register ra) { return mtspr(ctr, ra); }
 BufferOffset Assembler::x_mtlr(Register ra) { return mtspr(lr_spr, ra); }
 BufferOffset Assembler::x_mflr(Register rd) { return mfspr(rd, lr_spr); }
+void Assembler::bindLater(Label* label, wasm::TrapDesc target) {
+    if (label->used())
+        append(wasm::TrapSite(target, label->offset()));
+    label->reset();
+}
 BufferOffset Assembler::x_mtcr(Register rs) { JSPW(PPC_mtcrf | _RS << 21 | 0xff << 12, "mtcr %s", nGPR(rs)); }
 BufferOffset Assembler::x_insertbits0_15(Register rd, Register rs) {
 	// fill bits 0-15 of rd with bits 16-31 of rs
@@ -1957,4 +1962,3 @@ void Assembler::UpdateBoundsCheck(uint32_t heapSize, Instruction *inst)
     // Replace with new value
     Assembler::UpdateLisOriValue(i0, i1, heapSize);
 }
-

@@ -1067,6 +1067,9 @@ class ICStubCompiler
         MOZ_ASSERT(!regs.has(PseudoStackPointer));
         MOZ_ASSERT(!regs.has(RealStackPointer));
         MOZ_ASSERT(!regs.has(ICTailCallReg));
+#elif defined(JS_CODEGEN_PPC_OSX)
+        MOZ_ASSERT(!regs.has(BaselineStackReg));
+        regs.take(ICTailCallReg);
 #else
         MOZ_ASSERT(!regs.has(BaselineStackReg));
 #endif
