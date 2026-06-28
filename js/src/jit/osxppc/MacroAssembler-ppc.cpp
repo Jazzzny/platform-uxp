@@ -1787,20 +1787,21 @@ MacroAssemblerPPCCompat::callJitFromAsmJS(Register callee) // XXX
 void
 MacroAssembler::PushRegsInMask(LiveRegisterSet set)
 {
-	// TODO: We don't need two reserveStacks.
 	int32_t diffF = set.fpus().size() * sizeof(double);
 	int32_t diffG = set.gprs().size() * sizeof(intptr_t);
-	reserveStack(diffG);
+	const int32_t reservedF = diffF;
+
+	reserveStack(diffG + diffF);
 	for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ++iter) {
 	    diffG -= sizeof(intptr_t);
 	    if (*iter == lr) { // "Fake LR"
 	    	x_mflr(tempRegister);
-	    	stw(tempRegister, stackPointerRegister, diffG);
-	    } else
-	    storePtr(*iter, Address(StackPointer, diffG));
+                stw(tempRegister, stackPointerRegister, reservedF + diffG);
+	    } else {
+                storePtr(*iter, Address(StackPointer, reservedF + diffG));
+            }
 	}
 	MOZ_ASSERT(diffG == 0);
-	reserveStack(diffF);
 	for (FloatRegisterBackwardIterator iter(set.fpus()); iter.more(); ++iter) {
 	    diffF -= sizeof(double);
 	    storeDouble(*iter, Address(StackPointer, diffF));
@@ -1816,14 +1817,12 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
 	const int32_t reservedG = diffG;
 	const int32_t reservedF = diffF;
 
-	// TODO: We don't need two freeStacks.
 	{
 	    for (FloatRegisterBackwardIterator iter(set.fpus()); iter.more(); ++iter) {
 	        diffF -= sizeof(double);
 	        if (!ignore.has(*iter))
 	            loadDouble(Address(StackPointer, diffF), *iter);
 	    }
-	    freeStack(reservedF);
 	}
 	MOZ_ASSERT(diffF == 0);
 	{
@@ -1831,15 +1830,16 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
 	        diffG -= sizeof(intptr_t);
 	        if (!ignore.has(*iter)) {
 	        	if (*iter == lr) { // Fake "LR"
-	        		lwz(tempRegister, stackPointerRegister, diffG);
+                        lwz(tempRegister, stackPointerRegister, reservedF + diffG);
 	        		x_mtlr(tempRegister);
-	        	} else
-	            loadPtr(Address(StackPointer, diffG), *iter);
+                } else {
+                    loadPtr(Address(StackPointer, reservedF + diffG), *iter);
+                }
 	        }
 	    }
-	    freeStack(reservedG);
 	}
 	MOZ_ASSERT(diffG == 0);
+	freeStack(reservedG + reservedF);
 }
 
 void
@@ -3971,10 +3971,12 @@ MacroAssemblerPPCCompat::callWithABIOptimized(void *fun, MoveOp::Type result)
 	uint32_t stackAdjust = 0;
 	ispew("vv -- callWithABI(void *, result) -- vv");
 
-    asMasm().callWithABIPre(&stackAdjust);
     if ((uint32_t)fun & 0xfc000000) { // won't fit in 26 bits
         x_li32(addressTempRegister, (uint32_t)fun);
-        x_mtctr(addressTempRegister);
+        x_mtctr(addressTempRegister); // Load CTR here to avoid nops later.
+    }
+    asMasm().callWithABIPre(&stackAdjust);
+    if ((uint32_t)fun & 0xfc000000) { // won't fit in 26 bits
         bctr(LinkB);
     } else {
         _b((uint32_t)fun, AbsoluteBranch, LinkB);
