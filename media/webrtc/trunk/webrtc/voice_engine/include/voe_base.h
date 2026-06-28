@@ -85,10 +85,6 @@ public:
     // receives callbacks for generated trace messages.
     static int SetTraceCallback(TraceCallback* callback);
 
-#if !defined(WEBRTC_CHROMIUM_BUILD)
-    static int SetAndroidObjects(void* javaVM, void* context);
-#endif
-
 protected:
     VoiceEngine() {}
     ~VoiceEngine() {}

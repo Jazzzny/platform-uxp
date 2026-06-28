@@ -1259,17 +1259,10 @@ nsldapi_iostatus_poll( LDAP *ld, struct timeval *timeout )
 		iosp->ios_status.ios_osinfo.ossi_use_writefds
 		    = iosp->ios_status.ios_osinfo.ossi_writefds;
 
-#ifdef HPUX9
-		rc = NSLDAPI_SELECT( nsldapi_get_select_table_size(),
-		    (int *)&iosp->ios_status.ios_osinfo.ossi_use_readfds
-		    (int *)&iosp->ios_status.ios_osinfo.ossi_use_writefds,
-		    NULL, timeout );
-#else
 		rc = NSLDAPI_SELECT( nsldapi_get_select_table_size(),
 		    &iosp->ios_status.ios_osinfo.ossi_use_readfds,
 		    &iosp->ios_status.ios_osinfo.ossi_use_writefds,
 		    NULL, timeout );
-#endif /* else HPUX9 */
 #endif /* else NSLDAPI_HAVE_POLL */
 #endif /* NSLDAPI_AVOID_OS_SOCKETS */
 

@@ -315,7 +315,7 @@ TEST_F(OveruseDetectorTest, OveruseWithLowVariance2000Kbit30fps) {
 }
 
 TEST_F(OveruseDetectorTest,
-       DISABLED_ON_ANDROID(LowGaussianVariance30Kbit3fps)) {
+       LowGaussianVariance30Kbit3fps) {
   size_t packet_size = 1200;
   int packets_per_frame = 1;
   int frame_duration_ms = 333;
@@ -372,7 +372,7 @@ TEST_F(OveruseDetectorTest, HighGaussianVarianceFastDrift30Kbit3fps) {
 }
 
 TEST_F(OveruseDetectorTest,
-       DISABLED_ON_ANDROID(LowGaussianVariance100Kbit5fps)) {
+       LowGaussianVariance100Kbit5fps) {
   size_t packet_size = 1200;
   int packets_per_frame = 2;
   int frame_duration_ms = 200;
@@ -387,7 +387,7 @@ TEST_F(OveruseDetectorTest,
 }
 
 TEST_F(OveruseDetectorTest,
-       DISABLED_ON_ANDROID(HighGaussianVariance100Kbit5fps)) {
+       HighGaussianVariance100Kbit5fps) {
   size_t packet_size = 1200;
   int packets_per_frame = 2;
   int frame_duration_ms = 200;
@@ -402,7 +402,7 @@ TEST_F(OveruseDetectorTest,
 }
 
 TEST_F(OveruseDetectorTest,
-       DISABLED_ON_ANDROID(LowGaussianVariance100Kbit10fps)) {
+       LowGaussianVariance100Kbit10fps) {
   size_t packet_size = 1200;
   int packets_per_frame = 1;
   int frame_duration_ms = 100;
@@ -417,7 +417,7 @@ TEST_F(OveruseDetectorTest,
 }
 
 TEST_F(OveruseDetectorTest,
-       DISABLED_ON_ANDROID(HighGaussianVariance100Kbit10fps)) {
+       HighGaussianVariance100Kbit10fps) {
   size_t packet_size = 1200;
   int packets_per_frame = 1;
   int frame_duration_ms = 100;
@@ -432,7 +432,7 @@ TEST_F(OveruseDetectorTest,
 }
 
 TEST_F(OveruseDetectorTest,
-       DISABLED_ON_ANDROID(LowGaussianVariance300Kbit30fps)) {
+       LowGaussianVariance300Kbit30fps) {
   size_t packet_size = 1200;
   int packets_per_frame = 1;
   int frame_duration_ms = 33;
@@ -489,7 +489,7 @@ TEST_F(OveruseDetectorTest, HighGaussianVarianceFastDrift300Kbit30fps) {
 }
 
 TEST_F(OveruseDetectorTest,
-       DISABLED_ON_ANDROID(LowGaussianVariance1000Kbit30fps)) {
+       LowGaussianVariance1000Kbit30fps) {
   size_t packet_size = 1200;
   int packets_per_frame = 3;
   int frame_duration_ms = 33;
@@ -546,7 +546,7 @@ TEST_F(OveruseDetectorTest, HighGaussianVarianceFastDrift1000Kbit30fps) {
 }
 
 TEST_F(OveruseDetectorTest,
-       DISABLED_ON_ANDROID(LowGaussianVariance2000Kbit30fps)) {
+       LowGaussianVariance2000Kbit30fps) {
   size_t packet_size = 1200;
   int packets_per_frame = 6;
   int frame_duration_ms = 33;

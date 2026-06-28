@@ -30,9 +30,7 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <unistd.h>
-#ifndef WEBRTC_IOS
 #include <net/if_arp.h>
-#endif
 #endif // defined(WEBRTC_LINUX) || defined(WEBRTC_MAC)
 
 #if defined(WEBRTC_MAC)
@@ -2482,8 +2480,6 @@ int32_t UdpTransport::LocalHostAddressIPV6(char n_localIP[16])
         ptrIfAddrs = ptrIfAddrs->ifa_next;
     }
     freeifaddrs(ptrIfAddrsStart);
-    return -1;
-#elif defined(WEBRTC_ANDROID)
     return -1;
 #else // WEBRTC_LINUX
     struct

@@ -109,9 +109,7 @@ ALIGN16_BEG const float ALIGN16_END WebRtcAec_overDriveCurve[65] = {
 static const float kDelayQualityThresholdMax = 0.07f;
 static const float kDelayQualityThresholdMin = 0.01f;
 static const int kInitialShiftOffset = 5;
-#if !defined(WEBRTC_ANDROID) && !defined(WEBRTC_GONK)
 static const int kDelayCorrectionStart = 1500;  // 10 ms chunks
-#endif
 
 // Target suppression levels for nlp modes.
 // log{0.001, 0.00001, 0.00000001}
@@ -879,15 +877,13 @@ static int SignalBasedDelayCorrection(AecCore* self) {
   int delay_correction = 0;
   int last_delay = -2;
   assert(self != NULL);
-#if !defined(WEBRTC_ANDROID) && !defined(WEBRTC_GONK)
-  // On desktops, turn on correction after |kDelayCorrectionStart| frames.  This
+  // Turn on correction after |kDelayCorrectionStart| frames.  This
   // is to let the delay estimation get a chance to converge.  Also, if the
   // playout audio volume is low (or even muted) the delay estimation can return
   // a very large delay, which will break the AEC if it is applied.
   if (self->frame_count < kDelayCorrectionStart) {
     return 0;
   }
-#endif
 
   // 1. Check for non-negative delay estimate.  Note that the estimates we get
   //    from the delay estimation are not compensated for lookahead.  Hence, a
@@ -1563,15 +1559,8 @@ AecCore* WebRtcAec_CreateAec() {
     WebRtcAec_FreeAec(aec);
     return NULL;
   }
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_GONK)
-  aec->delay_agnostic_enabled = 1;  // DA-AEC enabled by default.
-  // DA-AEC assumes the system is causal from the beginning and will self adjust
-  // the lookahead when shifting is required.
-  WebRtc_set_lookahead(aec->delay_estimator, 0);
-#else
   aec->delay_agnostic_enabled = 0;
   WebRtc_set_lookahead(aec->delay_estimator, kLookaheadBlocks);
-#endif
   aec->extended_filter_enabled = 0;
 
   static bool initted = false;

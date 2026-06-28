@@ -5,8 +5,8 @@
 # found in the LICENSE file.
 
 """
-Verifies that actions can be + a source scanner can be used to implement,
-cross-compiles (for Native Client at this point).
+  Verifies that actions can be + a source scanner can be used to implement
+  cross-compiles.
 """
 
 import TestGyp

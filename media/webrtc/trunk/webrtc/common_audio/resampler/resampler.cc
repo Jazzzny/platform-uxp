@@ -20,14 +20,9 @@
 #include "webrtc/common_audio/resampler/include/resampler.h"
 #include "webrtc/common_audio/signal_processing/include/signal_processing_library.h"
 
-// TODO(jesup) better adjust per platform ability
-// Note: if these are changed (higher), you may need to change the
+// Note: if this is changed, you may need to change the
 // KernelDelay values in the unit tests here and in output_mixer.
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_GONK)
-#define RESAMPLER_QUALITY 2
-#else
 #define RESAMPLER_QUALITY 3
-#endif
 
 namespace webrtc {
 

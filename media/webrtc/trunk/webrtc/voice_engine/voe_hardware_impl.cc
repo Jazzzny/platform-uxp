@@ -609,19 +609,9 @@ int VoEHardwareImpl::ResetAudioDevice()
         return -1;
     }
 
-#if defined(WEBRTC_IOS)
-    if (_shared->audio_device()->ResetAudioDevice() < 0)
-    {
-        _shared->SetLastError(VE_SOUNDCARD_ERROR, kTraceError,
-            "  Failed to reset sound device");
-        return -1;
-    }
-    return 0;
-#else
     _shared->SetLastError(VE_FUNC_NOT_SUPPORTED, kTraceError,
         "  no support for resetting sound device");
     return -1;
-#endif
 }
 
 int VoEHardwareImpl::AudioDeviceControl(unsigned int par1, unsigned int par2,
@@ -649,20 +639,10 @@ int VoEHardwareImpl::SetLoudspeakerStatus(bool enable)
         _shared->SetLastError(VE_NOT_INITED, kTraceError);
         return -1;
     }
-#if defined(WEBRTC_ANDROID)
-    if (_shared->audio_device()->SetLoudspeakerStatus(enable) < 0)
-    {
-        _shared->SetLastError(VE_IGNORED_FUNCTION, kTraceError,
-            "  Failed to set loudspeaker status");
-        return -1;
-    }
-
-    return 0;
-#else
+    (void)enable;
     _shared->SetLastError(VE_FUNC_NOT_SUPPORTED, kTraceError,
         "  no support for setting loudspeaker status");
     return -1;
-#endif
 }
 
 int VoEHardwareImpl::GetLoudspeakerStatus(bool& enabled)
@@ -670,26 +650,10 @@ int VoEHardwareImpl::GetLoudspeakerStatus(bool& enabled)
     WEBRTC_TRACE(kTraceApiCall, kTraceVoice, VoEId(_shared->instance_id(), -1),
                  "GetLoudspeakerStatus()");
 
-#if defined(WEBRTC_ANDROID)
-    if (!_shared->statistics().Initialized())
-    {
-        _shared->SetLastError(VE_NOT_INITED, kTraceError);
-        return -1;
-    }
-
-    if (_shared->audio_device()->GetLoudspeakerStatus(&enabled) < 0)
-    {
-        _shared->SetLastError(VE_IGNORED_FUNCTION, kTraceError,
-            "  Failed to get loudspeaker status");
-        return -1;
-    }
-
-    return 0;
-#else
+    (void)enabled;
     _shared->SetLastError(VE_FUNC_NOT_SUPPORTED, kTraceError,
       "  no support for setting loudspeaker status");
     return -1;
-#endif
 }
 
 int VoEHardwareImpl::GetCPULoad(int& loadPercent)

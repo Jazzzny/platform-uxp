@@ -82,8 +82,6 @@
         'source/vie_window_creator.cc',
 
         # Platform dependent
-        # Android
-        'source/vie_autotest_android.cc',
         # Linux
         'source/vie_autotest_linux.cc',
         'source/vie_window_manager_factory_linux.cc',
@@ -95,12 +93,6 @@
         'source/vie_window_manager_factory_win.cc',
       ],
       'conditions': [
-        ['OS=="android"', {
-          'libraries': [
-            '-lGLESv2',
-            '-llog',
-          ],
-        }],
         ['OS=="linux"', {
           # TODO(andrew): These should be provided directly by the projects
           #               which require them instead.

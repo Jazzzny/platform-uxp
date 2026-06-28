@@ -2503,7 +2503,7 @@ static const VMFunction GetOrCreateModuleMetaObjectInfo =
 void
 CodeGenerator::visitModuleMetadata(LModuleMetadata* lir)
 {
-    pushArg(ImmPtr(lir->mir()->module()));
+    pushArg(ImmGCPtr(lir->mir()->module()));
     callVM(GetOrCreateModuleMetaObjectInfo, lir);
 }
 
@@ -6634,7 +6634,7 @@ CodeGenerator::visitAbsI(LAbsI* ins)
     masm.branchTest32(Assembler::NotSigned, input, input, &positive);
     masm.neg32(input);
     LSnapshot* snapshot = ins->snapshot();
-#if defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64) || defined(JS_CODEGEN_PPC_OSX)
+#if defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64) || defined(JS_CODEGEN_LOONGARCH64) || defined(JS_CODEGEN_PPC_OSX)
     if (snapshot)
         bailoutCmp32(Assembler::Equal, input, Imm32(INT32_MIN), snapshot);
 #else
@@ -8492,7 +8492,7 @@ CodeGenerator::visitOutOfLineStoreElementHole(OutOfLineStoreElementHole* ool)
     // If index > initializedLength, call a stub. Note that this relies on the
     // condition flags sticking from the incoming branch.
     Label callStub;
-#if defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
+#if defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64) || defined(JS_CODEGEN_LOONGARCH64)
     // Had to reimplement for MIPS because there are no flags.
     if (unboxedType == JSVAL_TYPE_MAGIC) {
         Address initLength(elements, ObjectElements::offsetOfInitializedLength());
@@ -8953,9 +8953,17 @@ CodeGenerator::branchIfNotEmptyObjectElements(Register obj, Label* target)
                    Address(obj, NativeObject::offsetOfElements()),
                    ImmPtr(js::emptyObjectElements),
                    &emptyObj);
-    masm.branchPtr(Assembler::NotEqual,
+    masm.branchPtr(Assembler::Equal,
                    Address(obj, NativeObject::offsetOfElements()),
                    ImmPtr(js::emptyObjectElementsShared),
+                   &emptyObj);
+    masm.branchPtr(Assembler::Equal,
+                   Address(obj, NativeObject::offsetOfElements()),
+                   ImmPtr(js::emptyObjectElementsResizableOrGrowable),
+                   &emptyObj);
+    masm.branchPtr(Assembler::NotEqual,
+                   Address(obj, NativeObject::offsetOfElements()),
+                   ImmPtr(js::emptyObjectElementsSharedResizableOrGrowable),
                    target);
     masm.bind(&emptyObj);
 }

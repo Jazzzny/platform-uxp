@@ -15,11 +15,7 @@
 
 #include "webrtc/voice_engine/test/auto_test/fixtures/after_streaming_fixture.h"
 
-#ifdef WEBRTC_IOS
-  const int kMinimumReasonableDelayEstimateMs = 30;
-#else
-  const int kMinimumReasonableDelayEstimateMs = 45;
-#endif  // !WEBRTC_IOS
+const int kMinimumReasonableDelayEstimateMs = 45;
 
 class VideoSyncTest : public AfterStreamingFixture {
  protected:

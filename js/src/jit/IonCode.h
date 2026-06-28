@@ -747,7 +747,9 @@ struct VMFunction;
 struct AutoFlushICache
 {
   private:
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64) || defined(JS_CODEGEN_PPC_OSX)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || \
+    defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64) || \
+    defined(JS_CODEGEN_LOONGARCH64) || defined(JS_CODEGEN_PPC_OSX)
     uintptr_t start_;
     uintptr_t stop_;
     const char* name_;

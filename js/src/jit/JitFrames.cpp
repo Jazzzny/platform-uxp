@@ -2548,6 +2548,13 @@ MachineState::FromBailout(RegisterDump::GPRArray& regs, RegisterDump::FPUArray& 
         machine.setRegisterLocation(FloatRegister(i, FloatRegisters::Double), &fpregs[i]);
         machine.setRegisterLocation(FloatRegister(i, FloatRegisters::Single), &fpregs[i]);
     }
+#elif defined(JS_CODEGEN_LOONGARCH64)
+    for (unsigned i = 0; i < FloatRegisters::TotalPhys; i++) {
+        machine.setRegisterLocation(FloatRegister(FloatRegister::Encoding(i), FloatRegisters::Double),
+                                    &fpregs[i]);
+        machine.setRegisterLocation(FloatRegister(FloatRegister::Encoding(i), FloatRegisters::Single),
+                                    &fpregs[i]);
+    }
 #elif defined(JS_CODEGEN_PPC_OSX)
     for (unsigned i = 0; i < FloatRegisters::TotalPhys; i++)
         machine.setRegisterLocation(FloatRegister(i), &fpregs[i]);

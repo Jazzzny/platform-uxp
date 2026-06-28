@@ -30,8 +30,6 @@ class RxCallback : public webrtc::VoERxVadCallback {
 
 class AudioProcessingTest : public AfterStreamingFixture {
  protected:
-  // Note: Be careful with this one, it is used in the
-  // Android / iPhone part too.
   void TryEnablingAgcWithMode(webrtc::AgcModes agc_mode_to_set) {
     EXPECT_EQ(0, voe_apm_->SetAgcStatus(true, agc_mode_to_set));
 
@@ -138,8 +136,6 @@ class AudioProcessingTest : public AfterStreamingFixture {
   }
 };
 
-#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
-
 TEST_F(AudioProcessingTest, AgcIsOnByDefault) {
   bool agc_enabled = false;
   webrtc::AgcModes agc_mode = webrtc::kAgcAdaptiveAnalog;
@@ -219,10 +215,7 @@ TEST_F(AudioProcessingTest, DISABLED_TestVoiceActivityDetectionWithObserver) {
   EXPECT_EQ(0, voe_apm_->DeRegisterRxVadObserver(channel_));
 }
 
-#endif   // !WEBRTC_IOS && !WEBRTC_ANDROID
-
 TEST_F(AudioProcessingTest, EnablingEcAecmShouldEnableEcAecm) {
-  // This one apparently applies to Android and iPhone as well.
   TryEnablingEcWithMode(webrtc::kEcAecm, webrtc::kEcAecm);
 }
 
@@ -376,40 +369,3 @@ TEST_F(AudioProcessingTest, CanStartAndStopDebugRecording) {
   Sleep(1000);
   EXPECT_EQ(0, voe_apm_->StopDebugRecording());
 }
-
-#if defined(WEBRTC_IOS) || defined(WEBRTC_ANDROID)
-
-TEST_F(AudioProcessingTest, AgcIsOffByDefaultAndDigital) {
-  bool agc_enabled = true;
-  webrtc::AgcModes agc_mode = webrtc::kAgcAdaptiveAnalog;
-
-  EXPECT_EQ(0, voe_apm_->GetAgcStatus(agc_enabled, agc_mode));
-  EXPECT_FALSE(agc_enabled);
-  EXPECT_EQ(webrtc::kAgcAdaptiveDigital, agc_mode);
-}
-
-TEST_F(AudioProcessingTest, CanEnableAgcInAdaptiveDigitalMode) {
-  TryEnablingAgcWithMode(webrtc::kAgcAdaptiveDigital);
-}
-
-TEST_F(AudioProcessingTest, AgcIsPossibleExceptInAdaptiveAnalogMode) {
-  EXPECT_EQ(-1, voe_apm_->SetAgcStatus(true, webrtc::kAgcAdaptiveAnalog));
-  EXPECT_EQ(0, voe_apm_->SetAgcStatus(true, webrtc::kAgcFixedDigital));
-  EXPECT_EQ(0, voe_apm_->SetAgcStatus(true, webrtc::kAgcAdaptiveDigital));
-}
-
-TEST_F(AudioProcessingTest, EcIsDisabledAndAecmIsDefaultEcMode) {
-  bool ec_enabled = true;
-  webrtc::EcModes ec_mode = webrtc::kEcDefault;
-
-  EXPECT_EQ(0, voe_apm_->GetEcStatus(ec_enabled, ec_mode));
-  EXPECT_FALSE(ec_enabled);
-  EXPECT_EQ(webrtc::kEcAecm, ec_mode);
-}
-
-TEST_F(AudioProcessingTest, TestVoiceActivityDetection) {
-  TryDetectingSilence();
-  TryDetectingSpeechAfterSilence();
-}
-
-#endif  // WEBRTC_IOS || WEBRTC_ANDROID

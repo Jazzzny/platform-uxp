@@ -27,12 +27,10 @@ BotManager = function () {
   this.webSocketServer_ = null;
   this.bots_ = [];
   this.pendingConnections_ = [];
-  this.androidDeviceManager_ = new AndroidDeviceManager();
 }
 
 BotManager.BotTypes = {
   CHROME : 'chrome',
-  ANDROID_CHROME : 'android-chrome',
 };
 
 BotManager.prototype = {
@@ -40,9 +38,6 @@ BotManager.prototype = {
     switch(botType) {
       case BotManager.BotTypes.CHROME:
         return new BrowserBot(name, callback);
-      case BotManager.BotTypes.ANDROID_CHROME:
-        return new AndroidChromeBot(name, this.androidDeviceManager_,
-            callback);
       default:
         console.log('Error: Type ' + botType + ' not supported by rtc-Bot!');
         process.exit(1);
@@ -137,80 +132,5 @@ BrowserBot.prototype = {
   },
 
   __proto__: Bot.prototype
-}
-
-// AndroidChromeBot spawns a process to open
-// "https://localhost:8080/bot/browser/" on chrome for Android.
-AndroidChromeBot = function (name, androidDeviceManager, callback) {
-  Bot.call(this, name, callback);
-  androidDeviceManager.getNewDevice(function (serialNumber) {
-    this.serialNumber_ = serialNumber;
-    this.spawnBotProcess_();
-  }.bind(this));
-}
-
-AndroidChromeBot.prototype = {
-  spawnBotProcess_: function () {
-    this.log('Spawning Android device with serial ' + this.serialNumber_);
-    var runChrome = 'adb -s ' + this.serialNumber_ + ' shell am start ' +
-    '-n com.android.chrome/com.google.android.apps.chrome.Main ' +
-    '-d https://localhost:8080/bot/browser/';
-    child.exec(runChrome, function (error, stdout, stderr) {
-      if (error) {
-        this.log(error);
-        process.exit(1);
-      }
-      this.log('Opening Chrome for Android...');
-      this.log(stdout);
-    }.bind(this));
-  },
-
-  __proto__: Bot.prototype
-}
-
-AndroidDeviceManager = function () {
-  this.connectedDevices_ = [];
-}
-
-AndroidDeviceManager.prototype = {
-  getNewDevice: function (callback) {
-    this.listDevices_(function (devices) {
-      for (var i = 0; i < devices.length; i++) {
-        if (!this.connectedDevices_[devices[i]]) {
-          this.connectedDevices_[devices[i]] = devices[i];
-          callback(this.connectedDevices_[devices[i]]);
-          return;
-        }
-      }
-      if (devices.length == 0) {
-        console.log('Error: No connected devices!');
-      } else {
-        console.log('Error: There is no enough connected devices.');
-      }
-      process.exit(1);
-    }.bind(this));
-  },
-
-  listDevices_: function (callback) {
-    child.exec('adb devices' , function (error, stdout, stderr) {
-      var devices = [];
-      if (error || stderr) {
-        console.log(error || stderr);
-      }
-      if (stdout) {
-        // The first line is "List of devices attached"
-        // and the following lines:
-        // <serial number>  <device/emulator>
-        var tempList = stdout.split("\n").slice(1);
-        for (var i = 0; i < tempList.length; i++) {
-          if (tempList[i] == "") {
-            continue;
-          }
-          devices.push(tempList[i].split("\t")[0]);
-        }
-      }
-      callback(devices);
-    });
-  },
 }
 module.exports = BotManager;

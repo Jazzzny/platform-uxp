@@ -77,7 +77,7 @@ static const cricket::ProtocolAddress kTurnUdpIPv6ProtoAddr(
 
 static const unsigned int MSG_TESTFINISH = 0;
 
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 static int GetFDCount() {
   struct dirent *dp;
   int fd_count = 0;
@@ -784,7 +784,7 @@ TEST_F(TurnPortTest, DISABLED_TestTurnTCPReleaseAllocation) {
 
 // This test verifies any FD's are not leaked after TurnPort is destroyed.
 // https://code.google.com/p/webrtc/issues/detail?id=2651
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 TEST_F(TurnPortTest, TestResolverShutdown) {
   turn_server_.AddInternalSocket(kTurnUdpIPv6IntAddr, cricket::PROTO_UDP);
   int last_fd_count = GetFDCount();

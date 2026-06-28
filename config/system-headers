@@ -335,8 +335,6 @@ curses.h
 cxxabi.h
 DateTimeUtils.h
 dbus/dbus.h
-dbus/dbus-glib.h
-dbus/dbus-glib-lowlevel.h
 ddeml.h
 Debug.h
 dem.h
@@ -450,7 +448,6 @@ gtk/gtkx.h
 gtk/gtkunixprint.h
 HIToolbox/HIToolbox.h
 hlink.h
-ia64/sys/inline.h
 Icons.h
 iconv.h
 ieeefp.h

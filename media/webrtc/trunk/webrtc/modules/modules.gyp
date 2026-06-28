@@ -348,23 +348,6 @@
                 '<(libvpx_dir)/libvpx.gyp:libvpx',
               ],
             }],
-            ['OS=="android"', {
-              'dependencies': [
-                '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-              ],
-              # Need to disable error due to the line in
-              # base/android/jni_android.h triggering it:
-              # const BASE_EXPORT jobject GetApplicationContext()
-              # error: type qualifiers ignored on function return type
-              'cflags': [
-                '-Wno-ignored-qualifiers',
-              ],
-              'sources': [
-                'audio_device/android/audio_device_unittest.cc',
-                'audio_device/android/ensure_initialized.cc',
-                'audio_device/android/ensure_initialized.h',
-              ],
-            }],
           ],
           # Disable warnings to enable Win64 build, issue 1323.
           'msvs_disabled_warnings': [
@@ -418,33 +401,10 @@
             'video_coding/codecs/vp8/test/vp8_impl_unittest.cc',
           ],
           'conditions': [
-            ['OS=="android"', {
-              'dependencies': [
-                '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }],
           ],
         },
       ],
       'conditions': [
-        ['OS=="android"', {
-          'targets': [
-            {
-              'target_name': 'modules_unittests_apk_target',
-              'type': 'none',
-              'dependencies': [
-                '<(apk_tests_path):modules_unittests_apk',
-              ],
-            },
-            {
-              'target_name': 'modules_tests_apk_target',
-              'type': 'none',
-              'dependencies': [
-                '<(apk_tests_path):modules_tests_apk',
-              ],
-            },
-          ],
-        }],
         ['test_isolation_mode != "noop"', {
           'targets': [
             {

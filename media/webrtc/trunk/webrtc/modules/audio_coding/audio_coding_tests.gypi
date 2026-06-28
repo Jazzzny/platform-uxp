@@ -30,27 +30,9 @@
         'codecs/tools/audio_codec_speed_test.h',
         'codecs/tools/audio_codec_speed_test.cc',
       ],
-      'conditions': [
-        ['OS=="android"', {
-          'dependencies': [
-            '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-          ],
-        }],
-      ],
     },
   ],
   'conditions': [
-    ['OS=="android"', {
-      'targets': [
-        {
-          'target_name': 'audio_codec_speed_tests_apk_target',
-          'type': 'none',
-          'dependencies': [
-            '<(apk_tests_path):audio_codec_speed_tests_apk',
-          ],
-        },
-      ],
-    }],
     ['test_isolation_mode != "noop"', {
       'targets': [
         {

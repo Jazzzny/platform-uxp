@@ -1067,6 +1067,8 @@ class ICStubCompiler
         MOZ_ASSERT(!regs.has(PseudoStackPointer));
         MOZ_ASSERT(!regs.has(RealStackPointer));
         MOZ_ASSERT(!regs.has(ICTailCallReg));
+#elif defined(JS_CODEGEN_LOONGARCH64)
+        MOZ_ASSERT(!regs.has(BaselineStackReg));
 #elif defined(JS_CODEGEN_PPC_OSX)
         MOZ_ASSERT(!regs.has(BaselineStackReg));
         regs.take(ICTailCallReg);
@@ -1076,6 +1078,9 @@ class ICStubCompiler
         regs.take(BaselineFrameReg);
         regs.take(ICStubReg);
 #ifdef JS_CODEGEN_X64
+        regs.take(ExtractTemp0);
+        regs.take(ExtractTemp1);
+#elif defined(JS_CODEGEN_LOONGARCH64)
         regs.take(ExtractTemp0);
         regs.take(ExtractTemp1);
 #endif
@@ -2304,6 +2309,10 @@ CheckDOMProxyExpandoDoesNotShadow(JSContext* cx, MacroAssembler& masm, Register 
 
 void
 CheckForTypedObjectWithDetachedStorage(JSContext* cx, MacroAssembler& masm, Label* failure);
+
+void
+GuardResizableOrGrowableTypedArray(MacroAssembler& masm, Register obj, Register scratch,
+                                   Label* failure);
 
 [[nodiscard]] bool
 DoCallNativeGetter(JSContext* cx, HandleFunction callee, HandleObject obj,

@@ -15,16 +15,9 @@
 #undef ERROR  // wingdi.h
 #endif
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 #include <CoreServices/CoreServices.h>
-#elif defined(WEBRTC_ANDROID)
-#include <android/log.h>
-static const char kLibjingle[] = "libjingle";
-// Android has a 1024 limit on log inputs. We use 60 chars as an
-// approx for the header/tag portion.
-// See android/system/core/liblog/logd_write.c
-static const int kMaxLogLineSize = 1024 - 60;
-#endif  // WEBRTC_MAC && !defined(WEBRTC_IOS) || WEBRTC_ANDROID
+#endif
 
 #include <time.h>
 #include <limits.h>
@@ -156,7 +149,7 @@ LogMessage::LogMessage(const char* file, int line, LoggingSeverity sev,
         break;
       }
 #endif  // WEBRTC_WIN 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
       case ERRCTX_OSSTATUS: {
         tmp << " " << nonnull(GetMacOSStatusErrorString(err), "Unknown error");
         if (const char* desc = GetMacOSStatusCommentString(err)) {
@@ -164,7 +157,7 @@ LogMessage::LogMessage(const char* file, int line, LoggingSeverity sev,
         }
         break;
       }
-#endif  // WEBRTC_MAC && !defined(WEBRTC_IOS)
+#endif  // WEBRTC_MAC
       default:
         break;
     }
@@ -335,7 +328,6 @@ void LogMessage::ConfigureLogging(const char* params, const char* filename) {
 
   LogToDebug(debug_level);
 
-#if !defined(__native_client__)  // No logging to file in NaCl.
   scoped_ptr<FileStream> stream;
   if (NO_LOGGING != file_level) {
     stream.reset(new FileStream);
@@ -345,7 +337,6 @@ void LogMessage::ConfigureLogging(const char* params, const char* filename) {
   }
 
   LogToStream(stream.release(), file_level);
-#endif
 }
 
 int LogMessage::ParseLogSeverity(const std::string& value) {
@@ -397,7 +388,7 @@ const char* LogMessage::DescribeFile(const char* file) {
 void LogMessage::OutputToDebug(const std::string& str,
                                LoggingSeverity severity) {
   bool log_to_stderr = true;
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS) && (!defined(DEBUG) || defined(NDEBUG))
+#if defined(WEBRTC_MAC) && (!defined(DEBUG) || defined(NDEBUG))
   // On the Mac, all stderr output goes to the Console log and causes clutter.
   // So in opt builds, don't log to stderr unless the user specifically sets
   // a preference to do so.
@@ -431,56 +422,6 @@ void LogMessage::OutputToDebug(const std::string& str,
     }
   }
 #endif  // WEBRTC_WIN 
-#if defined(WEBRTC_ANDROID)
-  // Android's logging facility uses severity to log messages but we
-  // need to map libjingle's severity levels to Android ones first.
-  // Also write to stderr which maybe available to executable started
-  // from the shell.
-  int prio;
-  switch (severity) {
-    case LS_SENSITIVE:
-      __android_log_write(ANDROID_LOG_INFO, kLibjingle, "SENSITIVE");
-      if (log_to_stderr) {
-        fprintf(stderr, "SENSITIVE");
-        fflush(stderr);
-      }
-      return;
-    case LS_VERBOSE:
-      prio = ANDROID_LOG_VERBOSE;
-      break;
-    case LS_INFO:
-      prio = ANDROID_LOG_INFO;
-      break;
-    case LS_WARNING:
-      prio = ANDROID_LOG_WARN;
-      break;
-    case LS_ERROR:
-      prio = ANDROID_LOG_ERROR;
-      break;
-    default:
-      prio = ANDROID_LOG_UNKNOWN;
-  }
-
-  int size = str.size();
-  int line = 0;
-  int idx = 0;
-  const int max_lines = size / kMaxLogLineSize + 1;
-  if (max_lines == 1) {
-    __android_log_print(prio, kLibjingle, "%.*s", size, str.c_str());
-  } else {
-    while (size > 0) {
-      const int len = std::min(size, kMaxLogLineSize);
-      // Use the size of the string in the format (str may have \0 in the
-      // middle).
-      __android_log_print(prio, kLibjingle, "[%d/%d] %.*s",
-                          line + 1, max_lines,
-                          len, str.c_str() + idx);
-      idx += len;
-      size -= len;
-      ++line;
-    }
-  }
-#endif  // WEBRTC_ANDROID
   if (log_to_stderr) {
     fprintf(stderr, "%s", str.c_str());
     fflush(stderr);

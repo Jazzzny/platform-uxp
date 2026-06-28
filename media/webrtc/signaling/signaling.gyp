@@ -219,41 +219,6 @@
             '../../../netwerk/srtp/src/crypto/include',
           ],
         }],
-        ['moz_webrtc_omx==1', {
-          'sources': [
-            './src/media-conduit/WebrtcOMXH264VideoCodec.cpp',
-            './src/media-conduit/OMXVideoCodec.cpp',
-          ],
-          'include_dirs': [
-            # hack on hack to re-add it after SrtpFlow removes it
-            '../../../dom/media/omx',
-            '../../../gfx/layers/client',
-          ],
-          'cflags_mozilla': [
-            '-I$(ANDROID_SOURCE)/frameworks/av/include/media/stagefright',
-            '-I$(ANDROID_SOURCE)/frameworks/av/include',
-            '-I$(ANDROID_SOURCE)/frameworks/native/include/media/openmax',
-            '-I$(ANDROID_SOURCE)/frameworks/native/include',
-            '-I$(ANDROID_SOURCE)/frameworks/native/opengl/include',
-          ],
-          'defines' : [
-            'MOZ_WEBRTC_OMX'
-          ],
-        }],
-        ['moz_webrtc_mediacodec==1', {
-          'include_dirs': [
-            '../../../widget/android',
-          ],
-          'sources': [
-            './src/media-conduit/MediaCodecVideoCodec.h',
-            './src/media-conduit/WebrtcMediaCodecVP8VideoCodec.h',
-            './src/media-conduit/MediaCodecVideoCodec.cpp',
-            './src/media-conduit/WebrtcMediaCodecVP8VideoCodec.cpp',
-          ],
-          'defines' : [
-            'MOZ_WEBRTC_MEDIACODEC',
-          ],
-        }],
         ['(build_for_test==0) and (build_for_standalone==0)', {
           'defines' : [
             'MOZILLA_INTERNAL_API',
@@ -294,7 +259,7 @@
             'USE_FAKE_PCOBSERVER',
           ],
         }],
-        ['(OS=="linux") or (OS=="android")', {
+        ['OS=="linux"', {
           'include_dirs': [
           ],
 
@@ -309,13 +274,6 @@
           ],
 
           'cflags_mozilla': [
-          ],
-        }],
-        ['OS=="android"', {
-          'cflags_mozilla': [
-            # This warning complains about important MOZ_EXPORT attributes
-            # on forward declarations for Android API types.
-            '-Wno-error=attributes',
           ],
         }],
         ['OS=="win"', {
@@ -348,7 +306,7 @@
           'cflags_mozilla': [
           ],
         }],
-        ['OS=="mac" or OS=="ios"', {
+        ['OS=="mac"', {
           'include_dirs': [
           ],
           'defines': [

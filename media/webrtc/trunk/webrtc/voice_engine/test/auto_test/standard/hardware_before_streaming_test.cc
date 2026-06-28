@@ -25,17 +25,6 @@ TEST_F(HardwareBeforeStreamingTest,
   EXPECT_EQ(VE_ALREADY_INITED, voe_base_->LastError());
 }
 
-// Tests that only apply to mobile:
-
-#ifdef WEBRTC_IOS
-TEST_F(HardwareBeforeStreamingTest, ResetsAudioDeviceOnIphone) {
-  EXPECT_EQ(0, voe_hardware_->ResetAudioDevice());
-}
-#endif
-
-// Tests that only apply to desktop:
-#if !defined(WEBRTC_IOS) & !defined(WEBRTC_ANDROID)
-
 static const char* kNoDevicesErrorMessage =
     "Either you have no recording / playout device "
     "on your system, or the method failed.";
@@ -140,5 +129,3 @@ TEST_F(HardwareBeforeStreamingTest,
   EXPECT_EQ(0, voe_hardware_->SetPlayoutDevice(0));
 #endif
 }
-
-#endif // !defined(WEBRTC_IOS) & !defined(WEBRTC_ANDROID)

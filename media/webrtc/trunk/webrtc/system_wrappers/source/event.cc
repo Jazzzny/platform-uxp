@@ -13,7 +13,7 @@
 #if defined(_WIN32)
 #include <windows.h>
 #include "webrtc/system_wrappers/source/event_win.h"
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
 #include <ApplicationServices/ApplicationServices.h>
 #include <pthread.h>
 #include "webrtc/system_wrappers/source/event_posix.h"

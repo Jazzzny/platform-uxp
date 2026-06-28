@@ -679,15 +679,7 @@ WebrtcVideoConduit::ConfigureSendMediaCodec(const VideoCodecConfig* codecConfig)
     // width/height will be overridden on the first frame
     video_codec.width = 320;
     video_codec.height = 240;
-#ifdef MOZ_WEBRTC_OMX
-    if (codecConfig->mType == webrtc::kVideoCodecH264) {
-      video_codec.resolution_divisor = 16;
-    } else {
-      video_codec.resolution_divisor = 1; // We could try using it to handle odd resolutions
-    }
-#else
     video_codec.resolution_divisor = 1; // We could try using it to handle odd resolutions
-#endif
     video_codec.qpMax = 56;
     video_codec.numberOfSimulcastStreams = 1;
     video_codec.simulcastStream[0].jsScaleDownBy =
@@ -1896,8 +1888,6 @@ WebrtcVideoConduit::DeliverI420Frame(const webrtc::I420VideoFrame& webrtc_frame)
     }
 
 #if 0
-    //#ifndef MOZ_WEBRTC_OMX
-    // XXX - this may not be possible on GONK with textures!
     if (mVideoLatencyTestEnable && mReceivingWidth && mReceivingHeight) {
       uint64_t now = PR_Now();
       uint64_t timestamp = 0;
@@ -1967,9 +1957,6 @@ WebrtcVideoConduit::CodecConfigToWebRTCCodec(const VideoCodecConfig* codecInfo,
 
   if (cinst.codecType == webrtc::kVideoCodecH264)
   {
-#ifdef MOZ_WEBRTC_OMX
-    cinst.resolution_divisor = 16;
-#endif
     // cinst.codecSpecific.H264.profile = ?
     cinst.codecSpecific.H264.profile_byte = codecInfo->mProfile;
     cinst.codecSpecific.H264.constraints = codecInfo->mConstraints;

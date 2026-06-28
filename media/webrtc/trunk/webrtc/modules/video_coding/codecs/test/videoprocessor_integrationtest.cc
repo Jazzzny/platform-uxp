@@ -802,21 +802,18 @@ TEST_F(VideoProcessorIntegrationTest, Process10PercentPacketLoss) {
                          rc_metrics);
 }
 
-// The tests below are currently disabled for Android. For ARM, the encoder
-// uses |cpu_speed| = 12, as opposed to default |cpu_speed| <= 6 for x86,
-// which leads to significantly different quality. The quality and rate control
-// settings in the tests below are defined for encoder speed setting
-// |cpu_speed| <= ~6. A number of settings would need to be significantly
-// modified for the |cpu_speed| = 12 case. For now, keep the tests below
-// disabled on Android. Some quality parameter in the above test has been
-// adjusted to also pass for |cpu_speed| <= 12.
+// For ARM, the encoder uses |cpu_speed| = 12, as opposed to default
+// |cpu_speed| <= 6 for x86, which leads to significantly different quality.
+// The quality and rate control settings in the tests below are defined for
+// encoder speed setting |cpu_speed| <= ~6. Some quality parameter in the above
+// test has been adjusted to also pass for |cpu_speed| <= 12.
 
 // VP8: Run with no packet loss, with varying bitrate (3 rate updates):
 // low to high to medium. Check that quality and encoder response to the new
 // target rate/per-frame bandwidth (for each rate update) is within limits.
 // One key frame (first frame only) in sequence.
 TEST_F(VideoProcessorIntegrationTest,
-       DISABLED_ON_ANDROID(ProcessNoLossChangeBitRateVP8)) {
+       ProcessNoLossChangeBitRateVP8) {
   // Bitrate and frame rate profile.
   RateProfile rate_profile;
   SetRateProfilePars(&rate_profile, 0, 200, 30, 0);
@@ -850,7 +847,7 @@ TEST_F(VideoProcessorIntegrationTest,
 // Note: quality after update should be higher but we currently compute quality
 // metrics averaged over whole sequence run.
 TEST_F(VideoProcessorIntegrationTest,
-       DISABLED_ON_ANDROID(ProcessNoLossChangeFrameRateFrameDropVP8)) {
+       ProcessNoLossChangeFrameRateFrameDropVP8) {
   config_.networking_config.packet_loss_probability = 0;
   // Bitrate and frame rate profile.
   RateProfile rate_profile;
@@ -880,7 +877,7 @@ TEST_F(VideoProcessorIntegrationTest,
 // Run with no packet loss, at low bitrate. During this time we should've
 // resized once.
 TEST_F(VideoProcessorIntegrationTest,
-       DISABLED_ON_ANDROID(ProcessNoLossSpatialResizeFrameDropVP8)) {
+       ProcessNoLossSpatialResizeFrameDropVP8) {
   config_.networking_config.packet_loss_probability = 0;
   // Bitrate and frame rate profile.
   RateProfile rate_profile;
@@ -909,7 +906,7 @@ TEST_F(VideoProcessorIntegrationTest,
 // No dropped frames in this test, and internal spatial resizer is off.
 // One key frame (first frame only) in sequence, so no spatial resizing.
 TEST_F(VideoProcessorIntegrationTest,
-       DISABLED_ON_ANDROID(ProcessNoLossTemporalLayersVP8)) {
+       ProcessNoLossTemporalLayersVP8) {
   config_.networking_config.packet_loss_probability = 0;
   // Bitrate and frame rate profile.
   RateProfile rate_profile;

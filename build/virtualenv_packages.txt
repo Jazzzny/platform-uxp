@@ -11,7 +11,6 @@ mozbuild.pth:python/mozbuild
 mozversioncontrol.pth:python/mozversioncontrol
 mozlint.pth:python/mozlint
 pymake.pth:build/pymake
-optional:setup.py:python/psutil:build_ext:--inplace
 optional:psutil.pth:python/psutil
 which.pth:python/which
 ply.pth:other-licenses/ply/
@@ -29,6 +28,7 @@ moztreedocs.pth:tools/docs
 packages.txt:testing/mozbase/packages.txt
 objdir:build
 gyp.pth:media/webrtc/trunk/tools/gyp/pylib
+six.pth:python/requests/requests/packages/urllib3/packages
 pyasn1.pth:python/pyasn1
 pyasn1_modules.pth:python/pyasn1-modules
 bitstring.pth:python/bitstring

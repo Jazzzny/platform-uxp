@@ -16,7 +16,7 @@
 #include <d3d9.h>
 #endif
 #include <intrin.h>  // for __cpuid()
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreServices/CoreServices.h>
 #elif defined(WEBRTC_LINUX)
@@ -29,7 +29,7 @@
 #if defined(WEBRTC_WIN)
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/win32.h"
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
 #include "webrtc/base/macconversion.h"
 #elif defined(WEBRTC_LINUX)
 #include "webrtc/base/linux.h"
@@ -165,8 +165,6 @@ SystemInfo::SystemInfo()
   if (!sysctlbyname("machdep.cpu.stepping", &sysctl_value, &length, NULL, 0)) {
     cpu_stepping_ = static_cast<int>(sysctl_value);
   }
-#elif defined(__native_client__)
-  // TODO(ryanpetrie): Implement this via PPAPI when it's available.
 #else  // WEBRTC_LINUX
   ProcCpuInfo proc_info;
   if (proc_info.LoadFromSystem()) {
@@ -237,7 +235,7 @@ int SystemInfo::GetCurCpus() {
   int error = sysctlbyname("hw.ncpu", &sysctl_value, &length, NULL, 0);
   cur_cpus = !error ? static_cast<int>(sysctl_value) : 1;
 #else
-  // Linux, Solaris, WEBRTC_ANDROID
+  // Linux, Solaris.
   cur_cpus = static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
 #endif
   return cur_cpus;
@@ -415,7 +413,7 @@ std::string SystemInfo::GetMachineModel() {
   return machine_model_;
 }
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 // Helper functions to query IOKit for video hardware properties.
 static CFTypeRef SearchForProperty(io_service_t port, CFStringRef name) {
   return IORegistryEntrySearchCFProperty(port, kIOServicePlane,
@@ -506,7 +504,7 @@ bool SystemInfo::GetGpuInfo(GpuInfo *info) {
      << LOWORD(identifier.DriverVersion.LowPart);
   info->driver_version = ss.str();
   return true;
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
   // We'll query the IOKit for the gpu of the main display.
   io_service_t display_service_port = CGDisplayIOServicePort(
       kCGDirectMainDisplay);

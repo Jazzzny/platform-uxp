@@ -11,7 +11,7 @@
 #include "webrtc/sound/platformsoundsystem.h"
 
 #include "webrtc/base/common.h"
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 #include "webrtc/sound/linuxsoundsystem.h"
 #else
 #include "webrtc/sound/nullsoundsystem.h"
@@ -20,7 +20,7 @@
 namespace rtc {
 
 SoundSystemInterface *CreatePlatformSoundSystem() {
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
   return new LinuxSoundSystem();
 #else
   ASSERT(false && "Not implemented");

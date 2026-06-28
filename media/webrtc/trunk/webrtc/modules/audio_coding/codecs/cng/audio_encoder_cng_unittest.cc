@@ -388,7 +388,7 @@ TEST_F(AudioEncoderCngTest, VerifySidFrameAfterSpeech) {
             encoded_info_.encoded_bytes);
 }
 
-#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+#if GTEST_HAS_DEATH_TEST
 
 // This test fixture tests various error conditions that makes the
 // AudioEncoderCng die via CHECKs.

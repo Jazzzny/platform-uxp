@@ -21,6 +21,8 @@
 # toplevel Makefile.  It may make sense to generate some .mk files on
 # the side to keep the the files readable.
 
+from __future__ import print_function
+
 import os
 import re
 import sys
@@ -30,6 +32,8 @@ import gyp.common
 import gyp.xcode_emulation
 from gyp.common import GetEnvironFallback
 from gyp.common import GypError
+
+import hashlib
 
 generator_default_variables = {
   'EXECUTABLE_PREFIX': '',
@@ -87,10 +91,11 @@ def CalculateVariables(default_variables, params):
     COMPILABLE_EXTENSIONS.update({'.m': 'objc', '.mm' : 'objcxx'})
   else:
     operating_system = flavor
-    if flavor == 'android':
-      operating_system = 'linux'  # Keep this legacy behavior for now.
     default_variables.setdefault('OS', operating_system)
-    default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
+    if flavor == 'aix':
+      default_variables.setdefault('SHARED_LIB_SUFFIX', '.a')
+    else:
+      default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
     default_variables.setdefault('SHARED_LIB_DIR','$(builddir)/lib.$(TOOLSET)')
     default_variables.setdefault('LIB_DIR', '$(obj).$(TOOLSET)')
 
@@ -98,13 +103,6 @@ def CalculateVariables(default_variables, params):
 def CalculateGeneratorInputInfo(params):
   """Calculate the generator specific info that gets fed to input (called by
   gyp)."""
-  generator_flags = params.get('generator_flags', {})
-  android_ndk_version = generator_flags.get('android_ndk_version', None)
-  # Android NDK requires a strict link order.
-  if android_ndk_version:
-    global generator_wants_sorted_dependencies
-    generator_wants_sorted_dependencies = True
-
   output_dir = params['options'].generator_output or \
                params['options'].toplevel_dir
   builddir_name = generator_flags.get('output_dir', 'out')
@@ -181,34 +179,6 @@ quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -bundle $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
 """
 
-LINK_COMMANDS_ANDROID = """\
-quiet_cmd_alink = AR($(TOOLSET)) $@
-cmd_alink = rm -f $@ && $(AR.$(TOOLSET)) crs $@ $(filter %.o,$^)
-
-quiet_cmd_alink_thin = AR($(TOOLSET)) $@
-cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crsT $@ $(filter %.o,$^)
-
-# Due to circular dependencies between libraries :(, we wrap the
-# special "figure out circular dependencies" flags around the entire
-# input list during linking.
-quiet_cmd_link = LINK($(TOOLSET)) $@
-quiet_cmd_link_host = LINK($(TOOLSET)) $@
-cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS)
-cmd_link_host = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)
-
-# Other shared-object link notes:
-# - Set SONAME to the library filename so our binaries don't reference
-# the local, absolute paths used on the link command-line.
-quiet_cmd_solink = SOLINK($(TOOLSET)) $@
-cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ -Wl,--whole-archive $(LD_INPUTS) -Wl,--no-whole-archive $(LIBS)
-
-quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
-cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ -Wl,--start-group $(filter-out FORCE_DO_CMD, $^) -Wl,--end-group $(LIBS)
-quiet_cmd_solink_module_host = SOLINK_MODULE($(TOOLSET)) $@
-cmd_solink_module_host = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
-"""
-
-
 LINK_COMMANDS_AIX = """\
 quiet_cmd_alink = AR($(TOOLSET)) $@
 cmd_alink = rm -f $@ && $(AR.$(TOOLSET)) -X32_64 crs $@ $(filter %.o,$^)
@@ -224,6 +194,24 @@ cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o 
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
+"""
+
+
+LINK_COMMANDS_OS390 = """\
+quiet_cmd_alink = AR($(TOOLSET)) $@
+cmd_alink = rm -f $@ && $(AR.$(TOOLSET)) crs $@ $(filter %.o,$^)
+
+quiet_cmd_alink_thin = AR($(TOOLSET)) $@
+cmd_alink_thin = rm -f $@ && $(AR.$(TOOLSET)) crsT $@ $(filter %.o,$^)
+
+quiet_cmd_link = LINK($(TOOLSET)) $@
+cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)
+
+quiet_cmd_solink = SOLINK($(TOOLSET)) $@
+cmd_solink = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS) -Wl,DLL
+
+quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
+cmd_solink_module = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS) -Wl,DLL
 """
 
 
@@ -290,7 +278,7 @@ CFLAGS.host ?= $(CPPFLAGS_host) $(CFLAGS_host)
 CXX.host ?= %(CXX.host)s
 CXXFLAGS.host ?= $(CPPFLAGS_host) $(CXXFLAGS_host)
 LINK.host ?= %(LINK.host)s
-LDFLAGS.host ?=
+LDFLAGS.host ?= $(LDFLAGS_host)
 AR.host ?= %(AR.host)s
 
 # Define a dir function that can handle spaces.
@@ -310,7 +298,7 @@ dirx = $(call unreplace_spaces,$(dir $(call replace_spaces,$1)))
 # We write to a dep file on the side first and then rename at the end
 # so we can't end up with a broken dep file.
 depfile = $(depsdir)/$(call replace_spaces,$@).d
-DEPFLAGS = -MMD -MF $(depfile).raw
+DEPFLAGS = %(makedep_args)s -MF $(depfile).raw
 
 # We have to fixup the deps output in a few ways.
 # (1) the file output should mention the proper .o file.
@@ -645,7 +633,7 @@ def _ValidateSourcesForOSX(spec, all_sources):
     basenames.setdefault(basename, []).append(source)
 
   error = ''
-  for basename, files in basenames.iteritems():
+  for basename, files in basenames.items():
     if len(files) > 1:
       error += '  %s: %s\n' % (basename, ' '.join(files))
 
@@ -793,7 +781,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
           gyp.xcode_emulation.MacPrefixHeader(
               self.xcode_settings, lambda p: Sourceify(self.Absolutify(p)),
               self.Pchify))
-      sources = filter(Compilable, all_sources)
+      sources = [x for x in all_sources if Compilable(x)]
       if sources:
         self.WriteLn(SHARED_HEADER_SUFFIX_RULES_COMMENT1)
         extensions = set([os.path.splitext(s)[1] for s in sources])
@@ -822,11 +810,6 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     # Update global list of link dependencies.
     if self.type in ('static_library', 'shared_library'):
       target_link_deps[qualified_target] = self.output_binary
-
-    # Currently any versions have the same effect, but in future the behavior
-    # could be different.
-    if self.generator_flags.get('android_ndk_version', None):
-      self.WriteAndroidNdkModuleRule(self.target, all_sources, link_deps)
 
     self.fp.close()
 
@@ -922,7 +905,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                    '%s%s'
                    % (name, cd_action, command))
       self.WriteLn()
-      outputs = map(self.Absolutify, outputs)
+      outputs = [self.Absolutify(o) for o in outputs]
       # The makefile rules are all relative to the top dir, but the gyp actions
       # are defined relative to their containing dir.  This replaces the obj
       # variable for the action rule with an absolute version so that the output
@@ -1012,7 +995,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         outputs = [gyp.xcode_emulation.ExpandEnvVars(o, env) for o in outputs]
         inputs = [gyp.xcode_emulation.ExpandEnvVars(i, env) for i in inputs]
 
-        outputs = map(self.Absolutify, outputs)
+        outputs = [self.Absolutify(o) for o in outputs]
         all_outputs += outputs
         # Only write the 'obj' and 'builddir' rules for the "primary" output
         # (:1); it's superfluous for the "extra outputs", and this avoids
@@ -1210,11 +1193,11 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         self.WriteList(cflags_objcc, 'CFLAGS_OBJCC_%s' % configname)
       includes = config.get('include_dirs')
       if includes:
-        includes = map(Sourceify, map(self.Absolutify, includes))
+        includes = [Sourceify(self.Absolutify(include)) for include in includes]
       self.WriteList(includes, 'INCS_%s' % configname, prefix='-I')
 
     compilable = filter(Compilable, sources)
-    objs = map(self.Objectify, map(self.Absolutify, map(Target, compilable)))
+    objs = [self.Objectify(self.Absolutify(Target(x))) for x in compilable]
     self.WriteList(objs, 'OBJS')
 
     for obj in objs:
@@ -1286,7 +1269,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
     # If there are any object files in our input file list, link them into our
     # output.
-    extra_link_deps += filter(Linkable, sources)
+    extra_link_deps += [source for source in sources if Linkable(source)]
 
     self.WriteLn()
 
@@ -1347,12 +1330,15 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       if target[:3] == 'lib':
         target = target[3:]
       target_prefix = 'lib'
-      target_ext = '.so'
+      if self.flavor == 'aix':
+        target_ext = '.a'
+      else:
+        target_ext = '.so'
     elif self.type == 'none':
       target = '%s.stamp' % target
     elif self.type != 'executable':
-      print ("ERROR: What output file should be generated?",
-             "type", self.type, "target", target)
+      print(("ERROR: What output file should be generated?",
+             "type", self.type, "target", target))
 
     target_prefix = spec.get('product_prefix', target_prefix)
     target = spec.get('product_name', target)
@@ -1516,9 +1502,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       # Postbuilds expect to be run in the gyp file's directory, so insert an
       # implicit postbuild to cd to there.
       postbuilds.insert(0, gyp.common.EncodePOSIXShellList(['cd', self.path]))
-      for i in xrange(len(postbuilds)):
-        if not postbuilds[i].startswith('$'):
-          postbuilds[i] = EscapeShellArgument(postbuilds[i])
+      for i, postbuild in enumerate(postbuilds):
+        if not postbuild.startswith('$'):
+          postbuilds[i] = EscapeShellArgument(postbuild)
       self.WriteLn('%s: builddir := $(abs_builddir)' % QuoteSpaces(self.output))
       self.WriteLn('%s: POSTBUILDS := %s' % (
           QuoteSpaces(self.output), ' '.join(postbuilds)))
@@ -1568,12 +1554,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       self.WriteLn('%s: LD_INPUTS := %s' % (
           QuoteSpaces(self.output_binary),
           ' '.join(map(QuoteSpaces, link_deps))))
-      if self.toolset == 'host' and self.flavor == 'android':
-        self.WriteDoCmd([self.output_binary], link_deps, 'link_host',
-                        part_of_all, postbuilds=postbuilds)
-      else:
-        self.WriteDoCmd([self.output_binary], link_deps, 'link', part_of_all,
-                        postbuilds=postbuilds)
+      self.WriteDoCmd([self.output_binary], link_deps, 'link', part_of_all,
+                      postbuilds=postbuilds)
 
     elif self.type == 'static_library':
       for link_dep in link_deps:
@@ -1596,19 +1578,15 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       for link_dep in link_deps:
         assert ' ' not in link_dep, (
             "Spaces in module input filenames not supported (%s)"  % link_dep)
-      if self.toolset == 'host' and self.flavor == 'android':
-        self.WriteDoCmd([self.output_binary], link_deps, 'solink_module_host',
-                        part_of_all, postbuilds=postbuilds)
-      else:
-        self.WriteDoCmd(
-            [self.output_binary], link_deps, 'solink_module', part_of_all,
-            postbuilds=postbuilds)
+      self.WriteDoCmd(
+          [self.output_binary], link_deps, 'solink_module', part_of_all,
+          postbuilds=postbuilds)
     elif self.type == 'none':
       # Write a stamp line.
       self.WriteDoCmd([self.output_binary], deps, 'touch', part_of_all,
                       postbuilds=postbuilds)
     else:
-      print "WARNING: no output for", self.type, target
+      print("WARNING: no output for", self.type, self.target)
 
     # Add an alias for each target (if there are any outputs).
     # Installable target aliases are created below.
@@ -1715,7 +1693,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
            output is just a name to run the rule
     command: (optional) command name to generate unambiguous labels
     """
-    outputs = map(QuoteSpaces, outputs)
+    outputs = [QuoteSpaces(o) for o in outputs]
     inputs = map(QuoteSpaces, inputs)
 
     if comment:
@@ -1743,7 +1721,11 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       #   actual command.
       # - The intermediate recipe will 'touch' the intermediate file.
       # - The multi-output rule will have an do-nothing recipe.
-      intermediate = "%s.intermediate" % (command if command else self.target)
+
+      # Hash the target name to avoid generating overlong filenames.
+      cmdstring = (command if command else self.target).encode('utf-8')
+      cmddigest = hashlib.sha1(cmdstring).hexdigest()
+      intermediate = "%s.intermediate" % (cmddigest)
       self.WriteLn('%s: %s' % (' '.join(outputs), intermediate))
       self.WriteLn('\t%s' % '@:');
       self.WriteLn('%s: %s' % ('.INTERMEDIATE', intermediate))
@@ -1755,90 +1737,6 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       for action in actions:
         self.WriteLn('\t%s' % action)
     self.WriteLn()
-
-
-  def WriteAndroidNdkModuleRule(self, module_name, all_sources, link_deps):
-    """Write a set of LOCAL_XXX definitions for Android NDK.
-
-    These variable definitions will be used by Android NDK but do nothing for
-    non-Android applications.
-
-    Arguments:
-      module_name: Android NDK module name, which must be unique among all
-          module names.
-      all_sources: A list of source files (will be filtered by Compilable).
-      link_deps: A list of link dependencies, which must be sorted in
-          the order from dependencies to dependents.
-    """
-    if self.type not in ('executable', 'shared_library', 'static_library'):
-      return
-
-    self.WriteLn('# Variable definitions for Android applications')
-    self.WriteLn('include $(CLEAR_VARS)')
-    self.WriteLn('LOCAL_MODULE := ' + module_name)
-    self.WriteLn('LOCAL_CFLAGS := $(CFLAGS_$(BUILDTYPE)) '
-                 '$(DEFS_$(BUILDTYPE)) '
-                 # LOCAL_CFLAGS is applied to both of C and C++.  There is
-                 # no way to specify $(CFLAGS_C_$(BUILDTYPE)) only for C
-                 # sources.
-                 '$(CFLAGS_C_$(BUILDTYPE)) '
-                 # $(INCS_$(BUILDTYPE)) includes the prefix '-I' while
-                 # LOCAL_C_INCLUDES does not expect it.  So put it in
-                 # LOCAL_CFLAGS.
-                 '$(INCS_$(BUILDTYPE))')
-    # LOCAL_CXXFLAGS is obsolete and LOCAL_CPPFLAGS is preferred.
-    self.WriteLn('LOCAL_CPPFLAGS := $(CFLAGS_CC_$(BUILDTYPE))')
-    self.WriteLn('LOCAL_C_INCLUDES :=')
-    self.WriteLn('LOCAL_LDLIBS := $(LDFLAGS_$(BUILDTYPE)) $(LIBS)')
-
-    # Detect the C++ extension.
-    cpp_ext = {'.cc': 0, '.cpp': 0, '.cxx': 0}
-    default_cpp_ext = '.cpp'
-    for filename in all_sources:
-      ext = os.path.splitext(filename)[1]
-      if ext in cpp_ext:
-        cpp_ext[ext] += 1
-        if cpp_ext[ext] > cpp_ext[default_cpp_ext]:
-          default_cpp_ext = ext
-    self.WriteLn('LOCAL_CPP_EXTENSION := ' + default_cpp_ext)
-
-    self.WriteList(map(self.Absolutify, filter(Compilable, all_sources)),
-                   'LOCAL_SRC_FILES')
-
-    # Filter out those which do not match prefix and suffix and produce
-    # the resulting list without prefix and suffix.
-    def DepsToModules(deps, prefix, suffix):
-      modules = []
-      for filepath in deps:
-        filename = os.path.basename(filepath)
-        if filename.startswith(prefix) and filename.endswith(suffix):
-          modules.append(filename[len(prefix):-len(suffix)])
-      return modules
-
-    # Retrieve the default value of 'SHARED_LIB_SUFFIX'
-    params = {'flavor': 'linux'}
-    default_variables = {}
-    CalculateVariables(default_variables, params)
-
-    self.WriteList(
-        DepsToModules(link_deps,
-                      generator_default_variables['SHARED_LIB_PREFIX'],
-                      default_variables['SHARED_LIB_SUFFIX']),
-        'LOCAL_SHARED_LIBRARIES')
-    self.WriteList(
-        DepsToModules(link_deps,
-                      generator_default_variables['STATIC_LIB_PREFIX'],
-                      generator_default_variables['STATIC_LIB_SUFFIX']),
-        'LOCAL_STATIC_LIBRARIES')
-
-    if self.type == 'executable':
-      self.WriteLn('include $(BUILD_EXECUTABLE)')
-    elif self.type == 'shared_library':
-      self.WriteLn('include $(BUILD_SHARED_LIBRARY)')
-    elif self.type == 'static_library':
-      self.WriteLn('include $(BUILD_STATIC_LIBRARY)')
-    self.WriteLn()
-
 
   def WriteLn(self, text=''):
     self.fp.write(text + '\n')
@@ -1957,7 +1855,7 @@ def PerformBuild(data, configurations, params):
     if options.toplevel_dir and options.toplevel_dir != '.':
       arguments += '-C', options.toplevel_dir
     arguments.append('BUILDTYPE=' + config)
-    print 'Building [%s]: %s' % (config, arguments)
+    print('Building [%s]: %s' % (config, arguments))
     subprocess.check_call(arguments)
 
 
@@ -1966,7 +1864,6 @@ def GenerateOutput(target_list, target_dicts, data, params):
   flavor = gyp.common.GetFlavor(params)
   generator_flags = params.get('generator_flags', {})
   builddir_name = generator_flags.get('output_dir', 'out')
-  android_ndk_version = generator_flags.get('android_ndk_version', None)
   default_target = generator_flags.get('default_target', 'all')
 
   def CalculateMakefilePath(build_file, base_name):
@@ -2011,6 +1908,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
   flock_command= 'flock'
   copy_archive_arguments = '-af'
+  makedep_arguments = '-MMD'
   header_params = {
       'default_target': default_target,
       'builddir': builddir_name,
@@ -2021,6 +1919,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
       'extra_commands': '',
       'srcdir': srcdir,
       'copy_archive_args': copy_archive_arguments,
+      'makedep_args': makedep_arguments,
     }
   if flavor == 'mac':
     flock_command = './gyp-mac-tool flock'
@@ -2030,9 +1929,13 @@ def GenerateOutput(target_list, target_dicts, data, params):
         'link_commands': LINK_COMMANDS_MAC,
         'extra_commands': SHARED_HEADER_MAC_COMMANDS,
     })
-  elif flavor == 'android':
+  elif flavor == 'zos':
+    copy_archive_arguments = '-fPR'
+    makedep_arguments = '-qmakedep=gcc'
     header_params.update({
-        'link_commands': LINK_COMMANDS_ANDROID,
+        'copy_archive_args': copy_archive_arguments,
+        'makedep_args': makedep_arguments,
+        'link_commands': LINK_COMMANDS_OS390,
     })
   elif flavor == 'solaris':
     header_params.update({
@@ -2104,13 +2007,6 @@ def GenerateOutput(target_list, target_dicts, data, params):
   gyp.common.EnsureDirExists(makefile_path)
   root_makefile = open(makefile_path, 'w')
   root_makefile.write(SHARED_HEADER % header_params)
-  # Currently any versions have the same effect, but in future the behavior
-  # could be different.
-  if android_ndk_version:
-    root_makefile.write(
-        '# Define LOCAL_PATH for build of Android applications.\n'
-        'LOCAL_PATH := $(call my-dir)\n'
-        '\n')
   for toolset in toolsets:
     root_makefile.write('TOOLSET := %s\n' % toolset)
     WriteRootHeaderSuffixRules(root_makefile)

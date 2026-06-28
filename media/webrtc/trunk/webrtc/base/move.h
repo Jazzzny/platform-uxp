@@ -139,7 +139,7 @@
 // disabled.  Also, by virtue of inheritance you can treat the RValue
 // reference as if it were the move-only type itself.  Unfortunately,
 // using the result of this reinterpret_cast<> is actually undefined behavior
-// due to C++98 5.2.10.7. In certain compilers (e.g., NaCl) the optimizer
+// due to C++98 5.2.10.7. In certain compilers the optimizer
 // will generate non-working code.
 //
 // In optimized builds, both implementations generate the same assembly so we

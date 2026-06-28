@@ -13,7 +13,7 @@
 
 // Utilities for testing rtc infrastructure in unittests
 
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 
@@ -592,7 +592,7 @@ inline AssertionResult CmpHelperFileEq(const char* expected_expression,
     return; \
   } \
 
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 struct XDisplay {
   XDisplay() : display_(XOpenDisplay(NULL)) { }
   ~XDisplay() { if (display_) XCloseDisplay(display_); }
@@ -606,7 +606,7 @@ struct XDisplay {
 // Returns true if screencasting is available. When false, anything that uses
 // screencasting features may fail.
 inline bool IsScreencastingAvailable() {
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
   XDisplay display;
   if (!display.IsValid()) {
     LOG(LS_WARNING) << "No X Display available.";

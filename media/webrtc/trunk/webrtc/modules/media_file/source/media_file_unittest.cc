@@ -28,7 +28,7 @@ class MediaFileTest : public testing::Test {
   webrtc::MediaFile* media_file_;
 };
 
-TEST_F(MediaFileTest, DISABLED_ON_ANDROID(StartPlayingAudioFileWithoutError)) {
+TEST_F(MediaFileTest, StartPlayingAudioFileWithoutError) {
   // TODO(leozwang): Use hard coded filename here, we want to
   // loop through all audio files in future
   const std::string audio_file = webrtc::test::ProjectRootPath() +

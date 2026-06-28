@@ -92,7 +92,7 @@
             'LIBYUV_MSA',
           ],
         }],
-        ['OS != "ios" and libyuv_disable_jpeg != 1', {
+        ['libyuv_disable_jpeg != 1', {
           'defines': [
             'HAVE_JPEG'
           ],
@@ -135,18 +135,6 @@
           'include',
           '.',
         ],
-        'conditions': [
-          ['OS == "android" and target_arch == "arm64"', {
-            'ldflags': [
-              '-Wl,--dynamic-linker,/system/bin/linker64',
-            ],
-          }],
-          ['OS == "android" and target_arch != "arm64"', {
-            'ldflags': [
-              '-Wl,--dynamic-linker,/system/bin/linker',
-            ],
-          }],
-        ], #conditions
       },
       'sources': [
         '<@(libyuv_sources)',
@@ -154,4 +142,3 @@
     },
   ], # targets.
 }
-

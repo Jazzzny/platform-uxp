@@ -132,13 +132,6 @@
             'voe_base_unittest.cc',
             'voe_codec_unittest.cc',
           ],
-          'conditions': [
-            ['OS=="android"', {
-              'dependencies': [
-                '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }],
-          ],
         },
         {
           'target_name': 'voe_auto_test',
@@ -194,14 +187,6 @@
             'test/auto_test/voe_stress_test.h',
             'test/auto_test/voe_test_defines.h',
             'test/auto_test/voe_test_interface.h',
-          ],
-          'conditions': [
-            ['OS=="android"', {
-              # some tests are not supported on android yet, exclude these tests.
-              'sources!': [
-                'test/auto_test/standard/hardware_before_streaming_test.cc',
-              ],
-            }],
           ],
           # Disable warnings to enable Win64 build, issue 1323.
           'msvs_disabled_warnings': [
@@ -272,17 +257,6 @@
               },
             },
           ],  # targets
-        }],
-        ['OS=="android"', {
-          'targets': [
-            {
-              'target_name': 'voice_engine_unittests_apk_target',
-              'type': 'none',
-              'dependencies': [
-                '<(apk_tests_path):voice_engine_unittests_apk',
-              ],
-            },
-          ],
         }],
         ['test_isolation_mode != "noop"', {
           'targets': [

@@ -1446,9 +1446,6 @@ PluginInstanceChild::AnswerNPP_SetWindow(const NPRemoteWindow& aWindow)
 
     if (mPluginIface->setwindow)
         (void) mPluginIface->setwindow(&mData, &mWindow);
-
-#elif defined(MOZ_WIDGET_UIKIT)
-    // Don't care
 #else
 #  error Implement me for your OS
 #endif

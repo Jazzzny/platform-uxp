@@ -33,7 +33,6 @@
         'interface/field_trial.h',
         'interface/file_wrapper.h',
         'interface/fix_interlocked_exchange_pointer_win.h',
-        'interface/logcat_trace_context.h',
         'interface/logging.h',
         'interface/metrics.h',
         'interface/ref_count.h',
@@ -82,7 +81,6 @@
         'source/event_win.h',
         'source/file_impl.cc',
         'source/file_impl.h',
-        'source/logcat_trace_context.cc',
         'source/logging.cc',
         'source/rtp_to_ntp.cc',
         'source/rw_lock.cc',
@@ -119,42 +117,6 @@
             'source/metrics_default.cc',
           ],
         }],
-        ['OS=="android"', {
-          'defines': [
-            'WEBRTC_THREAD_RR',
-            # TODO(leozwang): Investigate CLOCK_REALTIME and CLOCK_MONOTONIC
-            # support on Android. Keep WEBRTC_CLOCK_TYPE_REALTIME for now,
-            # remove it after I verify that CLOCK_MONOTONIC is fully functional
-            # with condition and event functions in system_wrappers.
-            'WEBRTC_CLOCK_TYPE_REALTIME',
-           ],
-          'conditions': [
-            ['build_with_chromium==1', {
-              'dependencies': [
-                'cpu_features_chromium.gyp:cpu_features_android',
-              ],
-            }, {
-              'dependencies': [
-                'cpu_features_webrtc.gyp:cpu_features_android',
-              ],
-            }],
-          ],
-          'sources!': [
-            # Android doesn't have these in <=2.2
-            'rw_lock_posix.cc',
-            'rw_lock_posix.h',
-          ],
-          'link_settings': {
-            'libraries': [
-              '-llog',
-            ],
-          },
-        }, {  # OS!="android"
-          'sources!': [
-            'interface/logcat_trace_context.h',
-            'source/logcat_trace_context.cc',
-          ],
-        }],
         ['OS=="linux"', {
           'defines': [
             'WEBRTC_THREAD_RR',
@@ -177,7 +139,7 @@
             '-fpermissive',
           ],
         }],
-        ['OS=="ios" or OS=="mac"', {
+        ['OS=="mac"', {
           'defines': [
             'WEBRTC_THREAD_RR',
             'WEBRTC_CLOCK_TYPE_REALTIME',
@@ -189,20 +151,6 @@
           },
         }],
       ], # conditions
-      'target_conditions': [
-        # We need to do this in a target_conditions block to override the
-        # filename_rules filters.
-        ['OS=="ios"', {
-          # Pull in specific Mac files for iOS (which have been filtered out
-          # by file name rules).
-          'sources/': [
-            ['include', '^source/atomic32_mac\\.'],
-          ],
-          'sources!': [
-            'source/atomic32_posix.cc',
-          ],
-        }],
-      ],
       # Disable warnings to enable Win64 build, issue 1323.
       'msvs_disabled_warnings': [
         4267,  # size_t to int truncation.
@@ -237,4 +185,3 @@
     },
   ], # targets
 }
-

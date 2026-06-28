@@ -22,11 +22,7 @@
 #include "webrtc/system_wrappers/interface/file_wrapper.h"
 #include "webrtc/typedefs.h"
 
-#if defined(WEBRTC_IOS) || defined(ANDROID)
-#define USE_SLEEP_AS_PAUSE
-#else
 //#define USE_SLEEP_AS_PAUSE
-#endif
 
 // Sets the default pause time if using sleep as pause
 #define DEFAULT_PAUSE_TIME 5000

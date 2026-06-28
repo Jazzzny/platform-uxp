@@ -24,15 +24,8 @@
 #define MACRO_DEFAULT_COMMUNICATION_DEVICE 0
 #endif
 
-#ifdef ANDROID
-#include <android/log.h>
-#define LOG_TAG "WebRtc ADM TEST"
-#define TEST_LOG(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
-#define TEST_LOG_ERROR(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-#else
 #define TEST_LOG printf
 #define TEST_LOG_ERROR(...) fprintf(stderr, __VA_ARGS__)
-#endif
 
 static int warningCount = 0;
 
@@ -66,10 +59,7 @@ static int warningCount = 0;
     } while(0)
 
 // Helper functions
-// For iPhone, they are defined in iPhone specific test code.
-// For Android, they are defined in API test only (since both
-//   API and Func tests are built into the same lib).
-// For other, they are defined in both API test and Func test.
+// Defined by the API and Func test harnesses.
 const char* GetFilename(const char* filename);
 const char* GetResource(const char* resource);
 

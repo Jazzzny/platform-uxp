@@ -40,10 +40,8 @@ AcmReceiveTest::AcmReceiveTest(PacketSource* packet_source,
 void AcmReceiveTest::RegisterDefaultCodecs() {
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kOpus, 120));
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kISAC, 103));
-#ifndef WEBRTC_ANDROID
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kISACSWB, 104));
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kISACFB, 105));
-#endif
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kPCM16B, 107));
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kPCM16Bwb, 108));
   ASSERT_TRUE(
@@ -67,10 +65,8 @@ void AcmReceiveTest::RegisterDefaultCodecs() {
 
 void AcmReceiveTest::RegisterNetEqTestCodecs() {
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kISAC, 103));
-#ifndef WEBRTC_ANDROID
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kISACSWB, 104));
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kISACFB, 124));
-#endif
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kPCM16B, 93));
   ASSERT_TRUE(acm_->RegisterReceiveCodec(acm2::ACMCodecDB::kPCM16Bwb, 94));
   ASSERT_TRUE(

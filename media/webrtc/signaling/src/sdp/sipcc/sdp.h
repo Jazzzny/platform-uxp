@@ -670,7 +670,6 @@ typedef struct sdp_fmtp {
     uint16_t                       par_height;
     /* PAR=12:11 implies par_width=12, par_height=11 */
 
-    /* CPCF should be a float. IOS does not support float and so it is uint16_t */
     /* For portable stack, CPCF should be defined as float and the parsing should
      * be modified accordingly */
     uint16_t                       cpcf;

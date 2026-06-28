@@ -14,8 +14,16 @@ The MSBuild schemas were also considered.  They are typically found in the
 MSBuild install directory, e.g. c:\Program Files (x86)\MSBuild
 """
 
+from __future__ import print_function
+
 import sys
 import re
+
+try:
+  # basestring was removed in python3.
+  basestring
+except NameError:
+  basestring = str
 
 # Dictionaries of settings validators. The key is the tool name, the value is
 # a dictionary mapping setting names to validation functions.
@@ -400,7 +408,7 @@ def _ValidateExclusionSetting(setting, settings, error_msg, stderr=sys.stderr):
 
   if unrecognized:
     # We don't know this setting. Give a warning.
-    print >> stderr, error_msg
+    print(error_msg, file=stderr)
 
 
 def FixVCMacroSlashes(s):
@@ -433,7 +441,7 @@ def ConvertVCMacrosToMSBuild(s):
         '$(PlatformName)': '$(Platform)',
         '$(SafeInputName)': '%(Filename)',
     }
-    for old, new in replace_map.iteritems():
+    for old, new in replace_map.items():
       s = s.replace(old, new)
     s = FixVCMacroSlashes(s)
   return s
@@ -453,17 +461,18 @@ def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
       dictionaries of settings and their values.
   """
   msbuild_settings = {}
-  for msvs_tool_name, msvs_tool_settings in msvs_settings.iteritems():
+  for msvs_tool_name, msvs_tool_settings in msvs_settings.items():
     if msvs_tool_name in _msvs_to_msbuild_converters:
       msvs_tool = _msvs_to_msbuild_converters[msvs_tool_name]
-      for msvs_setting, msvs_value in msvs_tool_settings.iteritems():
+      for msvs_setting, msvs_value in msvs_tool_settings.items():
         if msvs_setting in msvs_tool:
           # Invoke the translation function.
           try:
             msvs_tool[msvs_setting](msvs_value, msbuild_settings)
-          except ValueError, e:
-            print >> stderr, ('Warning: while converting %s/%s to MSBuild, '
-                              '%s' % (msvs_tool_name, msvs_setting, e))
+          except ValueError as e:
+            print(('Warning: while converting %s/%s to MSBuild, '
+                              '%s' % (msvs_tool_name, msvs_setting, e)),
+                              file=stderr)
         else:
           _ValidateExclusionSetting(msvs_setting,
                                     msvs_tool,
@@ -472,8 +481,8 @@ def ConvertToMSBuildSettings(msvs_settings, stderr=sys.stderr):
                                      (msvs_tool_name, msvs_setting)),
                                     stderr)
     else:
-      print >> stderr, ('Warning: unrecognized tool %s while converting to '
-                        'MSBuild.' % msvs_tool_name)
+      print(('Warning: unrecognized tool %s while converting to '
+                        'MSBuild.' % msvs_tool_name), file=stderr)
   return msbuild_settings
 
 
@@ -513,13 +522,13 @@ def _ValidateSettings(validators, settings, stderr):
   for tool_name in settings:
     if tool_name in validators:
       tool_validators = validators[tool_name]
-      for setting, value in settings[tool_name].iteritems():
+      for setting, value in settings[tool_name].items():
         if setting in tool_validators:
           try:
             tool_validators[setting](value)
-          except ValueError, e:
-            print >> stderr, ('Warning: for %s/%s, %s' %
-                              (tool_name, setting, e))
+          except ValueError as e:
+            print(('Warning: for %s/%s, %s' %
+                              (tool_name, setting, e)), file=stderr)
         else:
           _ValidateExclusionSetting(setting,
                                     tool_validators,
@@ -528,7 +537,7 @@ def _ValidateSettings(validators, settings, stderr):
                                     stderr)
 
     else:
-      print >> stderr, ('Warning: unrecognized tool %s' % tool_name)
+      print(('Warning: unrecognized tool %s' % tool_name), file=stderr)
 
 
 # MSVS and MBuild names of the tools.
@@ -804,7 +813,6 @@ _target_machine_enumeration = _Enumeration(
      None,
      'MachineARM',  # /MACHINE:ARM
      'MachineEBC',  # /MACHINE:EBC
-     'MachineIA64',  # /MACHINE:IA64
      None,
      'MachineMIPS',  # /MACHINE:MIPS
      'MachineMIPS16',  # /MACHINE:MIPS16
@@ -904,8 +912,7 @@ _MSBuildOnly(_link, 'ForceFileOutput',
 _MSBuildOnly(_link, 'CreateHotPatchableImage',
              _Enumeration([], new=['Enabled',  # /FUNCTIONPADMIN
                                    'X86Image',  # /FUNCTIONPADMIN:5
-                                   'X64Image',  # /FUNCTIONPADMIN:6
-                                   'ItaniumImage']))  # /FUNCTIONPADMIN:16
+                                   'X64Image']))  # /FUNCTIONPADMIN:6
 _MSBuildOnly(_link, 'CLRSupportLastError',
              _Enumeration([], new=['Enabled',  # /CLRSupportLastError
                                    'Disabled',  # /CLRSupportLastError:NO
@@ -969,7 +976,6 @@ _Same(_midl, 'DefaultCharType',
 _Same(_midl, 'TargetEnvironment',
       _Enumeration(['NotSet',
                     'Win32',  # /env win32
-                    'Itanium',  # /env ia64
                     'X64']))  # /env x64
 _Same(_midl, 'EnableErrorChecks',
       _Enumeration(['EnableCustom',

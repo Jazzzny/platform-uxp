@@ -17,7 +17,7 @@
 #include "webrtc/modules/desktop_capture/x11/shared_x_display.h"
 #endif
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 #include "webrtc/modules/desktop_capture/mac/desktop_configuration_monitor.h"
 #include "webrtc/modules/desktop_capture/mac/full_screen_chrome_window_detector.h"
 #endif
@@ -44,7 +44,7 @@ class DesktopCaptureOptions {
   }
 #endif
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
   DesktopConfigurationMonitor* configuration_monitor() const {
     return configuration_monitor_;
   }
@@ -89,7 +89,7 @@ class DesktopCaptureOptions {
   scoped_refptr<SharedXDisplay> x_display_;
 #endif
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
   scoped_refptr<DesktopConfigurationMonitor> configuration_monitor_;
   scoped_refptr<FullScreenChromeWindowDetector> full_screen_window_detector_;
 #endif

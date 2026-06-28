@@ -144,27 +144,9 @@
             'vie_codec_unittest.cc',
             'vie_remb_unittest.cc',
           ],
-          'conditions': [
-            ['OS=="android"', {
-              'dependencies': [
-                '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }],
-          ],
         },
       ], # targets
       'conditions': [
-        ['OS=="android"', {
-          'targets': [
-            {
-              'target_name': 'video_engine_core_unittests_apk_target',
-              'type': 'none',
-              'dependencies': [
-                '<(apk_tests_path):video_engine_core_unittests_apk',
-              ],
-            },
-          ],
-        }],
         ['test_isolation_mode != "noop"', {
           'targets': [
             {

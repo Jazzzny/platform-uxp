@@ -124,11 +124,6 @@
               '-lGL',
             ],
           }],
-          ['OS=="android"', {
-            'libraries' : [
-              '-lGLESv2', '-llog',
-            ],
-          }],
           ['OS=="mac"', {
             'xcode_settings' : {
               'OTHER_LDFLAGS' : [

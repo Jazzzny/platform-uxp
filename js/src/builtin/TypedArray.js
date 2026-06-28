@@ -37,10 +37,25 @@ function TypedArrayLengthMethod() {
     return TypedArrayLength(this);
 }
 
+function TypedArrayContentTypeIsBigIntMethod() {
+    return IsBigInt64TypedArray(this) || IsBigUint64TypedArray(this);
+}
+
+function ThrowIfTypedArrayOutOfBounds(tarray) {
+    if (TypedArrayIsOutOfBounds(tarray))
+        ThrowTypeError(JSMSG_TYPED_ARRAY_OUT_OF_BOUNDS);
+}
+
+function ThrowIfPossiblyWrappedTypedArrayOutOfBounds(tarray) {
+    if (PossiblyWrappedTypedArrayIsOutOfBounds(tarray))
+        ThrowTypeError(JSMSG_TYPED_ARRAY_OUT_OF_BOUNDS);
+}
+
 function GetAttachedArrayBuffer(tarray) {
     var buffer = ViewedArrayBufferIfReified(tarray);
     if (IsDetachedBuffer(buffer))
         ThrowTypeError(JSMSG_TYPED_ARRAY_DETACHED);
+    ThrowIfTypedArrayOutOfBounds(tarray);
     return buffer;
 }
 
@@ -58,6 +73,13 @@ function IsTypedArrayEnsuringArrayBuffer(arg) {
     if (IsObject(arg) && IsTypedArray(arg)) {
         GetAttachedArrayBuffer(arg);
         return true;
+    }
+
+    if (IsObject(arg) && IsPossiblyWrappedTypedArray(arg)) {
+        if (PossiblyWrappedTypedArrayHasDetachedBuffer(arg))
+            ThrowTypeError(JSMSG_TYPED_ARRAY_DETACHED);
+        ThrowIfPossiblyWrappedTypedArrayOutOfBounds(arg);
+        return false;
     }
 
     callFunction(CallTypedArrayMethodIfWrapped, arg, "GetAttachedArrayBufferMethod");
@@ -79,6 +101,7 @@ function ValidateTypedArray(obj, error) {
         if (IsPossiblyWrappedTypedArray(obj)) {
             if (PossiblyWrappedTypedArrayHasDetachedBuffer(obj))
                 ThrowTypeError(JSMSG_TYPED_ARRAY_DETACHED);
+            ThrowIfPossiblyWrappedTypedArrayOutOfBounds(obj);
             return false;
         }
     }
@@ -155,6 +178,15 @@ function TypedArraySpeciesCreateWithBuffer(exemplar, buffer, byteOffset, length)
 
     // Step 4.
     return TypedArrayCreateWithBuffer(C, buffer, byteOffset, length);
+}
+
+// ES2024 23.2.4.5 TypedArrayCreateSameType ( exemplar, argumentList )
+function TypedArrayCreateSameType(exemplar, length) {
+    // Step 1.
+    var defaultConstructor = _ConstructorForTypedArray(exemplar);
+
+    // Step 2.
+    return TypedArrayCreateWithLength(defaultConstructor, length);
 }
 
 // ES6 draft 20150304 %TypedArray%.prototype.copyWithin
@@ -848,6 +880,160 @@ function TypedArrayReverse() {
     return O;
 }
 
+// ES2023 23.2.3.32 %TypedArray%.prototype.toReversed ( )
+function TypedArrayToReversed() {
+    // Step 1.
+    var O = this;
+
+    // Step 2.
+    // This function is not generic.
+    // We want to make sure that we have an attached buffer, per spec prose.
+    var isTypedArray = IsTypedArrayEnsuringArrayBuffer(O);
+
+    // If we got here, `this` is either a typed array or a wrapper for one.
+
+    // Step 3.
+    var len;
+    if (isTypedArray)
+        len = TypedArrayLength(O);
+    else
+        len = callFunction(CallTypedArrayMethodIfWrapped, O, "TypedArrayLengthMethod");
+
+    // Step 4.
+    var A = TypedArrayCreateSameType(O, len);
+
+    // Steps 5-6.
+    for (var k = 0; k < len; k++) {
+        var from = len - k - 1;
+        A[k] = O[from];
+    }
+
+    // Step 7.
+    return A;
+}
+
+// ES2023 23.2.3.33 %TypedArray%.prototype.toSorted ( comparator )
+function TypedArrayToSorted(comparator) {
+    // Step 1.
+    if (comparator !== undefined && !IsCallable(comparator))
+        ThrowTypeError(JSMSG_NOT_FUNCTION, DecompileArg(0, comparator));
+
+    // Step 2.
+    var O = this;
+
+    // Step 3.
+    // This function is not generic.
+    // We want to make sure that we have an attached buffer, per spec prose.
+    var isTypedArray = IsTypedArrayEnsuringArrayBuffer(O);
+
+    // If we got here, `this` is either a typed array or a wrapper for one.
+
+    // Step 4.
+    var len;
+    if (isTypedArray)
+        len = TypedArrayLength(O);
+    else
+        len = callFunction(CallTypedArrayMethodIfWrapped, O, "TypedArrayLengthMethod");
+
+    // Step 5.
+    var A = TypedArrayCreateSameType(O, len);
+
+    // Step 8.
+    var sortedList = new List();
+    for (var k = 0; k < len; k++) {
+        sortedList[k] = O[k];
+    }
+
+    if (len > 1) {
+        // Steps 6-7.
+        var sortCompare;
+        if (comparator === undefined) {
+            var isBigIntContentType;
+            if (isTypedArray) {
+                isBigIntContentType = callFunction(TypedArrayContentTypeIsBigIntMethod, O);
+            } else {
+                isBigIntContentType = callFunction(CallTypedArrayMethodIfWrapped, O,
+                                                   "TypedArrayContentTypeIsBigIntMethod");
+            }
+            sortCompare = isBigIntContentType ? TypedArrayCompareBigInt : TypedArrayCompare;
+        } else {
+            var wrappedComparator = comparator;
+            sortCompare = function(x, y) {
+                // CompareTypedArrayElements step 2.a.
+                var v = ToNumber(callContentFunction(wrappedComparator, undefined, x, y));
+
+                // CompareTypedArrayElements step 2.b.
+                return Number_isNaN(v) ? 0 : v;
+            };
+        }
+
+        MergeSort(sortedList, len, sortCompare);
+    }
+
+    // Steps 9-10.
+    for (var j = 0; j < len; j++) {
+        A[j] = sortedList[j];
+    }
+
+    // Step 11.
+    return A;
+}
+
+// ES2023 23.2.3.36 %TypedArray%.prototype.with ( index, value )
+function TypedArrayWith(index, value) {
+    // Step 1.
+    var O = this;
+
+    // Step 2.
+    // This function is not generic.
+    // We want to make sure that we have an attached buffer, per spec prose.
+    var isTypedArray = IsTypedArrayEnsuringArrayBuffer(O);
+
+    // If we got here, `this` is either a typed array or a wrapper for one.
+
+    // Step 3.
+    var len;
+    if (isTypedArray)
+        len = TypedArrayLength(O);
+    else
+        len = callFunction(CallTypedArrayMethodIfWrapped, O, "TypedArrayLengthMethod");
+
+    // Steps 4-6.
+    var relativeIndex = ToInteger(index);
+    var actualIndex = relativeIndex >= 0 ? relativeIndex : len + relativeIndex;
+
+    // Steps 7-8.
+    var isBigIntContentType;
+    if (isTypedArray) {
+        isBigIntContentType = callFunction(TypedArrayContentTypeIsBigIntMethod, O);
+    } else {
+        isBigIntContentType = callFunction(CallTypedArrayMethodIfWrapped, O,
+                                           "TypedArrayContentTypeIsBigIntMethod");
+    }
+    var numericValue = isBigIntContentType ? ToBigInt(value) : ToNumber(value);
+
+    // Step 9.
+    if (actualIndex < 0 || actualIndex >= len)
+        ThrowRangeError(JSMSG_BAD_INDEX);
+
+    // Step 10.
+    var A = TypedArrayCreateSameType(O, len);
+
+    // Steps 11-12.
+    for (var k = 0; k < len; k++) {
+        var fromValue;
+        if (k === actualIndex) {
+            fromValue = numericValue;
+        } else {
+            fromValue = O[k];
+        }
+        A[k] = fromValue;
+    }
+
+    // Step 13.
+    return A;
+}
+
 // ES6 draft 20150220 22.2.3.22.1 %TypedArray%.prototype.set(array [, offset])
 function SetFromNonTypedArray(target, array, targetOffset, targetLength, targetBuffer) {
     assert(!IsPossiblyWrappedTypedArray(array),
@@ -957,12 +1143,18 @@ function TypedArraySet(overloaded, offset = 0) {
     // Steps 9-10.
     var targetBuffer = GetAttachedArrayBuffer(target);
 
+    ThrowIfTypedArrayOutOfBounds(target);
+
     // Step 11.
     var targetLength = TypedArrayLength(target);
 
     // Steps 12 et seq.
-    if (IsPossiblyWrappedTypedArray(overloaded))
+    if (IsPossiblyWrappedTypedArray(overloaded)) {
+        if (PossiblyWrappedTypedArrayHasDetachedBuffer(overloaded))
+            ThrowTypeError(JSMSG_TYPED_ARRAY_DETACHED);
+        ThrowIfPossiblyWrappedTypedArrayOutOfBounds(overloaded);
         return SetFromTypedArray(target, overloaded, targetOffset, targetLength);
+    }
 
     return SetFromNonTypedArray(target, overloaded, targetOffset, targetLength, targetBuffer);
 }
@@ -1298,6 +1490,8 @@ function TypedArraySubarray(begin, end) {
         return callFunction(CallTypedArrayMethodIfWrapped, this, begin, end,
                             "TypedArraySubarray");
     }
+
+    GetAttachedArrayBuffer(obj);
 
     // Steps 4-6.
     var buffer = TypedArrayBuffer(obj);
@@ -1779,7 +1973,10 @@ function ArrayBufferSlice(start, end) {
         ThrowTypeError(JSMSG_TYPED_ARRAY_DETACHED);
 
     // Steps 19-21.
-    ArrayBufferCopyData(new_, 0, O, first | 0, newLen | 0, isWrapped);
+    var currentLen = ArrayBufferByteLength(O);
+    var copyLen = first >= currentLen ? 0 : std_Math_min(newLen, currentLen - first);
+    if (copyLen > 0)
+        ArrayBufferCopyData(new_, 0, O, first | 0, copyLen | 0, isWrapped);
 
     // Step 22.
     return new_;

@@ -306,18 +306,14 @@ void NetEqDecodingTest::LoadDecoders() {
   ASSERT_EQ(0, neteq_->RegisterPayloadType(kDecoderPCMu, 0));
   // Load PCMa.
   ASSERT_EQ(0, neteq_->RegisterPayloadType(kDecoderPCMa, 8));
-#ifndef WEBRTC_ANDROID
   // Load iLBC.
   ASSERT_EQ(0, neteq_->RegisterPayloadType(kDecoderILBC, 102));
-#endif  // WEBRTC_ANDROID
   // Load iSAC.
   ASSERT_EQ(0, neteq_->RegisterPayloadType(kDecoderISAC, 103));
-#ifndef WEBRTC_ANDROID
   // Load iSAC SWB.
   ASSERT_EQ(0, neteq_->RegisterPayloadType(kDecoderISACswb, 104));
   // Load iSAC FB.
   ASSERT_EQ(0, neteq_->RegisterPayloadType(kDecoderISACfb, 105));
-#endif  // WEBRTC_ANDROID
   // Load PCM16B nb.
   ASSERT_EQ(0, neteq_->RegisterPayloadType(kDecoderPCM16B, 93));
   // Load PCM16B wb.
@@ -437,7 +433,7 @@ void NetEqDecodingTest::PopulateCng(int frame_index,
   *payload_len = 1;  // Only noise level, no spectral parameters.
 }
 
-TEST_F(NetEqDecodingTest, DISABLED_ON_ANDROID(TestBitExactness)) {
+TEST_F(NetEqDecodingTest, TestBitExactness) {
   const std::string input_rtp_file = webrtc::test::ProjectRootPath() +
       "resources/audio_coding/neteq_universal_new.rtp";
   // Note that neteq4_universal_ref.pcm and neteq4_universal_ref_win_32.pcm
@@ -838,7 +834,7 @@ TEST_F(NetEqDecodingTest, UnknownPayloadType) {
   EXPECT_EQ(NetEq::kUnknownRtpPayloadType, neteq_->LastError());
 }
 
-TEST_F(NetEqDecodingTest, DISABLED_ON_ANDROID(DecoderError)) {
+TEST_F(NetEqDecodingTest, DecoderError) {
   const size_t kPayloadBytes = 100;
   uint8_t payload[kPayloadBytes] = {0};
   WebRtcRTPHeader rtp_info;

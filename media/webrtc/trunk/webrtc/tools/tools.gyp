@@ -198,27 +198,9 @@
           'msvs_disabled_warnings': [
             4267,  # size_t to int truncation.
           ],
-          'conditions': [
-            ['OS=="android"', {
-              'dependencies': [
-                '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }],
-          ],
         }, # tools_unittests
       ], # targets
       'conditions': [
-        ['OS=="android"', {
-          'targets': [
-            {
-              'target_name': 'tools_unittests_apk_target',
-              'type': 'none',
-              'dependencies': [
-                '<(apk_tests_path):tools_unittests_apk',
-              ],
-            },
-          ],
-        }],
         ['test_isolation_mode != "noop"', {
           'targets': [
             {

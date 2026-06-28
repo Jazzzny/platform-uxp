@@ -32,9 +32,7 @@
 #include "webrtc/voice_engine/include/voe_codec.h"
 #include "webrtc/voice_engine/include/voe_hardware.h"
 
-#ifndef WEBRTC_ANDROID
 #include <string>
-#endif
 
 class TbCaptureDevice;
 class TbInterfaces;

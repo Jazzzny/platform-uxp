@@ -232,12 +232,6 @@ void ViEAutoTest::ViECaptureStandardTest() {
     EXPECT_EQ(0, video_engine.image_process->DeregisterCaptureEffectFilter(
         capture_device_id[device_index]));
 
-#ifdef WEBRTC_ANDROID  // Can only allocate one camera at the time on Android.
-    EXPECT_EQ(0, video_engine.capture->StopCapture(
-        capture_device_id[device_index]));
-    EXPECT_EQ(0, video_engine.capture->ReleaseCaptureDevice(
-        capture_device_id[device_index]));
-#endif
   }
 
   /// **************************************************************
@@ -248,13 +242,10 @@ void ViEAutoTest::ViECaptureStandardTest() {
   // Stop all started capture devices.
   for (int device_index = 0; device_index < number_of_capture_devices;
        ++device_index) {
-#if !defined(WEBRTC_ANDROID)
-    // Don't stop on Android since we can only allocate one camera.
     EXPECT_EQ(0, video_engine.capture->StopCapture(
         capture_device_id[device_index]));
     EXPECT_EQ(0, video_engine.capture->ReleaseCaptureDevice(
         capture_device_id[device_index]));
-#endif  // !WEBRTC_ANDROID
     if (vcpms[device_index])
       vcpms[device_index]->Release();
   }

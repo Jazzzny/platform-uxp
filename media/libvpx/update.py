@@ -9,15 +9,15 @@ import shutil
 import sys
 import subprocess
 import tarfile
-import urllib
+import urllib.request, urllib.parse, urllib.error
 from pprint import pprint
-from StringIO import StringIO
+from io import StringIO
 
 def prepare_upstream(prefix, commit=None):
     upstream_url = 'https://chromium.googlesource.com/webm/libvpx'
     shutil.rmtree(os.path.join(base, 'libvpx/'))
-    print(upstream_url + '/+archive/' + commit + '.tar.gz')
-    urllib.urlretrieve(upstream_url + '/+archive/' + commit + '.tar.gz', 'libvpx.tar.gz')
+    print((upstream_url + '/+archive/' + commit + '.tar.gz'))
+    urllib.request.urlretrieve(upstream_url + '/+archive/' + commit + '.tar.gz', 'libvpx.tar.gz')
     tarfile.open('libvpx.tar.gz').extractall(path='libvpx')
     os.remove(os.path.join(base, 'libvpx.tar.gz'))
     os.chdir(base)
@@ -46,6 +46,8 @@ def apply_patches():
     os.system("patch -p1 < vp9_svc.patch")
     # Cherrypick fix from upstream
     os.system("patch -p3 < bug1480092.patch")
+    # Bug 2029423 Resetr post_proc state
+    os.system("patch -p3 < reset_post_proc_state.patch")
 
 def update_readme(commit):
     with open('README_MOZILLA') as f:

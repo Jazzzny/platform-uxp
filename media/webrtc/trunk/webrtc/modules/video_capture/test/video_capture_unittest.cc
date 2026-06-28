@@ -110,12 +110,6 @@ class TestVideoCaptureCallback : public VideoCaptureDataCallback {
     CriticalSectionScoped cs(capture_cs_.get());
     int height = videoFrame.height();
     int width = videoFrame.width();
-#if ANDROID
-    // Android camera frames may be rotated depending on test device
-    // orientation.
-    EXPECT_TRUE(height == capability_.height || height == capability_.width);
-    EXPECT_TRUE(width == capability_.width || width == capability_.height);
-#else
     if (rotate_frame_ == webrtc::kVideoRotation_90 ||
         rotate_frame_ == webrtc::kVideoRotation_270) {
       EXPECT_EQ(width, capability_.height);
@@ -124,7 +118,6 @@ class TestVideoCaptureCallback : public VideoCaptureDataCallback {
       EXPECT_EQ(height, capability_.height);
       EXPECT_EQ(width, capability_.width);
     }
-#endif
     // RenderTimstamp should be the time now.
     EXPECT_TRUE(
         videoFrame.render_time_ms() >= TickTime::MillisecondTimestamp()-30 &&
@@ -344,9 +337,8 @@ TEST_F(VideoCaptureTest, Capabilities) {
     std::string resolution = resolutionStream.str();
     frame_rates_by_resolution[resolution].push_back(capability.maxFPS);
 
-    // Since Android presents so many resolution/FPS combinations and the test
-    // runner imposes a timeout, we only actually start the capture and test
-    // that a frame was captured for 2 frame-rates at each resolution.
+    // Keep this bounded under test runner timeouts by checking at most 2
+    // frame-rates at each resolution.
     if (frame_rates_by_resolution[resolution].size() > 2)
       continue;
 
@@ -357,23 +349,6 @@ TEST_F(VideoCaptureTest, Capabilities) {
 
     EXPECT_EQ(0, module->StopCapture());
   }
-
-#if ANDROID
-  // There's no reason for this to _necessarily_ be true, but in practice all
-  // Android devices this test runs on in fact do support multiple capture
-  // resolutions and multiple frame-rates per captured resolution, so we assert
-  // this fact here as a regression-test against the time that we only noticed a
-  // single frame-rate per resolution (bug 2974).  If this test starts being run
-  // on devices for which this is untrue (e.g. Nexus4) then the following should
-  // probably be wrapped in a base::android::BuildInfo::model()/device() check.
-  EXPECT_GT(frame_rates_by_resolution.size(), 1U);
-  for (FrameRatesByResolution::const_iterator it =
-           frame_rates_by_resolution.begin();
-       it != frame_rates_by_resolution.end();
-       ++it) {
-    EXPECT_GT(it->second.size(), 1U) << it->first;
-  }
-#endif  // ANDROID
 }
 
 // NOTE: flaky, crashes sometimes.

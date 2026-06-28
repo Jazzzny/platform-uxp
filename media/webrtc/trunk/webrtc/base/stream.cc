@@ -572,7 +572,7 @@ bool FileStream::Flush() {
   return false;
 }
 
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
+#if defined(WEBRTC_POSIX)
 
 bool FileStream::TryLock() {
   if (file_ == NULL) {
@@ -799,7 +799,7 @@ void AsyncWriteStream::ClearBufferAndWrite() {
   }
 }
 
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
+#if defined(WEBRTC_POSIX)
 
 // Have to identically rewrite the FileStream destructor or else it would call
 // the base class's Close() instead of the sub-class's.

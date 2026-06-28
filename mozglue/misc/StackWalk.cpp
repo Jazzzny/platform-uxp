@@ -174,7 +174,7 @@ StackWalkInitCriticalAddress()
 }
 #endif
 
-#if defined(_WIN32) && (defined(_M_IX86) || defined(_M_AMD64) || defined(_M_IA64)) // WIN32 x86 stack walking code
+#if defined(_WIN32) && (defined(_M_IX86) || defined(_M_AMD64)) // WIN32 x86 stack walking code
 
 #include <windows.h>
 #include <process.h>
@@ -311,19 +311,13 @@ WalkStackMain64(struct WalkStackData* aData)
     context = *static_cast<CONTEXT*>(aData->platformData);
   }
 
-#if defined(_M_IX86) || defined(_M_IA64)
+#if defined(_M_IX86)
   // Setup initial stack frame to walk from.
   STACKFRAME64 frame64;
   memset(&frame64, 0, sizeof(frame64));
-#ifdef _M_IX86
   frame64.AddrPC.Offset    = context.Eip;
   frame64.AddrStack.Offset = context.Esp;
   frame64.AddrFrame.Offset = context.Ebp;
-#elif defined _M_IA64
-  frame64.AddrPC.Offset    = context.StIIP;
-  frame64.AddrStack.Offset = context.SP;
-  frame64.AddrFrame.Offset = context.RsBSP;
-#endif
   frame64.AddrPC.Mode      = AddrModeFlat;
   frame64.AddrStack.Mode   = AddrModeFlat;
   frame64.AddrFrame.Mode   = AddrModeFlat;
@@ -338,16 +332,12 @@ WalkStackMain64(struct WalkStackData* aData)
     DWORD64 addr;
     DWORD64 spaddr;
 
-#if defined(_M_IX86) || defined(_M_IA64)
+#if defined(_M_IX86)
     // 32-bit frame unwinding.
     // Debug routines are not threadsafe, so grab the lock.
     EnterCriticalSection(&gDbgHelpCS);
     BOOL ok = StackWalk64(
-#if defined _M_IA64
-      IMAGE_FILE_MACHINE_IA64,
-#elif defined _M_IX86
       IMAGE_FILE_MACHINE_I386,
-#endif
       aData->process,
       aData->thread,
       &frame64,
@@ -427,7 +417,7 @@ WalkStackMain64(struct WalkStackData* aData)
       break;
     }
 
-#if defined(_M_IX86) || defined(_M_IA64)
+#if defined(_M_IX86)
     if (frame64.AddrReturn.Offset == 0) {
       break;
     }

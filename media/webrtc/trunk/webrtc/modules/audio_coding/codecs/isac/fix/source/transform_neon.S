@@ -233,7 +233,6 @@ Time2Spec_PostFftTransform:
 .align  8
 @ Cosine table 1 in Q14
 WebRtcIsacfix_kCosTab1:
-_WebRtcIsacfix_kCosTab1:  @ Label for iOS
   .short 16384, 16383, 16378, 16371, 16362, 16349, 16333, 16315
   .short 16294, 16270, 16244, 16214, 16182, 16147, 16110, 16069
   .short 16026, 15980, 15931, 15880, 15826, 15769, 15709, 15647
@@ -268,7 +267,6 @@ _WebRtcIsacfix_kCosTab1:  @ Label for iOS
 .align  8
 @ Sine table 2 in Q14
 WebRtcIsacfix_kSinTab2:
-_WebRtcIsacfix_kSinTab2:  @ Label for iOS
   .short 16384, -16381, 16375, -16367, 16356, -16342, 16325, -16305
   .short 16283, -16257, 16229, -16199, 16165, -16129, 16090, -16048
   .short 16003, -15956, 15906, -15853, 15798, -15739, 15679, -15615
@@ -290,7 +288,6 @@ _WebRtcIsacfix_kSinTab2:  @ Label for iOS
 .align  8
 @ Sine table 1 in Q14
 WebRtcIsacfix_kSinTab1:
-_WebRtcIsacfix_kSinTab1:  @ Label for iOS
   .short 0, 214, 429, 643, 857, 1072, 1285, 1499
   .short 1713, 1926, 2139, 2351, 2563, 2775, 2986, 3196
   .short 3406, 3616, 3825, 4033, 4240, 4447, 4653, 4859

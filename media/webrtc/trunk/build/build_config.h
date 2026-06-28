@@ -21,13 +21,6 @@
 // A set of macros to use for platform detection.
 #if defined(__APPLE__)
 #define OS_MACOSX 1
-#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-#define OS_IOS 1
-#endif  // defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-#elif defined(ANDROID)
-#define OS_ANDROID 1
-#elif defined(__native_client__)
-#define OS_NACL 1
 #elif defined(__linux__)
 #define OS_LINUX 1
 // Use TOOLKIT_GTK on linux if TOOLKIT_VIEWS isn't defined.
@@ -70,12 +63,11 @@
 // For access to standard POSIXish features, use OS_POSIX instead of a
 // more specific macro.
 #if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_BSD) ||	\
-    defined(OS_SOLARIS) || defined(OS_ANDROID) || defined(OS_NACL)
+    defined(OS_SOLARIS)
 #define OS_POSIX 1
 #endif
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID) && \
-    !defined(OS_NACL)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 #define USE_X11 1  // Use X for graphics.
 #endif
 
@@ -112,8 +104,6 @@
 #define ARCH_CPU_ARMEL 1
 #define ARCH_CPU_32_BITS 1
 #define ARCH_CPU_LITTLE_ENDIAN 1
-#elif defined(__pnacl__)
-#define ARCH_CPU_32_BITS 1
 #elif defined(__powerpc64__)
 #define ARCH_CPU_PPC_FAMILY 1
 #define ARCH_CPU_PPC64 1
@@ -148,9 +138,6 @@
 #elif defined(__hppa__)
 #define ARCH_CPU_HPPA 1
 #define ARCH_CPU_32_BITS 1
-#elif defined(__ia64__)
-#define ARCH_CPU_IA64 1
-#define ARCH_CPU_64_BITS 1
 #elif defined(__s390x__)
 #define ARCH_CPU_S390X 1
 #define ARCH_CPU_64_BITS 1
@@ -190,19 +177,10 @@
 #error Please add support for your compiler in build/build_config.h
 #endif
 
-#if defined(__ARMEL__) && !defined(OS_IOS)
+#if defined(__ARMEL__)
 #define WCHAR_T_IS_UNSIGNED 1
 #elif defined(__MIPSEL__)
 #define WCHAR_T_IS_UNSIGNED 0
-#endif
-
-#if defined(OS_ANDROID)
-// The compiler thinks std::string::const_iterator and "const char*" are
-// equivalent types.
-#define STD_STRING_ITERATOR_IS_CHAR_POINTER
-// The compiler thinks base::string16::const_iterator and "char16*" are
-// equivalent types.
-#define BASE_STRING16_ITERATOR_IS_CHAR16_POINTER
 #endif
 
 #endif  // BUILD_BUILD_CONFIG_H_

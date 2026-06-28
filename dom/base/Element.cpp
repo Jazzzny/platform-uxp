@@ -304,12 +304,18 @@ Element::TabIndex()
 }
 
 void
-Element::Focus(mozilla::ErrorResult& aError)
+Element::Focus(const FocusOptions& aOptions, ErrorResult& aError)
 {
   nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(this);
   nsIFocusManager* fm = nsFocusManager::GetFocusManager();
+  // Also other browsers seem to have the hack to not re-focus (and flush) when
+  // the element is already focused.
+  // Until https://github.com/whatwg/html/issues/4512 is clarified, we'll
+  // maintain interoperatibility by not re-focusing, independent of aOptions.
+  // I.e., `focus({ preventScroll: true})` followed by `focus( { preventScroll:
+  // false })` won't re-focus.
   if (fm && domElement) {
-    aError = fm->SetFocus(domElement, 0);
+    aError = fm->SetFocus(domElement, nsFocusManager::FocusOptionsToFocusManagerFlags(aOptions));
   }
 }
 
@@ -2326,6 +2332,7 @@ Element::MaybeCheckSameAttrVal(int32_t aNamespaceID,
                                bool* aOldValueSet)
 {
   bool modification = false;
+  CustomElementData* customElementData = GetCustomElementData();
   *aHasListeners = aNotify &&
     nsContentUtils::HasMutationListeners(this,
                                          NS_EVENT_BITS_MUTATION_ATTRMODIFIED,
@@ -2341,13 +2348,14 @@ Element::MaybeCheckSameAttrVal(int32_t aNamespaceID,
   if (*aHasListeners || aNotify) {
     BorrowedAttrInfo info(GetAttrInfo(aNamespaceID, aName));
     if (info.mValue) {
-      // Check whether the old value is the same as the new one.  Note that we
-      // only need to actually _get_ the old value if we have listeners or
-      // if the element is a custom element (because it may have an
-      // attribute changed callback).
-      if (*aHasListeners || GetCustomElementData()) {
-        // Need to store the old value.
-        //
+      bool valueMatches = aValue.EqualsAsStrings(*info.mValue);
+      if (valueMatches && aPrefix == info.mName->GetPrefix()) {
+        return true;
+      }
+
+      // Need to store the old value if listeners are present or this is a
+      // custom element that may run an attribute-changed callback.
+      if (*aHasListeners || customElementData) {
         // If the current attribute value contains a pointer to some other data
         // structure that gets updated in the process of setting the attribute
         // we'll no longer have the old value of the attribute. Therefore, we
@@ -2358,10 +2366,7 @@ Element::MaybeCheckSameAttrVal(int32_t aNamespaceID,
         aOldValue.SetToSerialized(*info.mValue);
         *aOldValueSet = true;
       }
-      bool valueMatches = aValue.EqualsAsStrings(*info.mValue);
-      if (valueMatches && aPrefix == info.mName->GetPrefix()) {
-        return true;
-      }
+
       modification = true;
     }
   }

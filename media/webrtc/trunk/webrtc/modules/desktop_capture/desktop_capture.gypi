@@ -72,20 +72,16 @@
         "desktop_device_info.cc",
         "app_capturer.h",
         "app_capturer.cc",
+        "../../video_engine/desktop_capture_impl.cc",
+        "../../video_engine/desktop_capture_impl.h",
       ],
       'conditions': [
-        ['OS!="android"', {
-          'sources': [
-            '../../video_engine/desktop_capture_impl.cc',
-            '../../video_engine/desktop_capture_impl.h',
-          ],
-        }],
         ['multi_monitor_screenshare != 0', {
           'defines': [
             'MULTI_MONITOR_SCREENSHARE'
           ],
         }],
-        ['OS!="ios" and (target_arch=="ia32" or target_arch=="x64")', {
+        ['target_arch=="ia32" or target_arch=="x64"', {
           'dependencies': [
             'desktop_capture_differ_sse2',
           ],
@@ -190,7 +186,7 @@
     },
   ],  # targets
   'conditions': [
-    ['OS!="ios" and (target_arch=="ia32" or target_arch=="x64")', {
+    ['target_arch=="ia32" or target_arch=="x64"', {
       'targets': [
         {
           # Have to be compiled as a separate target because it needs to be

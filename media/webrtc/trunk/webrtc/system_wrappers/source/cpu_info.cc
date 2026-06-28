@@ -15,7 +15,7 @@
 #elif defined(WEBRTC_BSD) || defined(WEBRTC_MAC)
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#elif defined(WEBRTC_LINUX) || defined(WEBRTC_ANDROID)
+#elif defined(WEBRTC_LINUX)
 #include <unistd.h>
 #else // defined(_SC_NPROCESSORS_ONLN)
 #include <unistd.h>
@@ -36,7 +36,7 @@ uint32_t CpuInfo::DetectNumberOfCores() {
     WEBRTC_TRACE(kTraceStateInfo, kTraceUtility, -1,
                  "Available number of cores:%d", number_of_cores_);
 
-#elif defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID) && !defined(WEBRTC_GONK)
+#elif defined(WEBRTC_LINUX)
     number_of_cores_ = static_cast<uint32_t>(sysconf(_SC_NPROCESSORS_ONLN));
     WEBRTC_TRACE(kTraceStateInfo, kTraceUtility, -1,
                  "Available number of cores:%d", number_of_cores_);

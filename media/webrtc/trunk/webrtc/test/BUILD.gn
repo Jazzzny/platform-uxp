@@ -76,10 +76,6 @@ source_set("test_support") {
     "../system_wrappers",
   ]
 
-  if (is_android) {
-    deps += [ "//base:base" ]
-  }
-
   configs += [ "..:common_config" ]
   public_configs = [ "..:common_inherited_config"]
 }

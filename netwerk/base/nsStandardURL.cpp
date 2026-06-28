@@ -26,6 +26,7 @@
 #include "prprf.h"
 #include "nsReadableUtils.h"
 #include "nsPrintfCString.h"
+#include "mozilla/Preferences.h" //fixes up dependency issues in non-unified building
 
 using mozilla::dom::EncodingUtils;
 using namespace mozilla::ipc;

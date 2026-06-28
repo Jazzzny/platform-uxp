@@ -65,16 +65,6 @@ source_set("video_capture") {
 }
 
 if (!build_with_chromium) {
-  config("video_capture_internal_impl_config") {
-    if (is_ios) {
-      libs = [
-        "AVFoundation.framework",
-        "CoreMedia.framework",
-        "CoreVideo.framework",
-      ]
-    }
-  }
-
   source_set("video_capture_internal_impl") {
     deps = [
       ":video_capture_module",
@@ -129,42 +119,6 @@ if (!build_with_chromium) {
 
       deps += [ "//third_party/winsdk_samples"]
     }
-    if (is_android) {
-      sources = [
-        "android/device_info_android.cc",
-        "android/device_info_android.h",
-        "android/video_capture_android.cc",
-        "android/video_capture_android.h",
-      ]
-
-      deps += [
-        "//third_party/icu:icuuc",
-        "//third_party/jsoncpp",
-      ]
-    }
-    if (is_ios) {
-      sources = [
-        "ios/device_info_ios.h",
-        "ios/device_info_ios.mm",
-        "ios/device_info_ios_objc.h",
-        "ios/device_info_ios_objc.mm",
-        "ios/rtc_video_capture_ios_objc.h",
-        "ios/rtc_video_capture_ios_objc.mm",
-        "ios/video_capture_ios.h",
-        "ios/video_capture_ios.mm",
-      ]
-
-      cflags = [
-        "-fobjc-arc",  # CLANG_ENABLE_OBJC_ARC = YES.
-        # To avoid warnings for deprecated videoMinFrameDuration and
-        # videoMaxFrameDuration properties in iOS 7.0.
-        # See webrtc:3705 for more details.
-        "-Wno-deprecated-declarations",
-      ]
-    }
-
-    all_dependent_configs = [ ":video_capture_internal_impl_config" ]
-
     configs += [ "../..:common_config" ]
     public_configs = [ "../..:common_inherited_config" ]
 

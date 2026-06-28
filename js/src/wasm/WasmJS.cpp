@@ -532,10 +532,21 @@ GetModuleArg(JSContext* cx, CallArgs args, const char* name, Module** module)
     if (!args.requireAtLeast(cx, name, 1))
         return false;
 
-    if (!args[0].isObject() || !IsModuleObject(&args[0].toObject(), module)) {
+    if (!args[0].isObject()) {
         JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_WASM_BAD_MOD_ARG);
         return false;
     }
+    JSObject* unwrapped = CheckedUnwrap(&args[0].toObject());
+    if (!unwrapped || !unwrapped->is<WasmModuleObject>()) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_WASM_BAD_MOD_ARG);
+        return false;
+    }
+    Rooted<WasmModuleObject*> moduleObj(cx, &unwrapped->as<WasmModuleObject>());
+    if (!moduleObj) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_WASM_BAD_MOD_ARG);
+        return false;
+    }
+    *module = &unwrapped->as<WasmModuleObject>().module();
 
     return true;
 }
@@ -1684,8 +1695,11 @@ Reject(JSContext* cx, const CompileArgs& args, UniqueChars error, Handle<Promise
     if (!message)
         return false;
 
+    // There's no error |cause| available here.
+    auto cause = JS::NothingHandleValue;
+
     RootedObject errorObj(cx,
-        ErrorObject::create(cx, JSEXN_WASMCOMPILEERROR, stack, filename, line, column, nullptr, message));
+        ErrorObject::create(cx, JSEXN_WASMCOMPILEERROR, stack, filename, line, column, nullptr, message, cause));
     if (!errorObj)
         return false;
 

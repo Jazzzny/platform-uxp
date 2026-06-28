@@ -15,12 +15,12 @@
 #include "webrtc/base/stringencode.h"
 
 // Define platform specific window types.
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 typedef unsigned long Window;  // Avoid include <X11/Xlib.h>.
 #elif defined(WEBRTC_WIN)
 // We commonly include win32.h in webrtc/base so just include it here.
 #include "webrtc/base/win32.h"  // Include HWND, HMONITOR.
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
 typedef unsigned int CGWindowID;
 typedef unsigned int CGDirectDisplayID;
 #endif
@@ -30,11 +30,11 @@ namespace rtc {
 class WindowId {
  public:
   // Define WindowT for each platform.
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
   typedef Window WindowT;
 #elif defined(WEBRTC_WIN)
   typedef HWND WindowT;
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
   typedef CGWindowID WindowT;
 #else
   typedef unsigned int WindowT;
@@ -71,11 +71,11 @@ class WindowId {
 class DesktopId {
  public:
   // Define DesktopT for each platform.
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
   typedef Window DesktopT;
 #elif defined(WEBRTC_WIN)
   typedef HMONITOR DesktopT;
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
   typedef CGDirectDisplayID DesktopT;
 #else
   typedef unsigned int DesktopT;

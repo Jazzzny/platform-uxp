@@ -13,7 +13,7 @@
 #include "webrtc/base/windowpicker.h"
 #include "webrtc/base/windowpickerfactory.h"
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 #  define DISABLE_ON_MAC(name) DISABLED_ ## name
 #else
 #  define DISABLE_ON_MAC(name) name

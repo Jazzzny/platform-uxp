@@ -27,6 +27,24 @@ from mach.decorators import (
 here = os.path.abspath(os.path.dirname(__file__))
 
 
+def load_source_module(module_name, path):
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        return module
+    except ImportError:
+        import imp
+        with open(path, 'r') as fh:
+            return imp.load_module(module_name, fh, path,
+                                   ('.py', 'r', imp.PY_SOURCE))
+
+
 ENG_BUILD_REQUIRED = '''
 The mochitest command requires an engineering build. It may be the case that
 VARIANT=user or PRODUCTION=1 were set. Try re-building with VARIANT=eng:
@@ -120,8 +138,8 @@ ALL_FLAVORS = {
 }
 
 SUPPORTED_APPS = ['firefox', 'android']
-SUPPORTED_FLAVORS = list(chain.from_iterable([f['aliases'] for f in ALL_FLAVORS.values()]))
-CANONICAL_FLAVORS = sorted([f['aliases'][0] for f in ALL_FLAVORS.values()])
+SUPPORTED_FLAVORS = list(chain.from_iterable([f['aliases'] for f in list(ALL_FLAVORS.values())]))
+CANONICAL_FLAVORS = sorted([f['aliases'][0] for f in list(ALL_FLAVORS.values())])
 
 parser = None
 
@@ -166,11 +184,8 @@ class MochitestRunner(MozbuildObject):
         """
         # runtests.py is ambiguous, so we load the file/module manually.
         if 'mochitest' not in sys.modules:
-            import imp
             path = os.path.join(self.mochitest_dir, 'runtests.py')
-            with open(path, 'r') as fh:
-                imp.load_module('mochitest', fh, path,
-                                ('.py', 'r', imp.PY_SOURCE))
+            load_source_module('mochitest', path)
 
         import mochitest
 
@@ -210,11 +225,8 @@ class MochitestRunner(MozbuildObject):
         if host_ret != 0:
             return host_ret
 
-        import imp
         path = os.path.join(self.mochitest_dir, 'runtestsremote.py')
-        with open(path, 'r') as fh:
-            imp.load_module('runtestsremote', fh, path,
-                            ('.py', 'r', imp.PY_SOURCE))
+        load_source_module('runtestsremote', path)
         import runtestsremote
 
         options = Namespace(**kwargs)
@@ -242,11 +254,8 @@ def setup_argument_parser():
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
 
-        import imp
         path = os.path.join(build_obj.topobjdir, mochitest_dir, 'runtests.py')
-        with open(path, 'r') as fh:
-            imp.load_module('mochitest', fh, path,
-                            ('.py', 'r', imp.PY_SOURCE))
+        load_source_module('mochitest', path)
 
         from mochitest_options import MochitestArgumentParser
 
@@ -305,14 +314,14 @@ class MachCommands(MachCommandBase):
 
         flavors = None
         if flavor:
-            for fname, fobj in ALL_FLAVORS.iteritems():
+            for fname, fobj in ALL_FLAVORS.items():
                 if flavor in fobj['aliases']:
                     if buildapp not in fobj['enabled_apps']:
                         continue
                     flavors = [fname]
                     break
         else:
-            flavors = [f for f, v in ALL_FLAVORS.iteritems() if buildapp in v['enabled_apps']]
+            flavors = [f for f, v in ALL_FLAVORS.items() if buildapp in v['enabled_apps']]
 
         from mozbuild.controller.building import BuildDriver
         self._ensure_state_subdir_exists('.')
@@ -376,8 +385,8 @@ class MachCommands(MachCommandBase):
         if not suites:
             # Make it very clear why no tests were found
             if not unsupported:
-                print(TESTS_NOT_FOUND.format('\n'.join(
-                    sorted(list(test_paths or test_objects)))))
+                print((TESTS_NOT_FOUND.format('\n'.join(
+                    sorted(list(test_paths or test_objects))))))
                 return 1
 
             msg = []
@@ -393,8 +402,8 @@ class MachCommands(MachCommandBase):
                 else:
                     reason = 'excluded by the command line'
                 msg.append('    mochitest -f {} ({})'.format(name, reason))
-            print(SUPPORTED_TESTS_NOT_FOUND.format(
-                buildapp, '\n'.join(sorted(msg))))
+            print((SUPPORTED_TESTS_NOT_FOUND.format(
+                buildapp, '\n'.join(sorted(msg)))))
             return 1
 
         if buildapp == 'android':
@@ -410,7 +419,7 @@ class MachCommands(MachCommandBase):
             msg = fobj['aliases'][0]
             if subsuite:
                 msg = '{} with subsuite {}'.format(msg, subsuite)
-            print(NOW_RUNNING.format(msg))
+            print((NOW_RUNNING.format(msg)))
 
             harness_args = kwargs.copy()
             harness_args['subsuite'] = subsuite

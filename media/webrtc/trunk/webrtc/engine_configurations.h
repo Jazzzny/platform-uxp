@@ -69,9 +69,7 @@
 #define WEBRTC_VOICE_ENGINE_NR                  // Near-end NS
 #define WEBRTC_VOE_EXTERNAL_REC_AND_PLAYOUT
 
-#if !defined(WEBRTC_ANDROID) && !defined(WEBRTC_IOS)
 #define WEBRTC_VOICE_ENGINE_TYPING_DETECTION    // Typing detection
-#endif
 
 // ----------------------------------------------------------------------------
 //  VoiceEngine sub-APIs
@@ -125,17 +123,9 @@
 //  VideoEngine MAC
 // ----------------------------------------------------------------------------
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 // #define CARBON_RENDERING
 #define COCOA_RENDERING
-#endif
-
-// ----------------------------------------------------------------------------
-//  VideoEngine Mobile iPhone
-// ----------------------------------------------------------------------------
-
-#if defined(WEBRTC_IOS)
-#define EAGL_RENDERING
 #endif
 
 // ----------------------------------------------------------------------------

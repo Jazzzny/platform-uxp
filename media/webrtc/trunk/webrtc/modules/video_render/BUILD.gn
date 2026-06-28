@@ -59,15 +59,6 @@ source_set("video_render") {
 }
 
 if (!build_with_chromium) {
-  config("video_render_internal_impl_config") {
-    if (is_ios) {
-      libs = [
-        "OpenGLES.framework",
-        "QuartzCore.framework",
-      ]
-    }
-  }
-
   source_set("video_render_internal_impl") {
     libs = []
     sources = [
@@ -135,41 +126,6 @@ if (!build_with_chromium) {
       }
       include_dirs = [ directxsdk_path +  "/Include" ]
     }
-    if (is_android) {
-      sources += [
-        "android/video_render_android_impl.cc",
-        "android/video_render_android_impl.h",
-        "android/video_render_android_native_opengl2.cc",
-        "android/video_render_android_native_opengl2.h",
-        "android/video_render_android_surface_view.cc",
-        "android/video_render_android_surface_view.h",
-        "android/video_render_opengles20.cc",
-        "android/video_render_opengles20.h",
-      ]
-
-      libs += [ "GLESv2" ]
-    }
-    if (is_ios) {
-      sources += [
-        "ios/open_gles20.h",
-        "ios/open_gles20.mm",
-        "ios/video_render_ios_channel.h",
-        "ios/video_render_ios_channel.mm",
-        "ios/video_render_ios_gles20.h",
-        "ios/video_render_ios_gles20.mm",
-        "ios/video_render_ios_impl.h",
-        "ios/video_render_ios_impl.mm",
-        "ios/video_render_ios_view.h",
-        "ios/video_render_ios_view.mm",
-      ]
-
-      deps += [ "../..:webrtc_common" ]
-
-      cflags += [ "-fobjc-arc" ]  # CLANG_ENABLE_OBJC_ARC = YES.
-    }
-
-    all_dependent_configs = [ ":video_render_internal_impl_config"]
-
     configs += [ "../..:common_config" ]
     public_configs = [ "../..:common_inherited_config" ]
 

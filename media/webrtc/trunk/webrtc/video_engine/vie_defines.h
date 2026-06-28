@@ -13,21 +13,6 @@
 
 #include "webrtc/engine_configurations.h"
 
-// TODO(mflodman) Remove.
-#ifdef WEBRTC_ANDROID
-#include <arpa/inet.h>  // NOLINT
-#include <linux/net.h>  // NOLINT
-#include <netinet/in.h>  // NOLINT
-#include <pthread.h>  // NOLINT
-#include <stdio.h>  // NOLINT
-#include <stdlib.h>  // NOLINT
-#include <string.h>  // NOLINT
-#include <sys/socket.h>  // NOLINT
-#include <sys/time.h>  // NOLINT
-#include <sys/types.h>  // NOLINT
-#include <time.h>  // NOLINT
-#endif
-
 namespace webrtc {
 
 // General
@@ -118,12 +103,6 @@ inline int ChannelId(const int moduleId) {
   #define SLEEP(x) usleep(x * 1000)
   #define RENDER_MODULE_TYPE kRenderWindows
 #endif
-
-// Android specific.
-#ifdef WEBRTC_ANDROID
-  #define FAR
-  #define __cdecl
-#endif  // WEBRTC_ANDROID
 
 }  // namespace webrtc
 

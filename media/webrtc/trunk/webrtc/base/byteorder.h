@@ -11,7 +11,7 @@
 #ifndef WEBRTC_BASE_BYTEORDER_H_
 #define WEBRTC_BASE_BYTEORDER_H_
 
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
+#if defined(WEBRTC_POSIX)
 #include <arpa/inet.h>
 #endif
 

@@ -17,9 +17,7 @@
 #if defined(OPENBSD)
 #include <netinet/in_systm.h>
 #endif
-#if !defined(__native_client__)
 #include <netinet/ip.h>
-#endif
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>

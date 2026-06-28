@@ -45,7 +45,7 @@ FileLock* FileLock::TryLock(const std::string& path) {
 #if defined(WEBRTC_WIN)
   // Open and lock in a single operation.
   ok = stream->OpenShare(path, "a", _SH_DENYRW, NULL);
-#else // WEBRTC_LINUX && !WEBRTC_ANDROID and WEBRTC_MAC && !defined(WEBRTC_IOS)
+#else // WEBRTC_LINUX
   ok = stream->Open(path, "a", NULL) && stream->TryLock();
 #endif
   if (ok) {

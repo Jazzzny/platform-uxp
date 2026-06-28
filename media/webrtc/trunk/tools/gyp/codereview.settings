@@ -6,5 +6,4 @@ TRY_ON_UPLOAD: False
 TRYSERVER_PROJECT: gyp
 TRYSERVER_PATCHLEVEL: 1
 TRYSERVER_ROOT: gyp
-TRYSERVER_SVN_URL: svn://svn.chromium.org/chrome-try/try-nacl
 PROJECT: gyp

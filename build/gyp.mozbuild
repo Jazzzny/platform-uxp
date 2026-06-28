@@ -43,8 +43,6 @@ gyp_vars.update({
     'arm_neon': 0,
     'arm_neon_optional': 1,
 
-    'moz_webrtc_omx': 0,
-    'moz_webrtc_mediacodec': 0,
 
     # Turn off multi monitor screen share
     'multi_monitor_screenshare%' : 0,
@@ -73,8 +71,6 @@ if CONFIG['ARM_ARCH']:
     if int(CONFIG['ARM_ARCH']) < 7:
         gyp_vars['armv7'] = 0
         gyp_vars['arm_neon_optional'] = 0
-    elif os == 'Android':
-        gyp_vars['armv7'] = 1
     else:
         # CPU detection for ARM works on Android only.  armv7 always uses CPU
         # detection, so we have to set armv7=0 for non-Android target

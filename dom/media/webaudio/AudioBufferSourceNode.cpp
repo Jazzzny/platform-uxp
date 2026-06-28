@@ -181,9 +181,13 @@ public:
       if (mResamplerOutRate == aOutRate) {
         return;
       }
-      if (speex_resampler_set_rate(mResampler, mBufferSampleRate, aOutRate) != RESAMPLER_ERR_SUCCESS) {
-        NS_ASSERTION(false, "speex_resampler_set_rate failed");
-        return;
+      int result = speex_resampler_set_rate(mResampler, mBufferSampleRate, aOutRate);
+      if (result != RESAMPLER_ERR_SUCCESS) {
+        WEB_AUDIO_API_LOG("speex_resampler_set_rate failed: %i", result);
+        // mResampler den_rate and num_rate might have been updated, despite
+        // the error, in which case the resampler will output zeros but
+        // still consume input.  Continue below to update mBeginProcessing
+        // for any change in resampler behavior.
       }
     }
 
@@ -607,10 +611,30 @@ AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* aContext)
   mStream->AddMainThreadListener(this);
 }
 
-AudioBufferSourceNode::~AudioBufferSourceNode()
+/* static */ already_AddRefed<AudioBufferSourceNode>
+AudioBufferSourceNode::Create(JSContext* aCx, AudioContext& aAudioContext,
+                              const AudioBufferSourceOptions& aOptions,
+                              ErrorResult& aRv)
 {
-}
+  if (aAudioContext.CheckClosed(aRv)) {
+    return nullptr;
+  }
 
+  RefPtr<AudioBufferSourceNode> audioNode = new AudioBufferSourceNode(&aAudioContext);
+
+  if (aOptions.mBuffer.WasPassed()) {
+    MOZ_ASSERT(aCx);
+    audioNode->SetBuffer(aCx, aOptions.mBuffer.Value());
+  }
+
+  audioNode->Detune()->SetValue(aOptions.mDetune);
+  audioNode->SetLoop(aOptions.mLoop);
+  audioNode->SetLoopEnd(aOptions.mLoopEnd);
+  audioNode->SetLoopStart(aOptions.mLoopStart);
+  audioNode->PlaybackRate()->SetValue(aOptions.mPlaybackRate);
+
+  return audioNode.forget();
+}
 void
 AudioBufferSourceNode::DestroyMediaStream()
 {

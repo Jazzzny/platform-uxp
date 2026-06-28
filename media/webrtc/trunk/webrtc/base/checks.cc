@@ -21,11 +21,6 @@
 #include <execinfo.h>
 #endif
 
-#if defined(WEBRTC_ANDROID)
-#define LOG_TAG "rtc"
-#include <android/log.h>  // NOLINT
-#endif
-
 #include "webrtc/base/checks.h"
 
 #if defined(_MSC_VER)
@@ -37,11 +32,7 @@
 namespace rtc {
 
 void VPrintError(const char* format, va_list args) {
-#if defined(WEBRTC_ANDROID)
-  __android_log_vprint(ANDROID_LOG_ERROR, LOG_TAG, format, args);
-#else
   vfprintf(stderr, format, args);
-#endif
 }
 
 void PrintError(const char* format, ...) {

@@ -1639,10 +1639,10 @@ bool String::CaseInsensitiveWideCStringEquals(const wchar_t* lhs,
 
 #if GTEST_OS_WINDOWS
   return _wcsicmp(lhs, rhs) == 0;
-#elif GTEST_OS_LINUX && !GTEST_OS_LINUX_ANDROID
+#elif GTEST_OS_LINUX
   return wcscasecmp(lhs, rhs) == 0;
 #else
-  // Android, Mac OS X and Cygwin don't define wcscasecmp.
+  // Mac OS X and Cygwin don't define wcscasecmp.
   // Other unknown OSes may not define it either.
   wint_t left, right;
   do {
@@ -2639,7 +2639,7 @@ void ColoredPrintf(GTestColor color, const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
 
-#if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_SYMBIAN || GTEST_OS_ZOS || GTEST_OS_IOS
+#if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_SYMBIAN || GTEST_OS_ZOS
   const bool use_color = false;
 #else
   static const bool in_color_mode =

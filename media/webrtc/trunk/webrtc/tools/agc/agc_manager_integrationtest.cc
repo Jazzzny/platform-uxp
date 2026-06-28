@@ -79,14 +79,14 @@ class AgcManagerTest : public ::testing::Test {
   int channel_;
 };
 
-TEST_F(AgcManagerTest, DISABLED_ON_ANDROID(EnableSucceeds)) {
+TEST_F(AgcManagerTest, EnableSucceeds) {
   EXPECT_EQ(0, manager_->Enable(true));
   EXPECT_TRUE(manager_->enabled());
   EXPECT_EQ(0, manager_->Enable(false));
   EXPECT_FALSE(manager_->enabled());
 }
 
-TEST_F(AgcManagerTest, DISABLED_ON_ANDROID(ProcessIsNotCalledByDefault)) {
+TEST_F(AgcManagerTest, ProcessIsNotCalledByDefault) {
   EXPECT_CALL(*agc_, AnalyzePreproc(_, _)).Times(0);
   EXPECT_CALL(*agc_, Process(_, _, _)).Times(0);
   EXPECT_CALL(*agc_, GetRmsErrorDb(_)).Times(0);

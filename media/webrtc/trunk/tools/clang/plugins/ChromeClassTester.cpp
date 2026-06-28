@@ -196,8 +196,7 @@ void ChromeClassTester::BuildBannedLists() {
   // isn't worth the overhead of an additional library.
   ignored_record_names_.insert("TestAnimationDelegate");
 
-  // Part of our public interface that nacl and friends use. (Arguably, this
-  // should mean that this is a higher priority but fixing this looks hard.)
+  // Part of our public interface. Fixing this looks hard.
   ignored_record_names_.insert("PluginVersionInfo");
 }
 

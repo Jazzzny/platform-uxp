@@ -75,9 +75,8 @@
  * -----------------
  * Modified 03/2012
  * By Ronghua Wu <ronghuawu@google.com>
- * Change the typedef of uint32(8)_t to uint32(8). We need this because in the
- * chromium android build, the stdio.h will include stdint.h which already
- * defined uint32(8)_t.
+ * Change the typedef of uint32(8)_t to uint32(8). We need this because some
+ * builds include stdint.h from stdio.h, which already defined uint32(8)_t.
  *
  * -----------------
  * Modified 04/2012

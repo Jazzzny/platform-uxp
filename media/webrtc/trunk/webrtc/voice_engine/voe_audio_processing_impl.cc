@@ -38,11 +38,7 @@
 
 namespace webrtc {
 
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS)
-static const EcModes kDefaultEcMode = kEcAecm;
-#else
 static const EcModes kDefaultEcMode = kEcAec;
-#endif
 
 VoEAudioProcessing* VoEAudioProcessing::GetInterface(VoiceEngine* voiceEngine) {
 #ifndef WEBRTC_VOICE_ENGINE_AUDIO_PROCESSING_API
@@ -171,10 +167,10 @@ int VoEAudioProcessingImpl::SetAgcStatus(bool enable, AgcModes mode) {
     return -1;
   }
 
-#if defined(WEBRTC_IOS) || defined(ATA) || defined(WEBRTC_ANDROID)
+#if defined(ATA)
   if (mode == kAgcAdaptiveAnalog) {
     _shared->SetLastError(VE_INVALID_ARGUMENT, kTraceError,
-        "SetAgcStatus() invalid Agc mode for mobile device");
+        "SetAgcStatus() invalid Agc mode");
     return -1;
   }
 #endif

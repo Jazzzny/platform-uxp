@@ -199,13 +199,6 @@
             'audio_decoder_impl.h',
             'audio_decoder_unittest.cc',
           ],
-          'conditions': [
-            ['OS=="android"', {
-              'dependencies': [
-                '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }],
-          ],
         }, # audio_decoder_unittests
 
         {
@@ -248,17 +241,6 @@
         }, # neteq_unittest_tools
       ], # targets
       'conditions': [
-        ['OS=="android"', {
-          'targets': [
-            {
-              'target_name': 'audio_decoder_unittests_apk_target',
-              'type': 'none',
-              'dependencies': [
-                '<(apk_tests_path):audio_decoder_unittests_apk',
-              ],
-            },
-          ],
-        }],
         ['test_isolation_mode != "noop"', {
           'targets': [
             {

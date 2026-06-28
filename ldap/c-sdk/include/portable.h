@@ -59,7 +59,7 @@
  */
 
 #ifndef SYSV
-#if defined( hpux ) || defined(XP_SOLARIS) || defined ( sgi ) || defined( SVR4 )
+#if defined(XP_SOLARIS) || defined ( sgi ) || defined( SVR4 )
 #define SYSV
 #endif
 #endif
@@ -82,7 +82,7 @@
 /*
  * System V has socket options in filio.h
  */
-#if !defined( NEED_FILIO ) && defined( SYSV ) && !defined( hpux ) && !defined( AIX )
+#if !defined( NEED_FILIO ) && defined( SYSV ) && !defined( AIX )
 #define NEED_FILIO
 #endif
 
@@ -169,7 +169,7 @@
  * for select()
  */
 #if !defined(WINSOCK) && !defined(_WINDOWS) && !defined(macintosh) && !defined(XP_OS2)
-#if defined(hpux) || defined(LINUX) || defined(SUNOS4) || defined(XP_BEOS)
+#if defined(LINUX) || defined(SUNOS4) || defined(XP_BEOS)
 #include <sys/time.h>
 #else
 #include <sys/select.h>
@@ -190,7 +190,7 @@
  * is necessary on some buggy UNIXes.
  */
 #if !defined(NSLDAPI_CONNECT_MUST_NOT_BE_INTERRUPTED) && \
-	( defined(AIX) || defined(IRIX) || defined(HPUX) || defined(SUNOS4) \
+	( defined(AIX) || defined(IRIX) || defined(SUNOS4) \
 	|| defined(XP_SOLARIS) || defined(OSF1) ||defined(freebsd)) 
 #define NSLDAPI_CONNECT_MUST_NOT_BE_INTERRUPTED
 #endif
@@ -208,7 +208,7 @@
 /*
  * toupper and tolower macros are different under bsd and sys v
  */
-#if defined( SYSV ) && !defined( hpux )
+#if defined( SYSV )
 #define TOUPPER(c)	(isascii(c) && islower(c) ? _toupper(c) : c)
 #define TOLOWER(c)	(isascii(c) && isupper(c) ? _tolower(c) : c)
 #else
@@ -236,7 +236,7 @@
 #define SETFLAGS( tio, flags )	(tio).c_lflag = (flags)
 #endif
 
-#if ( !defined( HPUX9 )) && ( !defined( sunos4 )) && ( !defined( SNI )) && \
+#if ( !defined( sunos4 )) && ( !defined( SNI )) && \
 	( !defined( HAVE_TIME_R ))
 #define HAVE_TIME_R
 #endif
@@ -267,10 +267,9 @@ int strncasecmp(const char *, const char *, size_t);
 #define NSLDAPI_NETDB_BUF_SIZE	1024
 #endif
 
-#if defined(sgi) || defined(HPUX9) || defined(SCOOS) || \
+#if defined(sgi) || defined(SCOOS) || \
     defined(UNIXWARE) || defined(SUNOS4) || defined(SNI) || defined(BSDI) || \
     defined(NCR) || defined(OSF1) || defined(NEC) || defined(VMS) || \
-    ( defined(HPUX10) && !defined(_REENTRANT)) || defined(HPUX11) || \
     defined(UnixWare) || defined(NETBSD) || \
     defined(FREEBSD) || defined(OPENBSD) || \
     (defined(LINUX) && __GLIBC__ < 2) || \
@@ -286,9 +285,6 @@ typedef char GETHOSTBYNAME_buf_t [NSLDAPI_NETDB_BUF_SIZE];
 #define GETHOSTBYNAME_BUF_T GETHOSTBYNAME_buf_t
 #define GETHOSTBYNAME( n, r, b, l, e ) \
 	(memset (&b, 0, l), gethostbyname_r (n, r, &b) ? NULL : r)
-#elif defined(HPUX10)
-#define GETHOSTBYNAME_BUF_T struct hostent_data
-#define GETHOSTBYNAME( n, r, b, l, e )	nsldapi_compat_gethostbyname_r( n, r, (char *)&b, l, e )
 #elif defined(LINUX) || defined(DRAGONFLY)
 typedef char GETHOSTBYNAME_buf_t [NSLDAPI_NETDB_BUF_SIZE];
 #define GETHOSTBYNAME_BUF_T GETHOSTBYNAME_buf_t
@@ -299,17 +295,15 @@ typedef char GETHOSTBYNAME_buf_t [NSLDAPI_NETDB_BUF_SIZE];
 #define GETHOSTBYNAME_BUF_T GETHOSTBYNAME_buf_t
 #define GETHOSTBYNAME( n, r, b, l, e )  gethostbyname_r( n, r, b, l, e )
 #endif
-#if defined(HPUX9) || defined(LINUX1_2) || defined(LINUX2_0) || \
+#if defined(LINUX1_2) || defined(LINUX2_0) || \
     defined(LINUX2_1) || defined(SUNOS4) || defined(SNI) || \
     defined(SCOOS) || defined(BSDI) || defined(NCR) || \
-    defined(NEC) || ( defined(HPUX10) && !defined(_REENTRANT)) || \
+    defined(NEC) || \
     (defined(AIX) && !defined(USE_REENTRANT_LIBC))
 #define NSLDAPI_CTIME( c, b, l )	ctime( c )
-#elif defined(HPUX10) && defined(_REENTRANT) && !defined(HPUX11)
-#define NSLDAPI_CTIME( c, b, l )	nsldapi_compat_ctime_r( c, b, l )
 #elif defined( IRIX6_2 ) || defined( IRIX6_3 ) || defined(UNIXWARE) \
 	|| defined(OSF1V4) || defined(AIX) || defined(UnixWare) \
-        || defined(hpux) || defined(HPUX11) || defined(NETBSD) \
+        || defined(NETBSD) \
         || defined(IRIX6) || defined(FREEBSD) || defined(VMS) \
         || defined(NTO) || defined(OPENBSD) || defined(DRAGONFLY)
 #define NSLDAPI_CTIME( c, b, l )        ctime_r( c, b )
@@ -318,7 +312,7 @@ typedef char GETHOSTBYNAME_buf_t [NSLDAPI_NETDB_BUF_SIZE];
 #else
 #define NSLDAPI_CTIME( c, b, l )	ctime_r( c, b, l )
 #endif
-#if defined(hpux9) || defined(SUNOS4) || defined(SNI) || \
+#if defined(SUNOS4) || defined(SNI) || \
     defined(SCOOS) || defined(BSDI) || defined(NCR) || defined(VMS) || \
     defined(NEC) || (defined(LINUX) && __GNU_LIBRARY__ != 6) || \
     (defined(AIX) && !defined(USE_REENTRANT_LIBC))
@@ -366,7 +360,7 @@ extern char *strdup();
 /*
  * Define a portable type for IPv4 style Internet addresses (32 bits):
  */
-#if defined(_IN_ADDR_T) || defined(aix) || defined(HPUX11) || defined(OSF1)
+#if defined(_IN_ADDR_T) || defined(aix) || defined(OSF1)
 typedef in_addr_t	nsldapi_in_addr_t;
 #else
 typedef nsldapi_uint_32	nsldapi_in_addr_t;
@@ -452,7 +446,7 @@ int select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 #define NSLDAPI_FOPEN( filename, mode )	fopen( filename, mode )
 #endif
 
-#if defined(LINUX) || defined(AIX) || defined(HPUX) || defined(_WINDOWS)
+#if defined(LINUX) || defined(AIX) || defined(_WINDOWS)
 size_t nsldapi_compat_strlcpy(char *dst, const char *src, size_t len);
 #define STRLCPY nsldapi_compat_strlcpy
 #else

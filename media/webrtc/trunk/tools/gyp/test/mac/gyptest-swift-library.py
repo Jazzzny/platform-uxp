@@ -16,7 +16,7 @@ import sys
 import subprocess
 
 if sys.platform == 'darwin':
-  print "This test is currently disabled: https://crbug.com/483696."
+  print("This test is currently disabled: https://crbug.com/483696.")
   sys.exit(0)
 
   test = TestGyp.TestGyp(formats=['xcode'])
@@ -26,15 +26,13 @@ if sys.platform == 'darwin':
     output = subprocess.check_output(['nm', '-j', path])
     idx = output.find(symbol)
     if idx == -1:
-      print 'Swift: Could not find symobl: %s' % symbol
+      print('Swift: Could not find symobl: %s' % symbol)
       test.fail_test()
 
   test_cases = []
 
-  # Run this for iOS on XCode 6.0 or greater
   if TestMac.Xcode.Version() >= '0600':
-    test_cases.append(('Default', 'iphoneos'))
-    test_cases.append(('Default', 'iphonesimulator'))
+    test_cases.append(('Default', 'macosx'))
 
   # Run it for Mac on XCode 6.1 or greater
   if TestMac.Xcode.Version() >= '0610':

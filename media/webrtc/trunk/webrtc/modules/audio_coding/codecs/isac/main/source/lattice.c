@@ -20,9 +20,6 @@
 #include <math.h>
 #include <memory.h>
 #include <string.h>
-#ifdef WEBRTC_ANDROID
-#include <stdlib.h>
-#endif
 
 /* filter the signal using normalized lattice filter */
 /* MA filter */

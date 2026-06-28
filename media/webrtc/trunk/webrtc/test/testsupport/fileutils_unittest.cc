@@ -66,7 +66,7 @@ TEST_F(FileUtilsTest, ProjectRootPath) {
 }
 
 // Similar to the above test, but for the output dir
-TEST_F(FileUtilsTest, DISABLED_ON_ANDROID(OutputPathFromUnchangedWorkingDir)) {
+TEST_F(FileUtilsTest, OutputPathFromUnchangedWorkingDir) {
   std::string path = webrtc::test::OutputPath();
   std::string expected_end = "out";
   expected_end = kPathDelimiter + expected_end + kPathDelimiter;
@@ -75,7 +75,7 @@ TEST_F(FileUtilsTest, DISABLED_ON_ANDROID(OutputPathFromUnchangedWorkingDir)) {
 
 // Tests with current working directory set to a directory higher up in the
 // directory tree than the project root dir.
-TEST_F(FileUtilsTest, DISABLED_ON_ANDROID(OutputPathFromRootWorkingDir)) {
+TEST_F(FileUtilsTest, OutputPathFromRootWorkingDir) {
   ASSERT_EQ(0, chdir(kPathDelimiter));
   ASSERT_EQ("./", webrtc::test::OutputPath());
 }

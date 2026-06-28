@@ -28,13 +28,8 @@
 #include "webrtc/system_wrappers/interface/trace.h"
 #include "webrtc/test/testsupport/fileutils.h"
 #include "webrtc/test/testsupport/gtest_disable.h"
-#ifdef WEBRTC_ANDROID_PLATFORM_BUILD
-#include "gtest/gtest.h"
-#include "external/webrtc/webrtc/modules/audio_processing/test/unittest.pb.h"
-#else
 #include "testing/gtest/include/gtest/gtest.h"
 #include "webrtc/audio_processing/unittest.pb.h"
-#endif
 
 namespace webrtc {
 namespace {
@@ -217,7 +212,7 @@ void WriteStatsMessage(const AudioProcessing::Statistic& output,
 
 void OpenFileAndWriteMessage(const std::string filename,
                              const ::google::protobuf::MessageLite& msg) {
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
   FILE* file = fopen(filename.c_str(), "wb");
   ASSERT_TRUE(file != NULL);
 
@@ -1214,7 +1209,6 @@ TEST_F(ApmTest, ManualVolumeChangeIsPossible) {
   }
 }
 
-#if !defined(WEBRTC_ANDROID) && !defined(WEBRTC_IOS)
 TEST_F(ApmTest, AgcOnlyAdaptsWhenTargetSignalIsPresent) {
   const int kSampleRateHz = 16000;
   const int kSamplesPerChannel =
@@ -1298,7 +1292,6 @@ TEST_F(ApmTest, AgcOnlyAdaptsWhenTargetSignalIsPresent) {
             apm->gain_control()->compression_gain_db());
   ASSERT_EQ(0, fclose(far_file));
 }
-#endif
 
 TEST_F(ApmTest, NoiseSuppression) {
   // Test valid suppression levels.
@@ -2060,23 +2053,10 @@ TEST_F(ApmTest, Process) {
 
     if (!write_ref_data) {
       const int kIntNear = 1;
-      // When running the test on a N7 we get a {2, 6} difference of
-      // |has_voice_count| and |max_output_average| is up to 18 higher.
-      // All numbers being consistently higher on N7 compare to ref_data.
-      // TODO(bjornv): If we start getting more of these offsets on Android we
-      // should consider a different approach. Either using one slack for all,
-      // or generate a separate android reference.
-#if defined(WEBRTC_ANDROID)
-      const int kHasVoiceCountOffset = 3;
-      const int kHasVoiceCountNear = 3;
-      const int kMaxOutputAverageOffset = 9;
-      const int kMaxOutputAverageNear = 9;
-#else
       const int kHasVoiceCountOffset = 0;
       const int kHasVoiceCountNear = kIntNear;
       const int kMaxOutputAverageOffset = 0;
       const int kMaxOutputAverageNear = kIntNear;
-#endif
       EXPECT_NEAR(test->has_echo_count(), has_echo_count, kIntNear);
       EXPECT_NEAR(test->has_voice_count(),
                   has_voice_count - kHasVoiceCountOffset,

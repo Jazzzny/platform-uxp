@@ -274,7 +274,7 @@ class NetEqStereoTestNoJitter : public NetEqStereoTest {
   }
 };
 
-TEST_P(NetEqStereoTestNoJitter, DISABLED_ON_ANDROID(RunTest)) {
+TEST_P(NetEqStereoTestNoJitter, RunTest) {
   RunTest(8);
 }
 
@@ -299,7 +299,7 @@ class NetEqStereoTestPositiveDrift : public NetEqStereoTest {
   double drift_factor;
 };
 
-TEST_P(NetEqStereoTestPositiveDrift, DISABLED_ON_ANDROID(RunTest)) {
+TEST_P(NetEqStereoTestPositiveDrift, RunTest) {
   RunTest(100);
 }
 
@@ -312,7 +312,7 @@ class NetEqStereoTestNegativeDrift : public NetEqStereoTestPositiveDrift {
   }
 };
 
-TEST_P(NetEqStereoTestNegativeDrift, DISABLED_ON_ANDROID(RunTest)) {
+TEST_P(NetEqStereoTestNegativeDrift, RunTest) {
   RunTest(100);
 }
 
@@ -340,7 +340,7 @@ class NetEqStereoTestDelays : public NetEqStereoTest {
   int frame_index_;
 };
 
-TEST_P(NetEqStereoTestDelays, DISABLED_ON_ANDROID(RunTest)) {
+TEST_P(NetEqStereoTestDelays, RunTest) {
   RunTest(1000);
 }
 
@@ -359,7 +359,7 @@ class NetEqStereoTestLosses : public NetEqStereoTest {
   int frame_index_;
 };
 
-TEST_P(NetEqStereoTestLosses, DISABLED_ON_ANDROID(RunTest)) {
+TEST_P(NetEqStereoTestLosses, RunTest) {
   RunTest(100);
 }
 

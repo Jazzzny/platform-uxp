@@ -161,9 +161,6 @@ XPCOMUtils.defineLazyGetter(this, "gOSVersion", function aus_gOSVersion() {
             case 9:
               arch = "x64";
               break;
-            case 6:
-              arch = "IA64";
-              break;
             case 0:
               arch = "x86";
               break;

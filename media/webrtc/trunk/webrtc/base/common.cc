@@ -18,9 +18,9 @@
 #include <windows.h>
 #endif  // WEBRTC_WIN 
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 #include <CoreServices/CoreServices.h>
-#endif  // WEBRTC_MAC && !defined(WEBRTC_IOS)
+#endif  // WEBRTC_MAC
 
 #include <algorithm>
 #include "webrtc/base/common.h"

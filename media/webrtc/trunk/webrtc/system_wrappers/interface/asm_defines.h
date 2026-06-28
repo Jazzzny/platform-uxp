@@ -15,8 +15,8 @@
 .section .note.GNU-stack,"",%progbits
 #endif
 
-// Define the macros used in ARM assembly code, so that for Mac or iOS builds
-// we add leading underscores for the function names.
+// Define the macros used in ARM assembly code, so that for Mac builds we add
+// leading underscores for the function names.
 #ifdef __APPLE__
 .macro GLOBAL_FUNCTION name
 .global _\name

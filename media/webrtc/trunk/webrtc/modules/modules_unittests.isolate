@@ -7,14 +7,7 @@
 # be found in the AUTHORS file in the root of the source tree.
 {
   'conditions': [
-    ['OS=="android"', {
-      'variables': {
-        'files': [
-          '<(DEPTH)/data/audio_processing/output_data_fixed.pb',
-        ],
-      },
-    }],
-    ['OS=="linux" or OS=="mac" or OS=="win" or OS=="android"', {
+    ['OS=="linux" or OS=="mac" or OS=="win"', {
       'variables': {
         'files': [
           '<(DEPTH)/data/audio_processing/output_data_float.pb',

@@ -11,7 +11,7 @@
 #define WEBRTC_BASE_MACSOCKETSERVER_H__
 
 #include <set>
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS) // Invalid on IOS
+#if defined(WEBRTC_MAC)
 #include <Carbon/Carbon.h>
 #endif
 #include "webrtc/base/physicalsocketserver.h"

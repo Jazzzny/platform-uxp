@@ -17,13 +17,8 @@
 #include "webrtc/base/common.h"
 #include "webrtc/base/logging.h"
 #include "webrtc/base/messagequeue.h"
-#if defined(__native_client__)
-#include "webrtc/base/nullsocketserver.h"
-typedef rtc::NullSocketServer DefaultSocketServer;
-#else
 #include "webrtc/base/physicalsocketserver.h"
 typedef rtc::PhysicalSocketServer DefaultSocketServer;
-#endif
 
 namespace rtc {
 

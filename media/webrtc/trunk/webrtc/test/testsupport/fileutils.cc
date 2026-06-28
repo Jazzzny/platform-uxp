@@ -49,14 +49,10 @@ const char* kPathDelimiter = "\\";
 const char* kPathDelimiter = "/";
 #endif
 
-#ifdef WEBRTC_ANDROID
-const char* kRootDirName = "/sdcard/";
-#else
 // The file we're looking for to identify the project root dir.
 const char* kProjectRootFileName = "DEPS";
 const char* kOutputDirName = "out";
 const char* kFallbackPath = "./";
-#endif
 const char* kResourcesDirName = "resources";
 
 char relative_dir_path[FILENAME_MAX];
@@ -91,22 +87,6 @@ bool FileExists(std::string& file_name) {
   struct stat file_info = {0};
   return stat(file_name.c_str(), &file_info) == 0;
 }
-
-#ifdef WEBRTC_ANDROID
-
-std::string ProjectRootPath() {
-  return kRootDirName;
-}
-
-std::string OutputPath() {
-  return kRootDirName;
-}
-
-std::string WorkingDir() {
-  return kRootDirName;
-}
-
-#else // WEBRTC_ANDROID
 
 std::string ProjectRootPath() {
   std::string path = WorkingDir();
@@ -153,8 +133,6 @@ std::string WorkingDir() {
     return std::string(path_buffer);
   }
 }
-
-#endif  // !WEBRTC_ANDROID
 
 // Generate a temporary filename in a safe way.
 // Largely copied from talk/base/{unixfilesystem,win32filesystem}.cc.

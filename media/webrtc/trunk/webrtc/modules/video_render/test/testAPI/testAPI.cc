@@ -22,7 +22,7 @@
 #include <windows.h>
 #include <ddraw.h>
 
-#elif defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#elif defined(WEBRTC_LINUX)
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -159,7 +159,7 @@ int WebRtcCreateWindow(HWND &hwndMain,int winNum, int width, int height)
     return 0;
 }
 
-#elif defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#elif defined(WEBRTC_LINUX)
 
 int WebRtcCreateWindow(Window *outWindow, Display **outDisplay, int winNum, int width, int height) // unsigned char* title, int titleLength)
 
@@ -622,10 +622,10 @@ void RunVideoRenderTests(void* window, VideoRenderType windowType) {
 // Note: The Mac main is implemented in testApi_mac.mm.
 #if defined(_WIN32)
 int _tmain(int argc, _TCHAR* argv[])
-#elif defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#elif defined(WEBRTC_LINUX)
 int main(int argc, char* argv[])
 #endif
-#if !defined(WEBRTC_MAC) && !defined(WEBRTC_ANDROID)
+#if defined(_WIN32) || defined(WEBRTC_LINUX)
 {
     // Create a window for testing.
     void* window = NULL;
@@ -645,4 +645,4 @@ int main(int argc, char* argv[])
     RunVideoRenderTests(window, windowType);
     return 0;
 }
-#endif  // !WEBRTC_MAC
+#endif  // defined(_WIN32) || defined(WEBRTC_LINUX)

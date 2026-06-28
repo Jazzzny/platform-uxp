@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-// A libjingle compatible SocketServer for OSX/iOS/Cocoa.
+// A libjingle compatible SocketServer for OSX/Cocoa.
 
 #ifndef WEBRTC_BASE_MACCOCOASOCKETSERVER_H_
 #define WEBRTC_BASE_MACCOCOASOCKETSERVER_H_

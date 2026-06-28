@@ -804,9 +804,7 @@ nsHttpHandler::InitUserAgentComponents()
     if (GetVersionEx(&info)) {
 #pragma warning(pop)
         const char *format;
-#if defined _M_IA64
-        format = WNT_BASE W64_PREFIX "; IA64";
-#elif defined _M_X64 || defined _M_AMD64
+#if defined _M_X64 || defined _M_AMD64
         format = WNT_BASE W64_PREFIX "; x64";
 #else
         BOOL isWow64 = FALSE;
@@ -853,17 +851,7 @@ nsHttpHandler::InitUserAgentComponents()
             buf += " i686 on x86_64";
         } else {
             buf += ' ';
-
-#ifdef AIX
-            // AIX uname returns machine specific info in the uname.machine
-            // field and does not return the cpu type like other platforms.
-            // We use the AIX version and release numbers instead.
-            buf += (char*)name.version;
-            buf += '.';
-            buf += (char*)name.release;
-#else
             buf += (char*)name.machine;
-#endif
         }
 
         mOscpu.Assign(buf);

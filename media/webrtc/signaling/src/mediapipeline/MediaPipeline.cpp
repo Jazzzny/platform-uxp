@@ -28,10 +28,6 @@
 #include "MediaStreamVideoSink.h"
 #include "VideoUtils.h"
 #include "VideoStreamTrack.h"
-#ifdef WEBRTC_GONK
-#include "GrallocImages.h"
-#include "mozilla/layers/GrallocTextureClient.h"
-#endif
 #endif
 
 #include "nsError.h"
@@ -285,72 +281,6 @@ protected:
     }
 
     ImageFormat format = aImage->GetFormat();
-#ifdef WEBRTC_GONK
-    GrallocImage* nativeImage = aImage->AsGrallocImage();
-    if (nativeImage) {
-      android::sp<android::GraphicBuffer> graphicBuffer = nativeImage->GetGraphicBuffer();
-      int pixelFormat = graphicBuffer->getPixelFormat(); /* PixelFormat is an enum == int */
-      mozilla::VideoType destFormat;
-      switch (pixelFormat) {
-        case HAL_PIXEL_FORMAT_YV12:
-          // all android must support this
-          destFormat = mozilla::kVideoYV12;
-          break;
-        case GrallocImage::HAL_PIXEL_FORMAT_YCbCr_420_SP:
-          destFormat = mozilla::kVideoNV21;
-          break;
-        case GrallocImage::HAL_PIXEL_FORMAT_YCbCr_420_P:
-          destFormat = mozilla::kVideoI420;
-          break;
-        default:
-          // XXX Bug NNNNNNN
-          // use http://dxr.mozilla.org/mozilla-central/source/content/media/omx/I420ColorConverterHelper.cpp
-          // to convert unknown types (OEM-specific) to I420
-          MOZ_MTLOG(ML_ERROR, "Un-handled GRALLOC buffer type:" << pixelFormat);
-          MOZ_CRASH();
-      }
-      void *basePtr;
-      graphicBuffer->lock(android::GraphicBuffer::USAGE_SW_READ_MASK, &basePtr);
-      uint32_t width = graphicBuffer->getWidth();
-      uint32_t height = graphicBuffer->getHeight();
-      // XXX gralloc buffer's width and stride could be different depends on implementations.
-
-      if (destFormat != mozilla::kVideoI420) {
-        unsigned char *video_frame = static_cast<unsigned char*>(basePtr);
-        webrtc::I420VideoFrame i420_frame;
-        int stride_y = width;
-        int stride_uv = (width + 1) / 2;
-        int target_width = width;
-        int target_height = height;
-        if (i420_frame.CreateEmptyFrame(target_width,
-                                        abs(target_height),
-                                        stride_y,
-                                        stride_uv, stride_uv) < 0) {
-          MOZ_ASSERT(false, "Can't allocate empty i420frame");
-          return;
-        }
-        webrtc::VideoType commonVideoType =
-          webrtc::RawVideoTypeToCommonVideoVideoType(
-            static_cast<webrtc::RawVideoType>((int)destFormat));
-        if (ConvertToI420(commonVideoType, video_frame, 0, 0, width, height,
-                          I420SIZE(width, height), webrtc::kVideoRotation_0,
-                          &i420_frame)) {
-          MOZ_ASSERT(false, "Can't convert video type for sending to I420");
-          return;
-        }
-        i420_frame.set_ntp_time_ms(0);
-        VideoFrameConverted(i420_frame);
-      } else {
-        VideoFrameConverted(static_cast<unsigned char*>(basePtr),
-                            I420SIZE(width, height),
-                            width,
-                            height,
-                            destFormat, 0);
-      }
-      graphicBuffer->unlock();
-      return;
-    } else
-#endif
     if (format == ImageFormat::PLANAR_YCBCR) {
       // Cast away constness b/c some of the accessors are non-const
       PlanarYCbCrImage* yuv = const_cast<PlanarYCbCrImage *>(
@@ -2198,13 +2128,6 @@ public:
 
       image_ = yuvImage;
     }
-#ifdef WEBRTC_GONK
-    else {
-      // Decoder produced video frame that can be appended to the track directly.
-      MOZ_ASSERT(video_image);
-      image_ = video_image;
-    }
-#endif // WEBRTC_GONK
 #endif // MOZILLA_INTERNAL_API
   }
 

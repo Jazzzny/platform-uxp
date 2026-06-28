@@ -38,7 +38,6 @@ const char* RecordedMicrophoneAGCFile = "recorded_microphone_AGC_mono_48.pcm";
 const char* RecordedSpeakerFile = "recorded_speaker_48.pcm";
 
 // Helper functions
-#if !defined(WEBRTC_IOS)
 char* GetFilename(char* filename)
 {
     return filename;
@@ -55,7 +54,6 @@ const char* GetResource(const char* resource)
 {
     return resource;
 }
-#endif
 
 namespace webrtc
 {
@@ -2657,7 +2655,7 @@ int32_t FuncTestManager::TestAdvancedMBAPI()
     EXPECT_TRUE(audioDevice->Recording());
     EXPECT_TRUE(audioDevice->Playing());
 
-#if defined(_WIN32_WCE) || defined(WEBRTC_IOS)
+#if defined(_WIN32_WCE)
     TEST_LOG("\nResetAudioDevice\n \n");
     if (audioDevice->Recording() && audioDevice->Playing())
     {
@@ -2676,35 +2674,6 @@ int32_t FuncTestManager::TestAdvancedMBAPI()
         TEST_LOG("\n> Speak into the microphone and verify that the audio is good.\n");
         SleepMs(2000);
     }
-#endif
-
-#if defined(WEBRTC_IOS)
-    bool loudspeakerOn(false);
-    TEST_LOG("\nSet playout spaker\n \n");
-    if (audioDevice->Recording() && audioDevice->Playing())
-    {
-        TEST_LOG("\n> Speak into the microphone and verify that the audio is good.\n\
-> Press any key to stop...\n \n");
-        PAUSE(DEFAULT_PAUSE_TIME);
-    }
-
-    TEST_LOG("Set to use speaker\n");
-    EXPECT_EQ(0, audioDevice->SetLoudspeakerStatus(true));
-    TEST_LOG("\n> Speak into the microphone and verify that the audio is"
-        " from the loudspeaker.\n\
-> Press any key to stop...\n \n");
-    PAUSE(DEFAULT_PAUSE_TIME);
-    EXPECT_EQ(0, audioDevice->GetLoudspeakerStatus(&loudspeakerOn));
-    EXPECT_TRUE(loudspeakerOn);
-
-    TEST_LOG("Set to not use speaker\n");
-    EXPECT_EQ(0, audioDevice->SetLoudspeakerStatus(false));
-    TEST_LOG("\n> Speak into the microphone and verify that the audio is not"
-        " from the loudspeaker.\n\
-> Press any key to stop...\n \n");
-    PAUSE(DEFAULT_PAUSE_TIME);
-    EXPECT_EQ(0, audioDevice->GetLoudspeakerStatus(&loudspeakerOn));
-    EXPECT_FALSE(loudspeakerOn);
 #endif
 
     EXPECT_EQ(0, audioDevice->StopRecording());

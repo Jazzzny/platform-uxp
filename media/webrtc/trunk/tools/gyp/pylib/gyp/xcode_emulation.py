@@ -7,7 +7,8 @@ This module contains classes that help to emulate xcodebuild behavior on top of
 other build systems, such as make and ninja.
 """
 
-import copy
+from __future__ import print_function
+
 import gyp.common
 import os
 import os.path
@@ -39,26 +40,19 @@ def XcodeArchsVariableMapping(archs, archs_including_64_bit=None):
 class XcodeArchsDefault(object):
   """A class to resolve ARCHS variable from xcode_settings, resolving Xcode
   macros and implementing filtering by VALID_ARCHS. The expansion of macros
-  depends on the SDKROOT used ("macosx", "iphoneos", "iphonesimulator") and
-  on the version of Xcode.
+  depends on the version of Xcode.
   """
 
   # Match variable like $(ARCHS_STANDARD).
   variable_pattern = re.compile(r'\$\([a-zA-Z_][a-zA-Z0-9_]*\)$')
 
-  def __init__(self, default, mac, iphonesimulator, iphoneos):
+  def __init__(self, default, mac):
     self._default = (default,)
-    self._archs = {'mac': mac, 'ios': iphoneos, 'iossim': iphonesimulator}
+    self._archs = {'mac': mac}
 
   def _VariableMapping(self, sdkroot):
     """Returns the dictionary of variable mapping depending on the SDKROOT."""
-    sdkroot = sdkroot.lower()
-    if 'iphoneos' in sdkroot:
-      return self._archs['ios']
-    elif 'iphonesimulator' in sdkroot:
-      return self._archs['iossim']
-    else:
-      return self._archs['mac']
+    return self._archs['mac']
 
   def _ExpandArchs(self, archs, sdkroot):
     """Expands variables references in ARCHS, and remove duplicates."""
@@ -73,7 +67,7 @@ class XcodeArchsDefault(object):
             if arch not in expanded_archs:
               expanded_archs.append(arch)
         except KeyError as e:
-          print 'Warning: Ignoring unsupported variable "%s".' % variable
+          print('Warning: Ignoring unsupported variable "%s".' % variable)
       elif arch not in expanded_archs:
         expanded_archs.append(arch)
     return expanded_archs
@@ -105,10 +99,6 @@ def GetXcodeArchsDefault():
   For "macosx" SDKROOT, all version starting with Xcode 5.0 includes 64-bit
   architecture as part of $(ARCHS_STANDARD) and default to only building it.
 
-  For "iphoneos" and "iphonesimulator" SDKROOT, 64-bit architectures are part
-  of $(ARCHS_STANDARD_INCLUDING_64_BIT) from Xcode 5.0. From Xcode 5.1, they
-  are also part of $(ARCHS_STANDARD).
-
   All thoses rules are coded in the construction of the |XcodeArchsDefault|
   object to use depending on the version of Xcode detected. The object is
   for performance reason."""
@@ -119,25 +109,15 @@ def GetXcodeArchsDefault():
   if xcode_version < '0500':
     XCODE_ARCHS_DEFAULT_CACHE = XcodeArchsDefault(
         '$(ARCHS_STANDARD)',
-        XcodeArchsVariableMapping(['i386']),
-        XcodeArchsVariableMapping(['i386']),
-        XcodeArchsVariableMapping(['armv7']))
+        XcodeArchsVariableMapping(['i386']))
   elif xcode_version < '0510':
     XCODE_ARCHS_DEFAULT_CACHE = XcodeArchsDefault(
         '$(ARCHS_STANDARD_INCLUDING_64_BIT)',
-        XcodeArchsVariableMapping(['x86_64'], ['x86_64']),
-        XcodeArchsVariableMapping(['i386'], ['i386', 'x86_64']),
-        XcodeArchsVariableMapping(
-            ['armv7', 'armv7s'],
-            ['armv7', 'armv7s', 'arm64']))
+        XcodeArchsVariableMapping(['x86_64'], ['x86_64']))
   else:
     XCODE_ARCHS_DEFAULT_CACHE = XcodeArchsDefault(
         '$(ARCHS_STANDARD)',
-        XcodeArchsVariableMapping(['x86_64'], ['x86_64']),
-        XcodeArchsVariableMapping(['i386', 'x86_64'], ['i386', 'x86_64']),
-        XcodeArchsVariableMapping(
-            ['armv7', 'armv7s', 'arm64'],
-            ['armv7', 'armv7s', 'arm64']))
+        XcodeArchsVariableMapping(['x86_64'], ['x86_64']))
   return XCODE_ARCHS_DEFAULT_CACHE
 
 
@@ -154,14 +134,9 @@ class XcodeSettings(object):
   # cached at class-level for efficiency.
   _plist_cache = {}
 
-  # Populated lazily by GetIOSPostbuilds.  Shared by all XcodeSettings, so
-  # cached at class-level for efficiency.
-  _codesigning_key_cache = {}
-
   def __init__(self, spec):
     self.spec = spec
 
-    self.isIOS = False
     self.mac_toolchain_dir = None
     self.header_map_path = None
 
@@ -171,12 +146,9 @@ class XcodeSettings(object):
     # the same for all configs are implicitly per-target settings.
     self.xcode_settings = {}
     configs = spec['configurations']
-    for configname, config in configs.iteritems():
+    for configname, config in configs.items():
       self.xcode_settings[configname] = config.get('xcode_settings', {})
       self._ConvertConditionalKeys(configname)
-      if self.xcode_settings[configname].get('IPHONEOS_DEPLOYMENT_TARGET',
-                                             None):
-        self.isIOS = True
 
     # This is only non-None temporarily during the execution of some methods.
     self.configname = None
@@ -185,21 +157,14 @@ class XcodeSettings(object):
     self.library_re = re.compile(r'^lib([^/]+)\.(a|dylib)$')
 
   def _ConvertConditionalKeys(self, configname):
-    """Converts or warns on conditional keys.  Xcode supports conditional keys,
-    such as CODE_SIGN_IDENTITY[sdk=iphoneos*].  This is a partial implementation
-    with some keys converted while the rest force a warning."""
+    """Warns on conditional keys.  This is a partial implementation."""
     settings = self.xcode_settings[configname]
     conditional_keys = [key for key in settings if key.endswith(']')]
-    for key in conditional_keys:
-      # If you need more, speak up at http://crbug.com/122592
-      if key.endswith("[sdk=iphoneos*]"):
-        if configname.endswith("iphoneos"):
-          new_key = key.split("[")[0]
-          settings[new_key] = settings[key]
-      else:
-        print 'Warning: Conditional keys not implemented, ignoring:', \
-              ' '.join(conditional_keys)
-      del settings[key]
+    if conditional_keys:
+      print('Warning: Conditional keys not implemented, ignoring:', \
+            ' '.join(conditional_keys))
+      for key in conditional_keys:
+        del settings[key]
 
   def _Settings(self):
     assert self.configname
@@ -216,17 +181,13 @@ class XcodeSettings(object):
 
   def _WarnUnimplemented(self, test_key):
     if test_key in self._Settings():
-      print 'Warning: Ignoring not yet implemented key "%s".' % test_key
+      print('Warning: Ignoring not yet implemented key "%s".' % test_key)
 
   def IsBinaryOutputFormat(self, configname):
-    default = "binary" if self.isIOS else "xml"
+    default = "xml"
     format = self.xcode_settings[configname].get('INFOPLIST_OUTPUT_FORMAT',
                                                  default)
     return format == "binary"
-
-  def IsIosFramework(self):
-    return self.spec['type'] == 'shared_library' and self._IsBundle() and \
-        self.isIOS
 
   def _IsBundle(self):
     return int(self.spec.get('mac_bundle', 0)) != 0 or self._IsXCTest() or \
@@ -237,15 +198,6 @@ class XcodeSettings(object):
 
   def _IsXCUiTest(self):
     return int(self.spec.get('mac_xcuitest_bundle', 0)) != 0
-
-  def _IsIosAppExtension(self):
-    return int(self.spec.get('ios_app_extension', 0)) != 0
-
-  def _IsIosWatchKitExtension(self):
-    return int(self.spec.get('ios_watchkit_extension', 0)) != 0
-
-  def _IsIosWatchApp(self):
-    return int(self.spec.get('ios_watch_app', 0)) != 0
 
   def GetFrameworkVersion(self):
     """Returns the framework version of the current target. Only valid for
@@ -266,10 +218,7 @@ class XcodeSettings(object):
           'WRAPPER_EXTENSION', default=default_wrapper_extension)
       return '.' + self.spec.get('product_extension', wrapper_extension)
     elif self.spec['type'] == 'executable':
-      if self._IsIosAppExtension() or self._IsIosWatchKitExtension():
-        return '.' + self.spec.get('product_extension', 'appex')
-      else:
-        return '.' + self.spec.get('product_extension', 'app')
+      return '.' + self.spec.get('product_extension', 'app')
     else:
       assert False, "Don't know extension for '%s', target '%s'" % (
           self.spec['type'], self.spec['target_name'])
@@ -294,8 +243,6 @@ class XcodeSettings(object):
   def GetBundleContentsFolderPath(self):
     """Returns the qualified path to the bundle's contents folder. E.g.
     Chromium.app/Contents or Foo.bundle/Versions/A. Only valid for bundles."""
-    if self.isIOS:
-      return self.GetWrapperName()
     assert self._IsBundle()
     if self.spec['type'] == 'shared_library':
       return os.path.join(
@@ -308,15 +255,13 @@ class XcodeSettings(object):
     """Returns the qualified path to the bundle's resource folder. E.g.
     Chromium.app/Contents/Resources. Only valid for bundles."""
     assert self._IsBundle()
-    if self.isIOS:
-      return self.GetBundleContentsFolderPath()
     return os.path.join(self.GetBundleContentsFolderPath(), 'Resources')
 
   def GetBundleExecutableFolderPath(self):
     """Returns the qualified path to the bundle's executables folder. E.g.
     Chromium.app/Contents/MacOS. Only valid for bundles."""
     assert self._IsBundle()
-    if self.spec['type'] in ('shared_library') or self.isIOS:
+    if self.spec['type'] in ('shared_library'):
       return self.GetBundleContentsFolderPath()
     elif self.spec['type'] in ('executable', 'loadable_module'):
       return os.path.join(self.GetBundleContentsFolderPath(), 'MacOS')
@@ -366,8 +311,7 @@ class XcodeSettings(object):
     """Returns the qualified path to the bundle's plist file. E.g.
     Chromium.app/Contents/Info.plist. Only valid for bundles."""
     assert self._IsBundle()
-    if self.spec['type'] in ('executable', 'loadable_module') or \
-        self.IsIosFramework():
+    if self.spec['type'] in ('executable', 'loadable_module'):
       return os.path.join(self.GetBundleContentsFolderPath(), 'Info.plist')
     else:
       return os.path.join(self.GetBundleContentsFolderPath(),
@@ -375,18 +319,6 @@ class XcodeSettings(object):
 
   def GetProductType(self):
     """Returns the PRODUCT_TYPE of this target."""
-    if self._IsIosAppExtension():
-      assert self._IsBundle(), ('ios_app_extension flag requires mac_bundle '
-          '(target %s)' % self.spec['target_name'])
-      return 'com.apple.product-type.app-extension'
-    if self._IsIosWatchKitExtension():
-      assert self._IsBundle(), ('ios_watchkit_extension flag requires '
-          'mac_bundle (target %s)' % self.spec['target_name'])
-      return 'com.apple.product-type.watchkit-extension'
-    if self._IsIosWatchApp():
-      assert self._IsBundle(), ('ios_watch_app flag requires mac_bundle '
-          '(target %s)' % self.spec['target_name'])
-      return 'com.apple.product-type.application.watchapp'
     if self._IsXCUiTest():
       assert self._IsBundle(), ('mac_xcuitest_bundle flag requires mac_bundle '
           '(target %s)' % self.spec['target_name'])
@@ -528,15 +460,6 @@ class XcodeSettings(object):
 
   def _AppendPlatformVersionMinFlags(self, lst):
     self._Appendf(lst, 'MACOSX_DEPLOYMENT_TARGET', '-mmacosx-version-min=%s')
-    if 'IPHONEOS_DEPLOYMENT_TARGET' in self._Settings():
-      # TODO: Implement this better?
-      sdk_path_basename = os.path.basename(self._SdkPath())
-      if sdk_path_basename.lower().startswith('iphonesimulator'):
-        self._Appendf(lst, 'IPHONEOS_DEPLOYMENT_TARGET',
-                      '-mios-simulator-version-min=%s')
-      else:
-        self._Appendf(lst, 'IPHONEOS_DEPLOYMENT_TARGET',
-                      '-miphoneos-version-min=%s')
 
   def GetCflags(self, configname, arch=None):
     """Returns flags that need to be added to .c, .cc, .m, and .mm
@@ -724,6 +647,8 @@ class XcodeSettings(object):
   def _AddObjectiveCARCFlags(self, flags):
     if self._Test('CLANG_ENABLE_OBJC_ARC', 'YES', default='NO'):
       flags.append('-fobjc-arc')
+    if self._Test('CLANG_ENABLE_OBJC_WEAK', 'YES', default='NO'):
+      flags.append('-fobjc-weak')
 
   def _AddObjectiveCMissingPropertySynthesisFlags(self, flags):
     if self._Test('CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS',
@@ -824,7 +749,7 @@ class XcodeSettings(object):
     LINKER_FILE = r'(\S+)'
     WORD = r'\S+'
     linker_flags = [
-      ['-exported_symbols_list', LINKER_FILE],    # Needed for NaCl.
+      ['-exported_symbols_list', LINKER_FILE],
       ['-unexported_symbols_list', LINKER_FILE],
       ['-reexported_symbols_list', LINKER_FILE],
       ['-sectcreate', WORD, WORD, LINKER_FILE],   # Needed for remoting.
@@ -918,20 +843,6 @@ class XcodeSettings(object):
       ldflags.append('-F' + platform_root + '/Developer/Library/Frameworks/')
       ldflags.append('-framework XCTest')
 
-    is_extension = self._IsIosAppExtension() or self._IsIosWatchKitExtension()
-    if sdk_root and is_extension:
-      # Adds the link flags for extensions. These flags are common for all
-      # extensions and provide loader and main function.
-      # These flags reflect the compilation options used by xcode to compile
-      # extensions.
-      if XcodeVersion() < '0900':
-        ldflags.append('-lpkstart')
-        ldflags.append(sdk_root +
-            '/System/Library/PrivateFrameworks/PlugInKit.framework/PlugInKit')
-      else:
-        ldflags.append('-e _NSExtensionMain')
-      ldflags.append('-fapplication-extension')
-
     self._Appendf(ldflags, 'CLANG_CXX_LIBRARY', '-stdlib=%s')
 
     self.configname = None
@@ -963,7 +874,7 @@ class XcodeSettings(object):
         result = dict(self.xcode_settings[configname])
         first_pass = False
       else:
-        for key, value in self.xcode_settings[configname].iteritems():
+        for key, value in self.xcode_settings[configname].items():
           if key not in result:
             continue
           elif result[key] != value:
@@ -1004,8 +915,7 @@ class XcodeSettings(object):
         self._Test('STRIP_INSTALLED_PRODUCT', 'YES', default='NO')):
 
       default_strip_style = 'debugging'
-      if ((self.spec['type'] == 'loadable_module' or self._IsIosAppExtension())
-          and self._IsBundle()):
+      if self.spec['type'] == 'loadable_module' and self._IsBundle():
         default_strip_style = 'non-global'
       elif self.spec['type'] == 'executable':
         default_strip_style = 'all'
@@ -1056,100 +966,16 @@ class XcodeSettings(object):
         self._GetDebugInfoPostbuilds(configname, output, output_binary, quiet) +
         self._GetStripPostbuilds(configname, output_binary, quiet))
 
-  def _GetIOSPostbuilds(self, configname, output_binary):
-    """Return a shell command to codesign the iOS output binary so it can
-    be deployed to a device.  This should be run as the very last step of the
-    build."""
-    if not (self.isIOS and
-        (self.spec['type'] == 'executable' or self._IsXCTest()) or
-         self.IsIosFramework()):
-      return []
-
-    postbuilds = []
-    product_name = self.GetFullProductName()
-    settings = self.xcode_settings[configname]
-
-    # Xcode expects XCTests to be copied into the TEST_HOST dir.
-    if self._IsXCTest():
-      source = os.path.join("${BUILT_PRODUCTS_DIR}", product_name)
-      test_host = os.path.dirname(settings.get('TEST_HOST'));
-      xctest_destination = os.path.join(test_host, 'PlugIns', product_name)
-      postbuilds.extend(['ditto %s %s' % (source, xctest_destination)])
-
-    key = self._GetIOSCodeSignIdentityKey(settings)
-    if not key:
-      return postbuilds
-
-    # Warn for any unimplemented signing xcode keys.
-    unimpl = ['OTHER_CODE_SIGN_FLAGS']
-    unimpl = set(unimpl) & set(self.xcode_settings[configname].keys())
-    if unimpl:
-      print 'Warning: Some codesign keys not implemented, ignoring: %s' % (
-          ', '.join(sorted(unimpl)))
-
-    if self._IsXCTest():
-      # For device xctests, Xcode copies two extra frameworks into $TEST_HOST.
-      test_host = os.path.dirname(settings.get('TEST_HOST'));
-      frameworks_dir = os.path.join(test_host, 'Frameworks')
-      platform_root = self._XcodePlatformPath(configname)
-      frameworks = \
-          ['Developer/Library/PrivateFrameworks/IDEBundleInjection.framework',
-           'Developer/Library/Frameworks/XCTest.framework']
-      for framework in frameworks:
-        source = os.path.join(platform_root, framework)
-        destination = os.path.join(frameworks_dir, os.path.basename(framework))
-        postbuilds.extend(['ditto %s %s' % (source, destination)])
-
-        # Then re-sign everything with 'preserve=True'
-        postbuilds.extend(['%s code-sign-bundle "%s" "%s" "%s" "%s" %s' % (
-            os.path.join('${TARGET_BUILD_DIR}', 'gyp-mac-tool'), key,
-            settings.get('CODE_SIGN_ENTITLEMENTS', ''),
-            settings.get('PROVISIONING_PROFILE', ''), destination, True)
-        ])
-      plugin_dir = os.path.join(test_host, 'PlugIns')
-      targets = [os.path.join(plugin_dir, product_name), test_host]
-      for target in targets:
-        postbuilds.extend(['%s code-sign-bundle "%s" "%s" "%s" "%s" %s' % (
-            os.path.join('${TARGET_BUILD_DIR}', 'gyp-mac-tool'), key,
-            settings.get('CODE_SIGN_ENTITLEMENTS', ''),
-            settings.get('PROVISIONING_PROFILE', ''), target, True)
-        ])
-
-    postbuilds.extend(['%s code-sign-bundle "%s" "%s" "%s" "%s" %s' % (
-        os.path.join('${TARGET_BUILD_DIR}', 'gyp-mac-tool'), key,
-        settings.get('CODE_SIGN_ENTITLEMENTS', ''),
-        settings.get('PROVISIONING_PROFILE', ''),
-        os.path.join("${BUILT_PRODUCTS_DIR}", product_name), False)
-    ])
-    return postbuilds
-
-  def _GetIOSCodeSignIdentityKey(self, settings):
-    identity = settings.get('CODE_SIGN_IDENTITY')
-    if not identity:
-      return None
-    if identity not in XcodeSettings._codesigning_key_cache:
-      output = subprocess.check_output(
-          ['security', 'find-identity', '-p', 'codesigning', '-v'])
-      for line in output.splitlines():
-        if identity in line:
-          fingerprint = line.split()[1]
-          cache = XcodeSettings._codesigning_key_cache
-          assert identity not in cache or fingerprint == cache[identity], (
-              "Multiple codesigning fingerprints for identity: %s" % identity)
-          XcodeSettings._codesigning_key_cache[identity] = fingerprint
-    return XcodeSettings._codesigning_key_cache.get(identity, '')
-
   def AddImplicitPostbuilds(self, configname, output, output_binary,
                             postbuilds=[], quiet=False):
     """Returns a list of shell commands that should run before and after
     |postbuilds|."""
     assert output_binary is not None
     pre = self._GetTargetPostbuilds(configname, output, output_binary, quiet)
-    post = self._GetIOSPostbuilds(configname, output_binary)
-    return pre + postbuilds + post
+    return pre + postbuilds
 
   def _AdjustLibrary(self, library, config_name=None):
-    if library.endswith('.framework'):
+    if library.endswith('.framework') or library.endswith('.xcframework'):
       l = '-framework ' + os.path.splitext(os.path.basename(library))[0]
     else:
       m = self.library_re.match(library)
@@ -1190,10 +1016,6 @@ class XcodeSettings(object):
   def _BuildMachineOSBuild(self):
     return GetStdout(['sw_vers', '-buildVersion'])
 
-  def _XcodeIOSDeviceFamily(self, configname):
-    family = self.xcode_settings[configname].get('TARGETED_DEVICE_FAMILY', '1')
-    return [int(x) for x in family.split(',')]
-
   def GetExtraPlistItems(self, configname=None):
     """Returns a dictionary with extra items to insert into Info.plist."""
     if configname not in XcodeSettings._plist_cache:
@@ -1220,28 +1042,11 @@ class XcodeSettings(object):
       else:
         cache['DTSDKBuild'] = cache['BuildMachineOSBuild']
 
-      if self.isIOS:
-        cache['MinimumOSVersion'] = self.xcode_settings[configname].get(
-            'IPHONEOS_DEPLOYMENT_TARGET')
-        cache['DTPlatformName'] = sdk_root
-        cache['DTPlatformVersion'] = sdk_version
-
-        if configname.endswith("iphoneos"):
-          cache['CFBundleSupportedPlatforms'] = ['iPhoneOS']
-          cache['DTPlatformBuild'] = cache['DTSDKBuild']
-        else:
-          cache['CFBundleSupportedPlatforms'] = ['iPhoneSimulator']
-          # This is weird, but Xcode sets DTPlatformBuild to an empty field
-          # for simulator builds.
-          cache['DTPlatformBuild'] = ""
       XcodeSettings._plist_cache[configname] = cache
 
     # Include extra plist items that are per-target, not per global
     # XcodeSettings.
-    items = dict(XcodeSettings._plist_cache[configname])
-    if self.isIOS:
-      items['UIDeviceFamily'] = self._XcodeIOSDeviceFamily(configname)
-    return items
+    return dict(XcodeSettings._plist_cache[configname])
 
   def _DefaultSdkRoot(self):
     """Returns the default SDKROOT to use.
@@ -1448,9 +1253,9 @@ def GetStdout(cmdlist):
   job = subprocess.Popen(cmdlist, stdout=subprocess.PIPE)
   out = job.communicate()[0]
   if job.returncode != 0:
-    sys.stderr.write(out + '\n')
+    sys.stderr.write(out + b'\n')
     raise GypError('Error %d running %s' % (job.returncode, cmdlist[0]))
-  return out.rstrip('\n')
+  return out.rstrip(b'\n').decode('utf-8')
 
 
 def MergeGlobalXcodeSettingsToSpec(global_dict, spec):
@@ -1658,7 +1463,7 @@ def _GetXcodeEnv(xcode_settings, built_products_dir, srcroot, configuration,
   install_name_base = xcode_settings.GetInstallNameBase()
   if install_name_base:
     env['DYLIB_INSTALL_NAME_BASE'] = install_name_base
-  if XcodeVersion() >= '0500' and not env.get('SDKROOT'):
+  if XcodeVersion()[0] >= '0500' and not env.get('SDKROOT'):
     sdk_root = xcode_settings._SdkRoot(configuration)
     if not sdk_root:
       sdk_root = xcode_settings._XcodeSdkPath('')
@@ -1737,7 +1542,7 @@ def _TopologicallySortedEnvVarKeys(env):
     order = gyp.common.TopologicallySorted(env.keys(), GetEdges)
     order.reverse()
     return order
-  except gyp.common.CycleError, e:
+  except gyp.common.CycleError as e:
     raise GypError(
         'Xcode environment variables are cyclically dependent: ' + str(e.nodes))
 
@@ -1759,36 +1564,3 @@ def GetSpecPostbuildCommands(spec, quiet=False):
             spec['target_name'], postbuild['postbuild_name']))
     postbuilds.append(gyp.common.EncodePOSIXShellList(postbuild['action']))
   return postbuilds
-
-
-def _HasIOSTarget(targets):
-  """Returns true if any target contains the iOS specific key
-  IPHONEOS_DEPLOYMENT_TARGET."""
-  for target_dict in targets.values():
-    for config in target_dict['configurations'].values():
-      if config.get('xcode_settings', {}).get('IPHONEOS_DEPLOYMENT_TARGET'):
-        return True
-  return False
-
-
-def _AddIOSDeviceConfigurations(targets):
-  """Clone all targets and append -iphoneos to the name. Configure these targets
-  to build for iOS devices and use correct architectures for those builds."""
-  for target_dict in targets.itervalues():
-    toolset = target_dict['toolset']
-    configs = target_dict['configurations']
-    for config_name, simulator_config_dict in dict(configs).iteritems():
-      iphoneos_config_dict = copy.deepcopy(simulator_config_dict)
-      configs[config_name + '-iphoneos'] = iphoneos_config_dict
-      configs[config_name + '-iphonesimulator'] = simulator_config_dict
-      if toolset == 'target':
-        simulator_config_dict['xcode_settings']['SDKROOT'] = 'iphonesimulator'
-        iphoneos_config_dict['xcode_settings']['SDKROOT'] = 'iphoneos'
-  return targets
-
-def CloneConfigurationForDeviceAndEmulator(target_dicts):
-  """If |target_dicts| contains any iOS targets, automatically create -iphoneos
-  targets for iOS device builds."""
-  if _HasIOSTarget(target_dicts):
-    return _AddIOSDeviceConfigurations(target_dicts)
-  return target_dicts

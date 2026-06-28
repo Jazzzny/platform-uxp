@@ -929,6 +929,10 @@ x86_64-*-solaris*)
     MOZ_FIX_LINK_PATHS="-L${DIST}/bin -R'\$\$ORIGIN':/usr/gcc/10/lib/amd64"
     ;;
 
+*-freebsd*)
+    MOZ_FIX_LINK_PATHS="-Wl,-rpath,'\$\$ORIGIN' -Wl,-z,origin"
+    ;;
+
 esac
 
 dnl Only one oddball right now (QNX), but this gives us flexibility
@@ -954,6 +958,10 @@ x86_64*-*)
 arm*-*)
     ENABLE_ION=1
     AC_DEFINE(JS_CPU_ARM)
+    ;;
+loongarch64*-*)
+    ENABLE_ION=1
+    AC_DEFINE(JS_CPU_LOONGARCH64)
     ;;
 sparc-*)
 dnl ENABLE_ION=0
@@ -1707,7 +1715,7 @@ if test -n "$JS_SIMULATOR"; then
     esac
 fi
 
-if test -z "$ENABLE_ION"; then
+if test -z "$ENABLE_ION" && test "$CPU_ARCH" != "loongarch64"; then
     AC_DEFINE(JS_CODEGEN_NONE)
     JS_CODEGEN_NONE=1
 elif test "$JS_SIMULATOR" = arm; then
@@ -1764,6 +1772,9 @@ elif test "$CPU_ARCH" = "arm"; then
 
     dnl ARM platforms may trap on unaligned accesses; catch the signal and
     dnl recover.
+elif test "$CPU_ARCH" = "loongarch64"; then
+    AC_DEFINE(JS_CODEGEN_LOONGARCH64)
+    JS_CODEGEN_LOONGARCH64=1
 elif test "$CPU_ARCH" = "mips" || test "$CPU_ARCH" = "mips32" || test "$CPU_ARCH" = "mips64"; then
     if test ! "$HAVE_64BIT_BUILD"; then
         AC_DEFINE(JS_CODEGEN_MIPS32)
@@ -1784,6 +1795,7 @@ AC_SUBST(JS_SIMULATOR_MIPS32)
 AC_SUBST(JS_SIMULATOR_MIPS64)
 AC_SUBST(JS_CODEGEN_ARM)
 AC_SUBST(JS_CODEGEN_ARM64)
+AC_SUBST(JS_CODEGEN_LOONGARCH64)
 AC_SUBST(JS_CODEGEN_MIPS32)
 AC_SUBST(JS_CODEGEN_MIPS64)
 AC_SUBST(JS_CODEGEN_PPC_OSX)

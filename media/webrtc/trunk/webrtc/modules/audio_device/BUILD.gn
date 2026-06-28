@@ -41,17 +41,11 @@ source_set("audio_device") {
   if (is_linux) {
     include_dirs += [ "linux" ]
   }
-  if (is_ios) {
-    include_dirs += [ "ios" ]
-  }
   if (is_mac) {
     include_dirs += [ "mac" ]
   }
   if (is_win) {
     include_dirs += [ "win" ]
-  }
-  if (is_android) {
-    include_dirs += [ "android" ]
   }
   if (rtc_include_internal_audio_device) {
     sources += [
@@ -65,10 +59,6 @@ source_set("audio_device") {
       "linux/audio_mixer_manager_alsa_linux.h",
       "linux/latebindingsymboltable_linux.cc",
       "linux/latebindingsymboltable_linux.h",
-      "ios/audio_device_ios.mm",
-      "ios/audio_device_ios.h",
-      "ios/audio_device_utility_ios.cc",
-      "ios/audio_device_utility_ios.h",
       "mac/audio_device_mac.cc",
       "mac/audio_device_mac.h",
       "mac/audio_device_utility_mac.cc",
@@ -86,29 +76,6 @@ source_set("audio_device") {
       "win/audio_device_utility_win.h",
       "win/audio_mixer_manager_win.cc",
       "win/audio_mixer_manager_win.h",
-      "android/audio_device_template.h",
-      "android/audio_device_utility_android.cc",
-      "android/audio_device_utility_android.h",
-      "android/audio_manager.cc",
-      "android/audio_manager.h",
-      "android/audio_manager_jni.cc",
-      "android/audio_manager_jni.h",
-      "android/audio_record_jni.cc",
-      "android/audio_record_jni.h",
-      "android/audio_track_jni.cc",
-      "android/audio_track_jni.h",
-      "android/fine_audio_buffer.cc",
-      "android/fine_audio_buffer.h",
-      "android/low_latency_event_posix.cc",
-      "android/low_latency_event.h",
-      "android/opensles_common.cc",
-      "android/opensles_common.h",
-      "android/opensles_input.cc",
-      "android/opensles_input.h",
-      "android/opensles_output.cc",
-      "android/opensles_output.h",
-      "android/single_rw_fifo.cc",
-      "android/single_rw_fifo.h",
     ]
     if (is_linux) {
       defines += [ "LINUX_ALSA" ]
@@ -135,15 +102,6 @@ source_set("audio_device") {
       libs = [
         "AudioToolbox.framework",
         "CoreAudio.framework",
-      ]
-    }
-    if (is_ios) {
-      cflags += [ "-fobjc-arc" ]  # CLANG_ENABLE_OBJC_ARC = YES.
-
-      libs = [
-        "AudioToolbox.framework",
-        "AVFoundation.framework",
-        "Foundation.framework",
       ]
     }
     if (is_win) {
@@ -187,5 +145,4 @@ source_set("audio_device") {
     "../utility",
   ]
 }
-
 

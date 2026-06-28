@@ -141,7 +141,7 @@ def GetAllIncludeDirectories(target_list, target_dicts,
             compiler_includes_list.append(include_dir)
 
       # Find standard gyp include dirs.
-      if config.has_key('include_dirs'):
+      if 'include_dirs' in config:
         include_dirs = config['include_dirs']
         for shared_intermediate_dir in shared_intermediate_dirs:
           for include_dir in include_dirs:
@@ -272,7 +272,7 @@ def WriteMacros(out, eclipse_langs, defines):
   out.write('    <language name="holder for library settings"></language>\n')
   for lang in eclipse_langs:
     out.write('    <language name="%s">\n' % lang)
-    for key in sorted(defines.iterkeys()):
+    for key in sorted(defines.keys()):
       out.write('      <macro><name>%s</name><value>%s</value></macro>\n' %
                 (escape(key), escape(defines[key])))
     out.write('    </language>\n')
@@ -337,8 +337,8 @@ def GenerateCdtSettingsFile(target_list, target_dicts, data, params,
 def GenerateClasspathFile(target_list, target_dicts, toplevel_dir,
                           toplevel_build, out_name):
   '''Generates a classpath file suitable for symbol navigation and code
-  completion of Java code (such as in Android projects) by finding all
-  .java and .jar files used as action inputs.'''
+  completion of Java code by finding all .java and .jar files used as action
+  inputs.'''
   gyp.common.EnsureDirExists(out_name)
   result = ET.Element('classpath')
 
@@ -418,8 +418,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     GenerateOutputForConfig(target_list, target_dicts, data, params,
                             user_config)
   else:
-    config_names = target_dicts[target_list[0]]['configurations'].keys()
+    config_names = target_dicts[target_list[0]]['configurations']
     for config_name in config_names:
       GenerateOutputForConfig(target_list, target_dicts, data, params,
                               config_name)
-

@@ -390,9 +390,7 @@ pref("media.wmf.enabled", true);
 pref("media.wmf.decoder.thread-count", -1);
 pref("media.wmf.low-latency.enabled", false);
 pref("media.wmf.skip-blacklist", false);
-// Note: WMF VP9 decoding does not play nice on all systems.
-// Consider it experimental. Disabled by default.
-pref("media.wmf.vp9.enabled", false);
+pref("media.wmf.vp9.enabled", true);
 pref("media.windows-media-foundation.allow-d3d11-dxva", true);
 pref("media.wmf.disable-d3d11-for-dlls", "igd11dxva64.dll: 20.19.15.4463, 20.19.15.4454, 20.19.15.4444, 20.19.15.4416, 20.19.15.4404, 20.19.15.4390, 20.19.15.4380, 20.19.15.4377, 20.19.15.4364, 20.19.15.4360, 20.19.15.4352, 20.19.15.4331, 20.19.15.4326, 20.19.15.4300; igd10iumd32.dll: 20.19.15.4444, 20.19.15.4424, 20.19.15.4409, 20.19.15.4390, 20.19.15.4380, 20.19.15.4360, 10.18.10.4358, 20.19.15.4331, 20.19.15.4312, 20.19.15.4300, 10.18.15.4281, 10.18.15.4279, 10.18.10.4276, 10.18.15.4268, 10.18.15.4256, 10.18.10.4252, 10.18.15.4248, 10.18.14.4112, 10.18.10.3958, 10.18.10.3496, 10.18.10.3431, 10.18.10.3412, 10.18.10.3355, 9.18.10.3234, 9.18.10.3071, 9.18.10.3055, 9.18.10.3006; igd10umd32.dll: 9.17.10.4229, 9.17.10.3040, 9.17.10.2857, 8.15.10.2274, 8.15.10.2272, 8.15.10.2246, 8.15.10.1840, 8.15.10.1808; igd10umd64.dll: 9.17.10.4229, 9.17.10.2857, 10.18.10.3496; isonyvideoprocessor.dll: 4.1.2247.8090, 4.1.2153.6200; tosqep.dll: 1.2.15.526, 1.1.12.201, 1.0.11.318, 1.0.11.215, 1.0.10.1224; tosqep64.dll: 1.1.12.201, 1.0.11.215; nvwgf2um.dll: 22.21.13.8253, 22.21.13.8233, 22.21.13.8205, 22.21.13.8189, 22.21.13.8178, 22.21.13.8165, 21.21.13.7892, 21.21.13.7878, 21.21.13.7866, 21.21.13.7849, 21.21.13.7654, 21.21.13.7653, 21.21.13.7633, 21.21.13.7619, 21.21.13.7563, 21.21.13.7306, 21.21.13.7290, 21.21.13.7270, 21.21.13.7254, 21.21.13.6939, 21.21.13.6926, 21.21.13.6909, 21.21.13.4201, 21.21.13.4200, 10.18.13.6881, 10.18.13.6839, 10.18.13.6510, 10.18.13.6472, 10.18.13.6143, 10.18.13.5946, 10.18.13.5923, 10.18.13.5921, 10.18.13.5891, 10.18.13.5887, 10.18.13.5582, 10.18.13.5445, 10.18.13.5382, 10.18.13.5362, 9.18.13.4788, 9.18.13.4752, 9.18.13.4725, 9.18.13.4709, 9.18.13.4195, 9.18.13.4192, 9.18.13.4144, 9.18.13.4052, 9.18.13.3788, 9.18.13.3523, 9.18.13.3235, 9.18.13.3165, 9.18.13.2723, 9.18.13.2702, 9.18.13.1422, 9.18.13.1407, 9.18.13.1106, 9.18.13.546; atidxx32.dll: 21.19.151.3, 21.19.142.257, 21.19.137.514, 21.19.137.1, 21.19.134.1, 21.19.128.7, 21.19.128.4, 20.19.0.32837, 20.19.0.32832, 8.17.10.682, 8.17.10.671, 8.17.10.661, 8.17.10.648, 8.17.10.644, 8.17.10.625, 8.17.10.605, 8.17.10.581, 8.17.10.569, 8.17.10.560, 8.17.10.545, 8.17.10.539, 8.17.10.531, 8.17.10.525, 8.17.10.520, 8.17.10.519, 8.17.10.514, 8.17.10.511, 8.17.10.494, 8.17.10.489, 8.17.10.483, 8.17.10.453, 8.17.10.451, 8.17.10.441, 8.17.10.436, 8.17.10.432, 8.17.10.425, 8.17.10.418, 8.17.10.414, 8.17.10.401, 8.17.10.395, 8.17.10.385, 8.17.10.378, 8.17.10.362, 8.17.10.355, 8.17.10.342, 8.17.10.331, 8.17.10.318, 8.17.10.310, 8.17.10.286, 8.17.10.269, 8.17.10.261, 8.17.10.247, 8.17.10.240, 8.15.10.212; atidxx64.dll: 21.19.151.3, 21.19.142.257, 21.19.137.514, 21.19.137.1, 21.19.134.1, 21.19.128.7, 21.19.128.4, 20.19.0.32832, 8.17.10.682, 8.17.10.661, 8.17.10.644, 8.17.10.625; nvumdshim.dll: 10.18.13.6822");
 pref("media.wmf.disable-d3d9-for-dlls", "igdumd64.dll: 8.15.10.2189, 8.15.10.2119, 8.15.10.2104, 8.15.10.2102, 8.771.1.0; atiumd64.dll: 7.14.10.833, 7.14.10.867, 7.14.10.885, 7.14.10.903, 7.14.10.911, 8.14.10.768, 9.14.10.1001, 9.14.10.1017, 9.14.10.1080, 9.14.10.1128, 9.14.10.1162, 9.14.10.1171, 9.14.10.1183, 9.14.10.1197, 9.14.10.945, 9.14.10.972, 9.14.10.984, 9.14.10.996");
@@ -416,11 +414,7 @@ pref("media.ogg.enabled", true);
 pref("media.opus.enabled", true);
 pref("media.wave.enabled", true);
 pref("media.webm.enabled", true);
-
 #ifdef MOZ_APPLEMEDIA
-#ifdef MOZ_WIDGET_UIKIT
-pref("media.mp3.enabled", true);
-#endif
 pref("media.apple.mp3.enabled", true);
 pref("media.apple.mp4.enabled", true);
 #endif
@@ -573,7 +567,13 @@ pref("media.mediasource.webm.enabled", true);
 pref("media.mediasource.webm.audio.enabled", true);
 
 #ifdef MOZ_AV1
+// Whether to enable AV1 support
+#ifdef AV1_USE_AOM
+// libAOM is not performant, so disbale by default.
 pref("media.av1.enabled", false);
+#else
+pref("media.av1.enabled", true);
+#endif
 #endif
 
 // Use new MediaFormatReader architecture for plain ogg.
@@ -685,9 +685,7 @@ pref("apz.y_stationary_size_multiplier", "3.5");
 pref("apz.zoom_animation_duration_ms", 250);
 pref("apz.scale_repaint_delay_ms", 500);
 
-#if !defined(MOZ_WIDGET_UIKIT)
 pref("apz.desktop.enabled", false);
-#endif
 
 #ifdef XP_MACOSX
 // Whether to run in native HiDPI mode on machines with "Retina"/HiDPI display;
@@ -847,6 +845,7 @@ pref("accessibility.ipc_architecture.enabled", true);
 
 pref("accessibility.AOM.enabled", false);
 
+#ifdef MOZ_ENABLE_NPAPI
 #ifdef XP_WIN
 // Some accessibility tools poke at windows in the plugin process during setup
 // which can cause hangs.  To hack around this set accessibility.delay_plugins
@@ -855,6 +854,7 @@ pref("accessibility.AOM.enabled", false);
 // See bug 781791.
 pref("accessibility.delay_plugins", false);
 pref("accessibility.delay_plugin_time", 10000);
+#endif
 #endif
 
 pref("focusmanager.testmode", false);
@@ -1019,9 +1019,6 @@ pref("layout.framevisibility.numscrollportheights", 1);
 // 1 and higher - slider thickness multiple
 pref("slider.snapMultiplier", 0);
 
-// option to choose plug-in finder
-pref("application.use_ns_plugin_finder", false);
-
 // URI fixup prefs
 pref("browser.fixup.alternate.enabled", true);
 pref("browser.fixup.alternate.prefix", "www.");
@@ -1179,6 +1176,9 @@ pref("dom.forms.autocomplete.experimental", false);
 // Enables requestAutocomplete DOM API on forms.
 pref("dom.forms.requestAutocomplete", false);
 
+// Enables requestSubmit DOM API on forms.
+pref("dom.forms.requestsubmit.enabled", true);
+
 // Enable Directory API. By default, disabled.
 pref("dom.input.dirpicker", false);
 
@@ -1204,11 +1204,13 @@ pref("content.cors.disable", false);
 // Should preflight requests be bypassed when CORS is disabled?
 pref("content.cors.bypass_preflight_request", false);
 
+#ifdef MOZ_ENABLE_NPAPI
 // Disable popups from plugins by default
 //   0 = openAllowed
 //   1 = openControlled
 //   2 = openAbused
 pref("privacy.popups.disable_from_plugins", 2);
+#endif
 
 // Send "Sec-GPC" HTTP header, disabled by default
 pref("privacy.GPCheader.enabled",    false);
@@ -1307,8 +1309,8 @@ pref("javascript.options.dynamicImport", true);
 // Streams API
 pref("javascript.options.streams", true);
 
-// Enable garbage collection of weakrefed objects
-pref("javascript.options.weakrefs", false);
+// WeakRefs API
+pref("javascript.options.weakrefs", true);
 
 // advanced prefs
 pref("advanced.mailftp",                    false);
@@ -1932,6 +1934,12 @@ pref("network.predictor.max-resources-per-entry", 100);
 pref("network.predictor.max-uri-length", 500);
 pref("network.predictor.cleaned-up", false);
 
+// Cloudflare Image Resizing compatibility.
+// When enabled, URLs containing the "/cdn-cgi/image/" marker will have
+// everything after that marker treated as opaque path data. This matches
+// Cloudflare's expectations for Image Resizing URLs.
+pref("network.url.cloudflare_image_resizing.enabled", true);
+
 // The following prefs pertain to the negotiate-auth extension (see bug 17578),
 // which provides transparent Kerberos or NTLM authentication using the SPNEGO
 // protocol.  Each pref is a comma-separated list of keys, where each key has
@@ -2178,7 +2186,6 @@ pref("security.directory",              "");
 
 pref("signed.applets.codebase_principal_support", false);
 pref("security.checkloaduri", true);
-pref("security.xpconnect.plugin.unrestricted", true);
 // security-sensitive dialogs should delay button enabling. In milliseconds.
 pref("security.dialog_enable_delay", 1000);
 pref("security.notification_enable_delay", 500);
@@ -2670,6 +2677,9 @@ pref("layout.css.resizeobserver.enabled", true);
 // Is support for cascade layers enabled?
 pref("layout.css.cascade-layers.enabled", true);
 
+// Is support for basic CSS nesting lowering enabled?
+pref("layout.css.nesting.enabled", true);
+
 // Should rules in imported style sheets be added based on the order
 // of appearance of their respective @import rules in the parent
 // style sheet? Otherwise, they are added before rules preceding
@@ -2734,8 +2744,10 @@ pref("dom.animations.offscreen-throttling", true);
 // pref to permit users to make verified SOAP calls by default
 pref("capability.policy.default.SOAPCall.invokeVerifySourceHeader", "allAccess");
 
+#if defined(MOZ_ENABLE_NPAPI) || defined(MOZ_GMP)
 // if true, allow plug-ins to override internal imglib decoder mime types in full-page mode
 pref("plugin.override_internal_types", false);
+#endif
 
 // See bug 136985.  Gives embedders a pref to hook into to show
 // a popup blocker if they choose.
@@ -2781,6 +2793,7 @@ pref("idle_queue.min_period", 3);
 // resolved.
 pref("hangmonitor.timeout", 0);
 
+#if defined(MOZ_ENABLE_NPAPI)
 pref("plugins.load_appdir_plugins", false);
 // If true, plugins will be click to play
 pref("plugins.click_to_play", false);
@@ -2811,9 +2824,10 @@ pref("plugins.favorfallback.mode", "never");
 // whether an object has been provided with good fallback content.
 // The valid values can be found at nsObjectLoadingContent::HasGoodFallback.
 pref("plugins.favorfallback.rules", "");
+#endif
 
-
-// Set IPC timeouts for plugins and tabs, except in leak-checking and
+#if defined(MOZ_ENABLE_NPAPI) || defined(MOZ_GMP)
+// Set IPC timeouts for plugins, except in leak-checking and
 // dynamic analysis builds.  (NS_FREE_PERMANENT_DATA is C++ only, so
 // approximate its definition here.)
 #if !defined(DEBUG) && !defined(MOZ_ASAN) && !defined(MOZ_VALGRIND) && !defined(MOZ_TSAN)
@@ -2837,10 +2851,6 @@ pref("dom.ipc.plugins.hangUITimeoutSecs", 11);
 // Minimum time that the plugin hang UI will be displayed
 pref("dom.ipc.plugins.hangUIMinDisplaySecs", 10);
 #endif
-// How long a content process can take before closing its IPC channel
-// after shutdown is initiated.  If the process exceeds the timeout,
-// we fear the worst and kill it.
-pref("dom.ipc.tabs.shutdownTimeoutSecs", 5);
 #else
 // No timeout in leak-checking builds
 pref("dom.ipc.plugins.timeoutSecs", 0);
@@ -2851,22 +2861,33 @@ pref("dom.ipc.plugins.parentTimeoutSecs", 0);
 pref("dom.ipc.plugins.hangUITimeoutSecs", 0);
 pref("dom.ipc.plugins.hangUIMinDisplaySecs", 0);
 #endif
+#endif
+#endif // MOZ_ENABLE NPAPI || MOZ_GMP
+
+// Set IPC timeouts for tabs, except in leak-checking and
+// dynamic analysis builds.  (NS_FREE_PERMANENT_DATA is C++ only, so
+// approximate its definition here.)
+#if !defined(DEBUG) && !defined(MOZ_ASAN) && !defined(MOZ_VALGRIND) && !defined(MOZ_TSAN)
+// How long a content process can take before closing its IPC channel
+// after shutdown is initiated.  If the process exceeds the timeout,
+// we fear the worst and kill it.
+pref("dom.ipc.tabs.shutdownTimeoutSecs", 5);
+#else
 pref("dom.ipc.tabs.shutdownTimeoutSecs", 0);
 #endif
 
-pref("dom.ipc.plugins.flash.disable-protected-mode", false);
-
-pref("dom.ipc.plugins.flash.subprocess.crashreporter.enabled", true);
-pref("dom.ipc.plugins.reportCrashURL", true);
-
+#if defined(MOZ_GMP)
 // How long we wait before unloading an idle plugin process.
 // Defaults to 30 seconds.
 pref("dom.ipc.plugins.unloadTimeoutSecs", 30);
-
 // Asynchronous plugin initialization is on hold.
 pref("dom.ipc.plugins.asyncInit.enabled", false);
-
 pref("dom.ipc.plugins.asyncdrawing.enabled", true);
+
+#if defined(MOZ_ENABLE_NPAPI)
+pref("dom.ipc.plugins.flash.disable-protected-mode", false);
+#endif
+#endif
 
 pref("dom.ipc.processCount", 1);
 
@@ -3438,6 +3459,7 @@ pref("print.print_extra_margin", 90); // twips (90 twips is an eigth of an inch)
 // Whether to extend the native dialog with information on printing frames.
 pref("print.extend_native_print_dialog", true);
 
+#if defined(MOZ_ENABLE_NPAPI)
 // Locate plugins by scanning the Adobe Acrobat installation directory with a minimum version
 pref("plugin.scan.Acrobat", "5.0");
 
@@ -3453,6 +3475,7 @@ pref("plugin.scan.plid.all", true);
 
 // Whether sending WM_MOUSEWHEEL and WM_MOUSEHWHEEL to plugins on Windows.
 pref("plugin.mousewheel.enabled", true);
+#endif
 
 // Switch the keyboard layout per window
 pref("intl.keyboard.per_window_layout", false);
@@ -4134,27 +4157,6 @@ pref("gfx.font_rendering.fontconfig.max_generic_substitutions", 3);
 #endif
 #endif
 
-
-#if OS_ARCH==AIX
-
-// Override default Japanese fonts
-pref("font.name.serif.ja", "dt-interface system-jisx0208.1983-0");
-pref("font.name.sans-serif.ja", "dt-interface system-jisx0208.1983-0");
-pref("font.name.monospace.ja", "dt-interface user-jisx0208.1983-0");
-
-// Override default Cyrillic fonts
-pref("font.name.serif.x-cyrillic", "dt-interface system-iso8859-5");
-pref("font.name.sans-serif.x-cyrillic", "dt-interface system-iso8859-5");
-pref("font.name.monospace.x-cyrillic", "dt-interface user-iso8859-5");
-
-// Override default Unicode fonts
-pref("font.name.serif.x-unicode", "dt-interface system-ucs2.cjk_japan-0");
-pref("font.name.sans-serif.x-unicode", "dt-interface system-ucs2.cjk_japan-0");
-pref("font.name.monospace.x-unicode", "dt-interface user-ucs2.cjk_japan-0");
-
-# AIX
-#endif
-
 // Login Manager prefs
 pref("signon.rememberSignons",              true);
 pref("signon.rememberSignons.visibilityToggle", true);
@@ -4204,12 +4206,18 @@ pref("image.animated.decode-on-demand.batch-size", 6);
 // advancing when out of view.
 pref("image.animated.resume-from-last-displayed", true);
 
+// Image cache prefs: Restart required for changes.
+
 // The maximum size, in bytes, of the decoded images we cache
-pref("image.cache.size", 5242880);
+pref("image.cache.size", 26214400);
 
 // A weight, from 0-1000, to place on time when comparing to size.
 // Size is given a weight of 1000 - timeweight.
-pref("image.cache.timeweight", 500);
+pref("image.cache.timeweight", 650);
+
+// Time in ms before unproxied entries in the in-memory image cache are
+// considered for eviction by the expiration tracker.
+pref("image.cache.entry_timeout", 15000);
 
 // Decode all images automatically on load, ignoring our normal heuristics.
 pref("image.decode-immediately.enabled", false);
@@ -4218,11 +4226,7 @@ pref("image.decode-immediately.enabled", false);
 pref("image.downscale-during-decode.enabled", true);
 
 // The default Accept header sent for images loaded over HTTP(S)
-#ifdef MOZ_JXL
 pref("image.http.accept", "image/webp,image/jxl,image/png,image/*;q=0.8,*/*;q=0.5");
-#else
-pref("image.http.accept", "image/webp,image/png,image/*;q=0.8,*/*;q=0.5");
-#endif
 
 // The threshold for inferring that changes to an <img> element's |src|
 // attribute by JavaScript represent an animation, in milliseconds. If the |src|
@@ -4256,7 +4260,7 @@ pref("image.mem.decode_bytes_at_a_time", 16384);
 
 // Minimum timeout for expiring unused images from the surface cache, in
 // milliseconds. This controls how long we store cached temporary surfaces.
-pref("image.mem.surfacecache.min_expiration_ms", 60000); // 60s
+pref("image.mem.surfacecache.min_expiration_ms", 180000); // 180s
 
 // Maximum size for the surface cache, in kilobytes.
 pref("image.mem.surfacecache.max_size_kb", 1048576); // 1GB
@@ -4273,16 +4277,11 @@ pref("image.mem.surfacecache.size_factor", 4);
 // surface cache on memory pressure, a discard factor of 2 means to discard half
 // of the data, and so forth. The default should be a good balance for desktop
 // and laptop systems, where we never discard visible images.
-pref("image.mem.surfacecache.discard_factor", 1);
+pref("image.mem.surfacecache.discard_factor", 2);
 
 // How many threads we'll use for multithreaded decoding. If < 0, will be
 // automatically determined based on the system's number of cores.
 pref("image.multithreaded_decoding.limit", -1);
-
-#ifdef MOZ_JXL
-// Whether we attempt to decode JPEG-XL images or not.
-pref("image.jxl.enabled", true);
-#endif
 
 // Limit for the canvas image cache. 0 means we don't limit the size of the
 // cache.
@@ -4388,6 +4387,10 @@ pref("layers.acceleration.enabled", true);
 // Whether to force acceleration on, ignoring blacklists.
 // This requires layers.acceleration.enabled to be set to true
 pref("layers.acceleration.force", false);
+
+// Preferred X11 GL context provider. "auto" prefers EGL and falls back to GLX,
+// "egl" forces EGL, and "glx" forces the legacy GLX path. Restart required.
+pref("gfx.x11.gl-provider", "glx");
 
 // Preference that when switched at runtime will run a series of benchmarks
 // and output the result to stderr.
@@ -5055,11 +5058,13 @@ pref("webextensions.webRequest.requestBodyMaxRawBytes", 16777216);
 // Allow customization of the fallback directory for file uploads
 pref("dom.input.fallbackUploadDir", "");
 
+#if defined(MOZ_ENABLE_NPAPI)
 // Turn rewriting of youtube embeds on/off
 pref("plugins.rewrite_youtube_embeds", true);
 
 // Don't hide Flash from navigator.plugins when it is click-to-activate
 pref("plugins.navigator_hide_disabled_flash", false);
+#endif
 
 // Disable browser frames by default
 pref("dom.mozBrowserFramesEnabled", false);

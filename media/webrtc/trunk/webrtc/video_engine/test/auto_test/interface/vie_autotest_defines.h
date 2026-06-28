@@ -28,8 +28,6 @@
 
 #if defined(_WIN32)
 #include <windows.h>
-#elif defined (WEBRTC_ANDROID)
-#include <android/log.h>
 #elif defined(WEBRTC_LINUX) || defined(WEBRTC_MAC)
 #include <stdlib.h>
 #include <string.h>
@@ -141,11 +139,7 @@ class ViETest {
     }
 #endif
 #ifdef VIE_LOG_TO_STDOUT
-#if WEBRTC_ANDROID
-    __android_log_write(ANDROID_LOG_DEBUG, "*WebRTCN*", log_str_);
-#else
     printf("%s\n", log_str_);
-#endif
 #endif
   }
 
@@ -157,9 +151,6 @@ class ViETest {
       va_start(va, fmt);
       memset(log_str_, 0, kMaxLogSize);
       vsprintf(log_str_, fmt, va);
-#ifdef WEBRTC_ANDROID
-      __android_log_write(ANDROID_LOG_ERROR, "*WebRTCN*", log_str_);
-#endif
       WriteToSuitableOutput(log_str_);
       va_end(va);
 

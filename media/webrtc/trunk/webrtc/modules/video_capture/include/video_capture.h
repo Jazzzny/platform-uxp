@@ -15,10 +15,6 @@
 #include "webrtc/modules/interface/module.h"
 #include "webrtc/modules/video_capture/include/video_capture_defines.h"
 
-#if defined(ANDROID) && !defined(WEBRTC_GONK)
-#include <jni.h>
-#endif
-
 namespace webrtc {
 
 class VideoInputFeedBack
@@ -28,10 +24,6 @@ public:
 protected:
     virtual ~VideoInputFeedBack(){}
 };
-
-#if defined(ANDROID) && !defined(WEBRTC_CHROMIUM_BUILD) && !defined(WEBRTC_GONK)
-  int32_t SetCaptureAndroidVM(JavaVM* javaVM);
-#endif
 
 class VideoCaptureModule: public RefCountedModule {
  public:

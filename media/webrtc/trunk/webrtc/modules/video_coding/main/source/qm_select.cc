@@ -11,10 +11,6 @@
 #include "webrtc/modules/video_coding/main/source/qm_select.h"
 
 #include <math.h>
-#ifdef ANDROID
-#include <android/log.h>
-#endif
-
 #include "webrtc/modules/interface/module_common_types.h"
 #include "webrtc/modules/video_coding/main/interface/video_coding_defines.h"
 #include "webrtc/modules/video_coding/main/source/internal_defines.h"
@@ -60,10 +56,6 @@ void VCMQmMethod::UpdateContent(const VideoContentMetrics*  contentMetrics) {
 }
 
 void VCMQmMethod::ComputeMotionNFD() {
-#if defined(WEBRTC_GONK)
-  motion_.value = (kHighMotionNfd + kLowMotionNfd)/2;
-  motion_.level = kDefault;
-#else
   if (content_metrics_) {
     motion_.value = content_metrics_->motion_magnitude;
   }
@@ -75,15 +67,9 @@ void VCMQmMethod::ComputeMotionNFD() {
   } else {
     motion_.level = kDefault;
   }
-#endif
 }
 
 void VCMQmMethod::ComputeSpatial() {
-#if defined(WEBRTC_GONK)
-  float scale2 = image_type_ > kVGA ? kScaleTexture : 1.0;
-  spatial_.value = (kHighTexture + kLowTexture)*scale2/2;
-  spatial_.level = kDefault;
-#else
   float spatial_err = 0.0;
   float spatial_err_h = 0.0;
   float spatial_err_v = 0.0;
@@ -105,7 +91,6 @@ void VCMQmMethod::ComputeSpatial() {
   } else {
     spatial_.level = kDefault;
   }
-#endif
 }
 
 ImageType VCMQmMethod::GetImageType(uint16_t width,
@@ -742,13 +727,6 @@ void  VCMQmResolution::UpdateCodecResolution() {
                  old_width, old_height,
                  qm_->codec_width, qm_->codec_height
                  );
-#ifdef ANDROID
-    __android_log_print(ANDROID_LOG_INFO, "WebRTC",
-                        "UpdateCodecResolution: [%d %d] %d %d => %d %d",
-                        native_width_, native_height_,
-                        old_width, old_height,
-                        qm_->codec_width, qm_->codec_height);
-#endif
   }
   if (action_.temporal != kNoChangeTemporal) {
     qm_->change_resolution_temporal = true;
@@ -770,14 +748,6 @@ void  VCMQmResolution::UpdateCodecResolution() {
                  old_rate,
                  qm_->frame_rate
                  );
-#ifdef ANDROID
-    __android_log_print(ANDROID_LOG_INFO, "WebRTC",
-                        "UpdateCodecResolution: [%f] %f fps => %f fps",
-                        native_frame_rate_,
-                        old_rate,
-                        qm_->frame_rate);
-#endif
-
   }
 }
 

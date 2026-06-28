@@ -242,7 +242,7 @@ class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
     socklen_t optlen = sizeof(*value);
     int ret = ::getsockopt(s_, slevel, sopt, (SockOptArg)value, &optlen);
     if (ret != -1 && opt == OPT_DONTFRAGMENT) {
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
       *value = (*value != IP_PMTUDISC_DONT) ? 1 : 0;
 #endif
     }
@@ -255,7 +255,7 @@ class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
     if (TranslateOption(opt, &slevel, &sopt) == -1)
       return -1;
     if (opt == OPT_DONTFRAGMENT) {
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
       value = (value) ? IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
 #endif
     }
@@ -264,7 +264,7 @@ class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
 
   int Send(const void* pv, size_t cb) override {
     int sent = ::send(s_, reinterpret_cast<const char *>(pv), (int)cb,
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
         // Suppress SIGPIPE. Without this, attempting to send on a socket whose
         // other end is closed will result in a SIGPIPE signal being raised to
         // our process, which by default will terminate the process, which we
@@ -292,7 +292,7 @@ class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
     size_t len = addr.ToSockAddrStorage(&saddr);
     int sent = ::sendto(
         s_, static_cast<const char *>(buffer), static_cast<int>(length),
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
         // Suppress SIGPIPE. See above for explanation.
         MSG_NOSIGNAL,
 #else
@@ -455,10 +455,6 @@ class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
     ASSERT((0 <= value) && (value <= 65536));
     *mtu = value;
     return 0;
-#elif defined(__native_client__)
-    // Most socket operations, including this, will fail in NaCl's sandbox.
-    error_ = EACCES;
-    return -1;
 #endif
   }
 
@@ -507,7 +503,7 @@ class PhysicalSocket : public AsyncSocket, public sigslot::has_slots<> {
         *slevel = IPPROTO_IP;
         *sopt = IP_DONTFRAGMENT;
         break;
-#elif defined(WEBRTC_MAC) || defined(BSD) || defined(__native_client__)
+#elif defined(WEBRTC_MAC) || defined(BSD)
         LOG(LS_WARNING) << "Socket::OPT_DONTFRAGMENT not supported.";
         return -1;
 #elif defined(WEBRTC_POSIX)
@@ -1459,14 +1455,10 @@ bool PhysicalSocketServer::InstallSignal(int signum, void (*handler)(int)) {
     return false;
   }
   act.sa_handler = handler;
-#if !defined(__native_client__)
   // Use SA_RESTART so that our syscalls don't get EINTR, since we don't need it
   // and it's a nuisance. Though some syscalls still return EINTR and there's no
   // real standard for which ones. :(
   act.sa_flags = SA_RESTART;
-#else
-  act.sa_flags = 0;
-#endif
   if (sigaction(signum, &act, NULL) != 0) {
     LOG_ERR(LS_ERROR) << "Couldn't set sigaction";
     return false;

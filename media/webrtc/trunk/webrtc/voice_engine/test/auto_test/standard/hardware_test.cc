@@ -14,7 +14,6 @@
 class HardwareTest : public AfterStreamingFixture {
 };
 
-#if !defined(WEBRTC_IOS) && !defined(WEBRTC_ANDROID)
 TEST_F(HardwareTest, AbleToQueryForDevices) {
   int num_recording_devices = 0;
   int num_playout_devices = 0;
@@ -52,16 +51,10 @@ TEST_F(HardwareTest, AbleToQueryForDevices) {
   EXPECT_EQ(0, voe_hardware_->GetPlayoutDeviceName(
       0, device_name, guid_name));
 }
-#endif
 
 // Flakily hangs on Windows: code.google.com/p/webrtc/issues/detail?id=2179.
 TEST_F(HardwareTest,
        DISABLED_ON_WIN(BuiltInWasapiAECWorksForAudioWindowsCoreAudioLayer)) {
-#ifdef WEBRTC_IOS
-  // Ensure the sound device is reset on iPhone.
-  EXPECT_EQ(0, voe_hardware_->ResetAudioDevice());
-  Sleep(2000);
-#endif
   EXPECT_EQ(0, voe_base_->StopSend(channel_));
   EXPECT_EQ(0, voe_base_->StopPlayout(channel_));
 

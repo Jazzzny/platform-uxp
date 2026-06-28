@@ -32,6 +32,10 @@ typedef unrestricted float GLfloat;
 typedef unrestricted float GLclampf;
 typedef unsigned long long GLuint64EXT;
 
+// The power preference settings are documented in the WebGLContextAttributes
+// section of the specification.
+enum WebGLPowerPreference { "default", "low-power", "high-performance" };
+
 dictionary WebGLContextAttributes {
     // boolean alpha = true;
     // We deviate from the spec here.
@@ -43,6 +47,7 @@ dictionary WebGLContextAttributes {
     GLboolean premultipliedAlpha = true;
     GLboolean preserveDrawingBuffer = false;
     GLboolean failIfMajorPerformanceCaveat = false;
+    WebGLPowerPreference powerPreference = "default";
 };
 
 [Exposed=(Window,Worker),
@@ -105,9 +110,9 @@ typedef (Int32Array or sequence<GLint>) Int32List;
 // Shared interface for the things that WebGLRenderingContext and
 // WebGL2RenderingContext have in common.  This doesn't have all the things they
 // have in common, because we don't support splitting multiple overloads of the
-// same method across separate interfaces and pulling them in with "implements".
-[Exposed=(Window, Worker), NoInterfaceObject]
-interface WebGLRenderingContextBase {
+// same method across separate interfaces and pulling them in with "includes".
+[Exposed=(Window, Worker)]
+interface mixin WebGLRenderingContextBase {
     /* ClearBufferMask */
     const GLenum DEPTH_BUFFER_BIT               = 0x00000100;
     const GLenum STENCIL_BUFFER_BIT             = 0x00000400;
@@ -797,7 +802,7 @@ interface WebGLRenderingContext {
     void uniformMatrix4fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data);
 };
 
-WebGLRenderingContext implements WebGLRenderingContextBase;
+WebGLRenderingContext includes WebGLRenderingContextBase;
 
 // For OffscreenCanvas
 // Reference: https://wiki.whatwg.org/wiki/OffscreenCanvas

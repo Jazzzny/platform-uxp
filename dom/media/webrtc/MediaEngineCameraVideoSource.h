@@ -108,7 +108,7 @@ protected:
   nsTArray<PrincipalHandle> mPrincipalHandles; // Directly mapped to mSources.
   RefPtr<layers::Image> mImage;
   RefPtr<layers::ImageContainer> mImageContainer;
-  int mWidth, mHeight; // protected with mMonitor on Gonk due to different threading
+  int mWidth, mHeight; // protected with mMonitor
   // end of data protected by mMonitor
 
 

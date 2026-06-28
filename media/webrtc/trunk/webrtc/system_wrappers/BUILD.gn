@@ -6,7 +6,6 @@
 # in the file PATENTS.  All contributing project authors may
 # be found in the AUTHORS file in the root of the source tree.
 
-import("//build/config/android/config.gni")
 import("../build/webrtc.gni")
 
 static_library("system_wrappers") {
@@ -114,26 +113,6 @@ static_library("system_wrappers") {
   libs = []
   deps = [ "..:webrtc_common" ]
 
-  if (is_android) {
-    sources += [
-      "interface/logcat_trace_context.h",
-      "source/logcat_trace_context.cc",
-    ]
-
-    defines += [
-      "WEBRTC_THREAD_RR",
-      # TODO(leozwang): Investigate CLOCK_REALTIME and CLOCK_MONOTONIC
-      # support on Android. Keep WEBRTC_CLOCK_TYPE_REALTIME for now,
-      # remove it after I verify that CLOCK_MONOTONIC is fully functional
-      # with condition and event functions in system_wrappers.
-      "WEBRTC_CLOCK_TYPE_REALTIME",
-    ]
-
-    deps += [ ":cpu_features_android" ]
-
-    libs += [ "log" ]
-  }
-
   if (is_linux) {
     defines += [
       "WEBRTC_THREAD_RR",
@@ -145,22 +124,16 @@ static_library("system_wrappers") {
     libs += [ "rt" ]
   }
 
-  if (!is_mac && !is_ios) {
+  if (!is_mac) {
     sources += [
       "source/atomic32_posix.cc",
     ]
   }
 
-  if (is_ios || is_mac) {
+  if (is_mac) {
     defines += [
       "WEBRTC_THREAD_RR",
       "WEBRTC_CLOCK_TYPE_REALTIME",
-    ]
-  }
-
-  if (is_ios) {
-    sources += [
-      "source/atomic32_mac.cc",
     ]
   }
 
@@ -214,21 +187,4 @@ source_set("system_wrappers_default") {
     ":field_trial_default",
     ":metrics_default",
   ]
-}
-
-if (is_android) {
-  source_set("cpu_features_android") {
-    sources = [
-      "source/cpu_features_android.c",
-    ]
-
-    configs += [ "..:common_config" ]
-    public_configs = [ "..:common_inherited_config" ]
-
-    if (is_android_webview_build) {
-      libs += [ "cpufeatures.a" ]
-    } else {
-      deps = [ "//third_party/android_tools:cpu_features" ]
-    }
-  }
 }

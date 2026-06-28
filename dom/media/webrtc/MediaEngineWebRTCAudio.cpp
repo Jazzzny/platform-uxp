@@ -15,7 +15,7 @@
 #ifdef FF
 #undef FF
 #endif
-#include "webrtc/modules/audio_device/opensl/single_rw_fifo.h"
+#include "SingleRwFifo.h"
 
 #define CHANNELS 1
 #define ENCODING "L16"

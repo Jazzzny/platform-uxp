@@ -199,23 +199,23 @@ class TargetDelayTest : public ::testing::Test {
   uint8_t payload_[kPayloadLenBytes];
 };
 
-TEST_F(TargetDelayTest, DISABLED_ON_ANDROID(OutOfRangeInput)) {
+TEST_F(TargetDelayTest, OutOfRangeInput) {
   OutOfRangeInput();
 }
 
-TEST_F(TargetDelayTest, DISABLED_ON_ANDROID(NoTargetDelayBufferSizeChanges)) {
+TEST_F(TargetDelayTest, NoTargetDelayBufferSizeChanges) {
   NoTargetDelayBufferSizeChanges();
 }
 
-TEST_F(TargetDelayTest, DISABLED_ON_ANDROID(WithTargetDelayBufferNotChanging)) {
+TEST_F(TargetDelayTest, WithTargetDelayBufferNotChanging) {
   WithTargetDelayBufferNotChanging();
 }
 
-TEST_F(TargetDelayTest, DISABLED_ON_ANDROID(RequiredDelayAtCorrectRange)) {
+TEST_F(TargetDelayTest, RequiredDelayAtCorrectRange) {
   RequiredDelayAtCorrectRange();
 }
 
-TEST_F(TargetDelayTest, DISABLED_ON_ANDROID(TargetDelayBufferMinMax)) {
+TEST_F(TargetDelayTest, TargetDelayBufferMinMax) {
   TargetDelayBufferMinMax();
 }
 

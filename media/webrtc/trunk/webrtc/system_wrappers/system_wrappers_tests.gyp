@@ -46,11 +46,6 @@
         ['os_posix==0', {
           'sources!': [ 'source/thread_posix_unittest.cc', ],
         }],
-        ['OS=="android"', {
-          'dependencies': [
-            '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-          ],
-        }],
       ],
       # Disable warnings to enable Win64 build, issue 1323.
       'msvs_disabled_warnings': [
@@ -59,17 +54,6 @@
     },
   ],
   'conditions': [
-    ['include_tests==1 and OS=="android"', {
-      'targets': [
-        {
-          'target_name': 'system_wrappers_unittests_apk_target',
-          'type': 'none',
-          'dependencies': [
-            '<(apk_tests_path):system_wrappers_unittests_apk',
-          ],
-        },
-      ],
-    }],
     ['test_isolation_mode != "noop"', {
       'targets': [
         {
@@ -89,4 +73,3 @@
     }],
   ],
 }
-

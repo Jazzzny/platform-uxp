@@ -90,7 +90,7 @@
         'FULL_FILESYSTEM_URL_SUPPORT=1',
       ],
       'conditions': [
-        ['os_posix==1 and OS!="mac" and OS!="ios"', {
+        ['os_posix==1 and OS!="mac"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [

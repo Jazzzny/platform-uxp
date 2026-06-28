@@ -125,11 +125,5 @@ function testTwoWayVideoStreaming(test, bot1, bot2, bot3) {
   }
 }
 
-registerBotTest('threeBotsVideoConference/android+android+chrome',
-                testTwoWayVideoStreaming, ['android-chrome', 'android-chrome',
-                'chrome']);
 registerBotTest('threeBotsVideoConference/chrome-chrome-chrome',
                 testTwoWayVideoStreaming, ['chrome', 'chrome', 'chrome']);
-registerBotTest('threeBotsVideoConference/android-android-android',
-                testTwoWayVideoStreaming, ['android-chrome', 'android-chrome',
-                'android-chrome']);

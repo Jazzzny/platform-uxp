@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-if CONFIG['OS_TARGET'] in ('Darwin', 'Android'):
+if CONFIG['OS_TARGET'] == 'Darwin':
     DEFINES['GTEST_USE_OWN_TR1_TUPLE'] = 1
 
 for var in ('MOZILLA_EXTERNAL_LINKAGE', 'USE_FAKE_MEDIA_STREAMS', 'USE_FAKE_PCOBSERVER',
@@ -41,11 +41,6 @@ LOCAL_INCLUDES += [
     '/media/webrtc/trunk/testing/gtest/include',
     '/xpcom/base',
 ]
-
-if CONFIG['OS_TARGET'] == 'Android':
-    LOCAL_INCLUDES += [
-        '/media/mtransport/third_party/nrappkit/src/port/android/include',
-    ]
 
 if CONFIG['OS_TARGET'] == 'Linux':
     LOCAL_INCLUDES += [

@@ -48,7 +48,7 @@ bool ToUtf16(const std::string& str8, CFStringRef* str16) {
   return NULL != *str16;
 }
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 void DecodeFourChar(UInt32 fc, std::string* out) {
   std::stringstream ss;
   ss << '\'';
@@ -225,7 +225,7 @@ bool RunAppleScript(const std::string& script) {
 }
 #endif // !WEBRTC_MOZILLA
 
-#endif  // WEBRTC_MAC && !defined(WEBRTC_IOS)
+#endif  // WEBRTC_MAC
 
 ///////////////////////////////////////////////////////////////////////////////
 

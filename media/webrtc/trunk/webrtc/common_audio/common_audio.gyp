@@ -158,7 +158,7 @@
         ['target_arch=="arm64"', {
           'dependencies': ['common_audio_neon',],
         }],
-        ['target_arch=="mipsel" and mips_arch_variant!="r6" and android_webview_build==0', {
+        ['target_arch=="mipsel" and mips_arch_variant!="r6"', {
           'sources': [
             'signal_processing/include/spl_inl_mips.h',
             'signal_processing/complex_bit_reverse_mips.c',
@@ -278,26 +278,10 @@
             ['rtc_use_openmax_dl==1', {
               'defines': ['RTC_USE_OPENMAX_DL',],
             }],
-            ['OS=="android"', {
-              'dependencies': [
-                '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }],
           ],
         },
       ],  # targets
       'conditions': [
-        ['OS=="android"', {
-          'targets': [
-            {
-              'target_name': 'common_audio_unittests_apk_target',
-              'type': 'none',
-              'dependencies': [
-                '<(apk_tests_path):common_audio_unittests_apk',
-              ],
-            },
-          ],
-        }],
         ['test_isolation_mode != "noop"', {
           'targets': [
             {

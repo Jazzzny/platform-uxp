@@ -537,8 +537,7 @@ source_set("isacfix") {
   if (rtc_build_armv7_neon) {
     deps += [ ":isac_neon" ]
 
-    # Enable compilation for the ARM v7 Neon instruction set. This is needed
-    # since //build/config/arm.gni only enables Neon for iOS, not Android.
+    # Enable compilation for the ARM v7 Neon instruction set.
     # This provides the same functionality as webrtc/build/arm_neon.gypi.
     # TODO(kjellander): Investigate if this can be moved into webrtc.gni or
     # //build/config/arm.gni instead, to reduce code duplication.
@@ -607,8 +606,7 @@ if (rtc_build_armv7_neon) {
       ]
     }
 
-    # Enable compilation for the ARM v7 Neon instruction set. This is needed
-    # since //build/config/arm.gni only enables Neon for iOS, not Android.
+    # Enable compilation for the ARM v7 Neon instruction set.
     # This provides the same functionality as webrtc/build/arm_neon.gypi.
     # TODO(kjellander): Investigate if this can be moved into webrtc.gni or
     # //build/config/arm.gni instead, to reduce code duplication.

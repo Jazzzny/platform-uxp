@@ -200,6 +200,13 @@ nsHtml5TreeOperation::Append(nsIContent* aNode,
 {
   MOZ_ASSERT(aBuilder);
   MOZ_ASSERT(aBuilder->IsInDocUpdate());
+  if (MOZ_UNLIKELY(aNode->GetParentNode())) {
+    Detach(aNode, aBuilder);
+    if (MOZ_UNLIKELY(aNode->GetParentNode())) {
+      // Can this happen? If it can, give up.
+      return NS_OK;
+    }
+  }
   nsresult rv = NS_OK;
   nsHtml5OtherDocUpdate update(aParent->OwnerDoc(),
                                aBuilder->GetDocument());
@@ -219,6 +226,23 @@ nsHtml5TreeOperation::AppendToDocument(nsIContent* aNode,
   MOZ_ASSERT(aBuilder);
   MOZ_ASSERT(aBuilder->GetDocument() == aNode->OwnerDoc());
   MOZ_ASSERT(aBuilder->IsInDocUpdate());
+  if (MOZ_UNLIKELY(aNode->GetParentNode())) {
+    Detach(aNode, aBuilder);
+    if (MOZ_UNLIKELY(aNode->GetParentNode())) {
+      // Can this happen? If it can, give up.
+      return NS_OK;
+    }
+  }
+  if (MOZ_UNLIKELY(aNode->HasChildren()) &&
+      nsContentUtils::ContentIsDescendantOf(aNode->GetParentNode(), aNode)) {
+    // "If it is not possible to insert element at the adjusted insertion
+    // location, abort these steps."
+    return NS_OK;
+  }
+
+  AutoSetThrowOnDynamicMarkupInsertionCounter
+    throwOnDynamicMarkupInsertionCounter(aBuilder->GetDocument());
+
   nsresult rv = NS_OK;
 
   nsIDocument* doc = aBuilder->GetDocument();
@@ -232,11 +256,14 @@ nsHtml5TreeOperation::AppendToDocument(nsIContent* aNode,
   aNode->SetParserHasNotified();
   nsNodeUtils::ContentInserted(doc, aNode, childCount);
 
-  NS_ASSERTION(!nsContentUtils::IsSafeToRunScript(),
-               "Someone forgot to block scripts");
-  if (aNode->IsElement()) {
-    nsContentUtils::AddScriptRunner(
-        new nsDocElementCreatedNotificationRunner(doc));
+  if (nsContentUtils::IsSafeToRunScript()) {
+    // Scripts should have been blocked, don't add another script runner.
+    return rv;
+  } else {
+    if (aNode->IsElement()) {
+      nsContentUtils::AddScriptRunner(
+          new nsDocElementCreatedNotificationRunner(doc));
+    }
   }
   return rv;
 }
@@ -308,6 +335,14 @@ nsHtml5TreeOperation::FosterParent(nsIContent* aNode,
 {
   MOZ_ASSERT(aBuilder);
   MOZ_ASSERT(aBuilder->IsInDocUpdate());
+  if (MOZ_UNLIKELY(aNode->GetParentNode())) {
+    Detach(aNode, aBuilder);
+    if (MOZ_UNLIKELY(aNode->GetParentNode())) {
+      // Can this happen? If it can, give up.
+      return NS_OK;
+    }
+  }
+
   nsIContent* foster = aTable->GetParent();
 
   if (IsElementOrTemplateContent(foster)) {
@@ -453,7 +488,7 @@ nsHtml5TreeOperation::CreateHTMLElement(
 
   if (willExecuteScript) { // This will cause custom element constructors to run
     AutoSetThrowOnDynamicMarkupInsertionCounter
-      throwOnDynamicMarkupInsertionCounter(document);
+      throwOnDynamicMarkupInsertionCounter(aBuilder->GetDocument());
     mozAutoPauseContentUpdate autoPauseContentUpdate(document);
     {
       nsAutoMicroTask mt;
@@ -993,6 +1028,9 @@ nsHtml5TreeOperation::Perform(nsHtml5TreeOpExecutor* aBuilder,
       nsIContent* table = *(mOne.node);
       nsIContent* stackParent = *(mTwo.node);
       nsIContent* fosterParent = GetFosterParent(table, stackParent);
+      if (fosterParent) {
+        aBuilder->HoldElement(do_AddRef(fosterParent));
+      }
       *mThree.node = fosterParent;
       return NS_OK;
     }

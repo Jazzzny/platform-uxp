@@ -7,7 +7,7 @@
 # be found in the AUTHORS file in the root of the source tree.
 {
   'conditions': [
-    ['OS=="linux" or OS=="mac" or OS=="win" or OS=="android"', {
+    ['OS=="linux" or OS=="mac" or OS=="win"', {
       'variables': {
         'files': [
           '<(DEPTH)/resources/audio_coding/music_stereo_48kHz.pcm',

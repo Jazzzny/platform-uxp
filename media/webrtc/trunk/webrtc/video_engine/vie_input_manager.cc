@@ -354,10 +354,8 @@ VideoCaptureModule::DeviceInfo* ViEInputManager::GetDeviceInfo() {
       case CaptureDeviceType::Screen:
       case CaptureDeviceType::Application:
       case CaptureDeviceType::Window:
-#if !defined(ANDROID) && !defined(WEBRTC_IOS)
         capture_device_info_ = DesktopCaptureImpl::CreateDeviceInfo(ViEModuleId(engine_id_),
                                                                     type);
-#endif
         break;
       case CaptureDeviceType::Browser:
         capture_device_info_ = BrowserDeviceInfoImpl::CreateDeviceInfo();

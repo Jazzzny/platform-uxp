@@ -28,7 +28,7 @@ class Configuration(DescriptorProvider):
 
         # Read the configuration file.
         glbl = {}
-        execfile(filename, glbl)
+        exec(compile(open(filename, "rb").read(), filename, 'exec'), glbl)
         config = glbl['DOMInterfaces']
 
         # Build descriptors for all the interfaces we have in the parse data.
@@ -45,7 +45,8 @@ class Configuration(DescriptorProvider):
                 # Our build system doesn't support dep build involving
                 # addition/removal of "implements" statements that appear in a
                 # different .webidl file than their LHS interface.  Make sure we
-                # don't have any of those.
+                # don't have any of those.  See similar block below for partial
+                # interfaces!
                 #
                 # But whitelist a RHS that is LegacyQueryInterface,
                 # since people shouldn't be adding any of those.
@@ -66,6 +67,33 @@ class Configuration(DescriptorProvider):
             if not thing.isInterface() and not thing.isNamespace():
                 continue
             iface = thing
+            # Our build system doesn't support dep builds involving
+            # addition/removal of partial interfaces that appear in a different
+            # .webidl file than the interface they are extending.  Make sure we
+            # don't have any of those.  See similar block above for "implements"
+            # statements!
+            if not iface.isExternal():
+                for partialIface in iface.getPartials():
+                    if (partialIface.filename() != iface.filename() and
+                        # Unfortunately, NavigatorProperty does exactly the
+                        # thing we're trying to prevent here.  I'm not sure how
+                        # to deal with that, short of effectively requiring a
+                        # clobber when NavigatorProperty is added/removed and
+                        # whitelisting the things it outputs here as
+                        # restrictively as I can.
+                        (partialIface.identifier.name != "Navigator" or
+                         len(partialIface.members) != 1 or
+                         partialIface.members[0].location != partialIface.location or
+                         partialIface.members[0].identifier.location.filename() !=
+                           "<builtin>")):
+                        raise TypeError(
+                            "The binding build system doesn't really support "
+                            "partial interfaces which don't appear in the "
+                            "file in which the interface they are extending is "
+                            "defined.  Don't do this.\n"
+                            "%s\n"
+                            "%s" %
+                            (partialIface.location, iface.location))
             self.interfaces[iface.identifier.name] = iface
             if iface.identifier.name not in config:
                 # Completely skip consequential interfaces with no descriptor
@@ -87,7 +115,7 @@ class Configuration(DescriptorProvider):
             self.descriptorsByName[desc.interface.identifier.name] = desc
 
         # Keep the descriptor list sorted for determinism.
-        self.descriptors.sort(lambda x, y: cmp(x.name, y.name))
+        self.descriptors.sort(key=lambda x: x.name)
 
 
         self.descriptorsByFile = {}
@@ -149,8 +177,7 @@ class Configuration(DescriptorProvider):
                                 # unions for the file where we previously found
                                 # them.
                                 unionsForFilename = self.unionsPerFilename[f]
-                                unionsForFilename = filter(lambda u: u.name != t.name,
-                                                           unionsForFilename)
+                                unionsForFilename = [u for u in unionsForFilename if u.name != t.name]
                                 if len(unionsForFilename) == 0:
                                     del self.unionsPerFilename[f]
                                 else:
@@ -170,7 +197,7 @@ class Configuration(DescriptorProvider):
         # Collect up our filters, because we may have a webIDLFile filter that
         # we always want to apply first.
         tofilter = []
-        for key, val in filters.iteritems():
+        for key, val in filters.items():
             if key == 'webIDLFile':
                 # Special-case this part to make it fast, since most of our
                 # getDescriptors calls are conditioned on a webIDLFile.  We may
@@ -210,17 +237,17 @@ class Configuration(DescriptorProvider):
                 getter = (lambda attrName: lambda x: getattr(x, attrName))(key)
             tofilter.append((getter, val))
         for f in tofilter:
-            curr = filter(lambda x: f[0](x) == f[1], curr)
+            curr = [x for x in curr if f[0](x) == f[1]]
         return curr
 
     def getEnums(self, webIDLFile):
-        return filter(lambda e: e.filename() == webIDLFile, self.enums)
+        return [e for e in self.enums if e.filename() == webIDLFile]
 
     def getDictionaries(self, webIDLFile):
-        return filter(lambda d: d.filename() == webIDLFile, self.dictionaries)
+        return [d for d in self.dictionaries if d.filename() == webIDLFile]
 
     def getCallbacks(self, webIDLFile):
-        return filter(lambda c: c.filename() == webIDLFile, self.callbacks)
+        return [c for c in self.callbacks if c.filename() == webIDLFile]
 
     def getDescriptor(self, interfaceName):
         """
@@ -491,7 +518,7 @@ class Descriptor(DescriptorProvider):
                 if config == '*':
                     iface = self.interface
                     while iface:
-                        add('all', map(lambda m: m.name, iface.members), attribute)
+                        add('all', [m.name for m in iface.members], attribute)
                         iface = iface.parent
                 else:
                     add('all', [config], attribute)
@@ -543,7 +570,7 @@ class Descriptor(DescriptorProvider):
 
     @property
     def prototypeNameChain(self):
-        return map(lambda p: self.getDescriptor(p).name, self.prototypeChain)
+        return [self.getDescriptor(p).name for p in self.prototypeChain]
 
     @property
     def parentPrototypeName(self):

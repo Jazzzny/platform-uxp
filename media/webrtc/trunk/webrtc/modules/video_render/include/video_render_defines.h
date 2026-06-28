@@ -30,8 +30,6 @@ enum VideoRenderType
     kRenderWindows = 1, // Windows
     kRenderCocoa = 2, // Mac
     kRenderCarbon = 3,
-    kRenderiOS = 4, // iPhone
-    kRenderAndroid = 5, // Android
     kRenderX11 = 6, // Linux
     kRenderDefault
 };

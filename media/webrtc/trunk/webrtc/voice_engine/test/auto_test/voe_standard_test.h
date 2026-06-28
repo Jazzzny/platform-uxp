@@ -49,10 +49,6 @@ class VoENetEqStats;
 }
 #endif
 
-#if defined(WEBRTC_ANDROID)
-extern char mobileLogMsg[640];
-#endif
-
 DECLARE_bool(include_timing_dependent_tests);
 
 namespace voetest {

@@ -22,18 +22,6 @@ class UnixFilesystem : public FilesystemInterface {
   UnixFilesystem();
   ~UnixFilesystem() override;
 
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS)
-  // Android does not have a native code API to fetch the app data or temp
-  // folders. That needs to be passed into this class from Java. Similarly, iOS
-  // only supports an Objective-C API for fetching the folder locations, so that
-  // needs to be passed in here from Objective-C.  Or at least that used to be
-  // the case; now the ctor will do the work if necessary and possible.
-  // TODO(fischman): add an Android version that uses JNI and drop the
-  // SetApp*Folder() APIs once external users stop using them.
-  static void SetAppDataFolder(const std::string& folder);
-  static void SetAppTempFolder(const std::string& folder);
-#endif
-
   // Opens a file. Returns an open StreamInterface if function succeeds.
   // Otherwise, returns NULL.
   FileStream* OpenFile(const Pathname& filename,
@@ -113,12 +101,7 @@ class UnixFilesystem : public FilesystemInterface {
   Pathname GetCurrentDirectory() override;
 
  private:
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS)
-  static char* provided_app_data_folder_;
-  static char* provided_app_temp_folder_;
-#else
   static char* app_temp_path_;
-#endif
 
   static char* CopyString(const std::string& str);
 };

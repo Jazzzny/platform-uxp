@@ -194,7 +194,7 @@ static void FreeStringArray(uint32_t variants, char ** array)
 
 static bool CanLoadPlugin(char16ptr_t aBinaryPath)
 {
-#if defined(_M_IX86) || defined(_M_X64) || defined(_M_IA64)
+#if defined(_M_IX86) || defined(_M_X64)
   bool canLoad = false;
 
   HANDLE file = CreateFileW(aBinaryPath, GENERIC_READ,
@@ -214,8 +214,6 @@ static bool CanLoadPlugin(char16ptr_t aBinaryPath)
             canLoad = (arch == IMAGE_FILE_MACHINE_I386);
 #elif defined(_M_X64)
             canLoad = (arch == IMAGE_FILE_MACHINE_AMD64);
-#elif defined(_M_IA64)
-            canLoad = (arch == IMAGE_FILE_MACHINE_IA64);
 #endif
           }
         }

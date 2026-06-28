@@ -250,8 +250,6 @@ bool Thread::Start(Runnable* runnable) {
   pthread_attr_t attr;
   pthread_attr_init(&attr);
 
-  // Thread priorities are not supported in NaCl.
-#if !defined(__native_client__)
   if (priority_ != PRIORITY_NORMAL) {
     if (priority_ == PRIORITY_IDLE) {
       // There is no POSIX-standard way to set a below-normal priority for an
@@ -279,7 +277,6 @@ bool Thread::Start(Runnable* runnable) {
       }
     }
   }
-#endif  // !defined(__native_client__)
 
   int error_code = pthread_create(&thread_, &attr, PreRun, init);
   if (0 != error_code) {

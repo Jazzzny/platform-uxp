@@ -77,9 +77,6 @@
         # like '0' or '1', aren't stripped out by GYP. Run 'isolate.py help' for
         # more details.
         #
-        # This list needs to be kept in sync with the cmd line options
-        # in src/build/android/pylib/gtest/setup.py.
-
         # Path variables are used to replace file paths when loading a .isolate
         # file
         '--path-variable', 'DEPTH', '<(DEPTH)',

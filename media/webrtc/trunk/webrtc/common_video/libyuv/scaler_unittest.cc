@@ -115,7 +115,7 @@ TEST_F(TestScaler, ScaleSendingBufferTooSmall) {
 }
 
 //TODO (mikhal): Converge the test into one function that accepts the method.
-TEST_F(TestScaler, DISABLED_ON_ANDROID(PointScaleTest)) {
+TEST_F(TestScaler, PointScaleTest) {
   double avg_psnr;
   FILE* source_file2;
   ScaleMethod method = kScalePoint;
@@ -182,7 +182,7 @@ TEST_F(TestScaler, DISABLED_ON_ANDROID(PointScaleTest)) {
   ASSERT_EQ(0, fclose(source_file2));
 }
 
-TEST_F(TestScaler, DISABLED_ON_ANDROID(BiLinearScaleTest)) {
+TEST_F(TestScaler, BiLinearScaleTest) {
   double avg_psnr;
   FILE* source_file2;
   ScaleMethod method = kScaleBilinear;
@@ -234,7 +234,7 @@ TEST_F(TestScaler, DISABLED_ON_ANDROID(BiLinearScaleTest)) {
                 400, 300);
 }
 
-TEST_F(TestScaler, DISABLED_ON_ANDROID(BoxScaleTest)) {
+TEST_F(TestScaler, BoxScaleTest) {
   double avg_psnr;
   FILE* source_file2;
   ScaleMethod method = kScaleBox;

@@ -26,12 +26,7 @@ using mozilla::LogLevel;
 static int gWebRtcTraceLoggingOn = 0;
 
 
-#if defined(ANDROID)
-static const char *default_tmp_dir = "/dev/null";
-static const char *default_log_name = "nspr";
-#else // Assume a POSIX environment
 NS_NAMED_LITERAL_CSTRING(default_log_name, "WebRTC.log");
-#endif
 
 static PRLogModuleInfo* GetWebRtcTraceLog()
 {
@@ -110,11 +105,6 @@ void ConfigWebRtcLog(uint32_t trace_mask, nsCString &aLogFile, nsCString &aAECLo
     return;
   }
 
-#if defined(ANDROID)
-  // Special case: use callback to pipe to NSPR logging.
-  aLogFile.Assign(default_log_name);
-#else
-
   webrtc::Trace::set_level_filter(trace_mask);
 
   if (trace_mask != 0) {
@@ -133,7 +123,6 @@ void ConfigWebRtcLog(uint32_t trace_mask, nsCString &aLogFile, nsCString &aAECLo
       tempDir->GetNativePath(aLogFile);
     }
   }
-#endif
 
 #if !defined(MOZILLA_EXTERNAL_LINKAGE)
   if (XRE_IsParentProcess()) {
@@ -208,12 +197,6 @@ void ConfigAecLog(nsCString &aAECLogDir) {
   if (webrtc::Trace::aec_debug()) {
     return;
   }
-#if defined(ANDROID)
-  // For AEC, do not use a default value: force the user to specify a directory.
-  if (aAECLogDir.IsEmpty()) {
-    aAECLogDir.Assign(default_tmp_dir);
-  }
-#else
   if (aAECLogDir.IsEmpty()) {
     nsCOMPtr<nsIFile> tempDir;
     nsresult rv = NS_GetSpecialDirectory(NS_OS_TEMP_DIR, getter_AddRefs(tempDir));
@@ -223,7 +206,6 @@ void ConfigAecLog(nsCString &aAECLogDir) {
       }
     }
   }
-#endif
   webrtc::Trace::set_aec_debug_filename(aAECLogDir.get());
 #if !defined(MOZILLA_EXTERNAL_LINKAGE)
   if (XRE_IsParentProcess()) {

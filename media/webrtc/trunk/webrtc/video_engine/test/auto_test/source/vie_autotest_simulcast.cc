@@ -193,10 +193,6 @@ int VideoEngineSimulcastTest(void* window1, void* window2) {
     printf("\t %d. %s\n", capture_idx + 1, device_name);
   }
   printf("\nChoose capture device: ");
-#ifdef WEBRTC_ANDROID
-  capture_idx = 0;
-  printf("0\n");
-#else
   if (scanf("%d", &capture_idx) != 1) {
     printf("Error in scanf()\n");
     return -1;
@@ -204,7 +200,6 @@ int VideoEngineSimulcastTest(void* window1, void* window2) {
   getchar();
   // Compensate for idx start at 1.
   capture_idx = capture_idx - 1;
-#endif
   error = vie_capture->GetCaptureDevice(capture_idx, device_name,
                                         KMaxDeviceNameLength, unique_id,
                                         KMaxUniqueIdLength);

@@ -30,8 +30,7 @@ deps_os = {
 
 # Define rules for which include paths are allowed in our source.
 include_rules = [
-  # Base is only used to build Android APK tests and may not be referenced by
-  # WebRTC production code.
+  # Base may not be referenced by WebRTC production code.
   '-base',
   '-chromium',
   '+gflags',
@@ -100,4 +99,3 @@ hooks = [
                Var('extra_gyp_flag')],
   },
 ]
-

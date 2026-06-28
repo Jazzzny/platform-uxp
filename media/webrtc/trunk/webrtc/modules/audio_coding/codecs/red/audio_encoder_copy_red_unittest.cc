@@ -303,7 +303,7 @@ TEST_F(AudioEncoderCopyRedTest, CheckPayloadType) {
   EXPECT_EQ(red_payload_type_, encoded_info_.payload_type);
 }
 
-#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+#if GTEST_HAS_DEATH_TEST
 
 // This test fixture tests various error conditions that makes the
 // AudioEncoderCng die via CHECKs.
@@ -329,6 +329,6 @@ TEST_F(AudioEncoderCopyRedDeathTest, NullSpeechEncoder) {
   delete red;
 }
 
-#endif  // GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+#endif  // GTEST_HAS_DEATH_TEST
 
 }  // namespace webrtc

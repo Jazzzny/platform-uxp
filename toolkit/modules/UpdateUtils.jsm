@@ -145,9 +145,6 @@ XPCOMUtils.defineLazyGetter(this, "gWinCPUArch", function aus_gWinCPUArch() {
         case 9:
           arch = "x64";
           break;
-        case 6:
-          arch = "IA64";
-          break;
         case 0:
           arch = "x86";
           break;

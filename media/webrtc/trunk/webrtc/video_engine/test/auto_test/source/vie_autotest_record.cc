@@ -207,17 +207,12 @@ int VideoEngineSampleRecordCode(void* window1, void* window2) {
     printf("\t %d. %s\n", captureIdx + 1, deviceName);
   }
   printf("\nChoose capture device: ");
-#ifdef WEBRTC_ANDROID
-  captureIdx = 0;
-  printf("0\n");
-#else
   if (scanf("%d", &captureIdx) != 1) {
     printf("Error in scanf()\n");
     return -1;
   }
   getc(stdin);
   captureIdx = captureIdx - 1;  // Compensate for idx start at 1.
-#endif
   error = ptrViECapture->GetCaptureDevice(captureIdx, deviceName,
                                           KMaxDeviceNameLength, uniqueId,
                                           KMaxUniqueIdLength);
@@ -323,12 +318,7 @@ int VideoEngineSampleRecordCode(void* window1, void* window2) {
   memset(&videoCodec, 0, sizeof(webrtc::VideoCodec));
   int codecIdx = 0;
 
-#ifdef WEBRTC_ANDROID
-  codecIdx = 0;
-  printf("0\n");
-#else
   codecIdx = 0;  // Compensate for idx start at 1.
-#endif
 
   error = ptrViECodec->GetCodec(codecIdx, videoCodec);
   if (error == -1) {

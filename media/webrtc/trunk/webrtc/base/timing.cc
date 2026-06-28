@@ -15,7 +15,7 @@
 #include <errno.h>
 #include <math.h>
 #include <sys/time.h>
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 #include <mach/mach.h>
 #include <mach/clock.h>
 #endif

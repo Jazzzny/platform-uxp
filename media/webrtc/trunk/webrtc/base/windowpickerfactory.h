@@ -13,10 +13,10 @@
 
 #if defined(WEBRTC_WIN)
 #include "webrtc/base/win32windowpicker.h"
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
 #include "webrtc/base/macutils.h"
 #include "webrtc/base/macwindowpicker.h"
-#elif defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID) && defined(HAVE_X11)
+#elif defined(WEBRTC_LINUX) && defined(HAVE_X11)
 #include "webrtc/base/x11windowpicker.h"
 #endif
 
@@ -36,9 +36,9 @@ class WindowPickerFactory {
   static WindowPicker* CreateWindowPicker() {
 #if defined(WEBRTC_WIN)
     return new Win32WindowPicker();
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
     return new MacWindowPicker();
-#elif defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID) && defined(HAVE_X11)
+#elif defined(WEBRTC_LINUX) && defined(HAVE_X11)
     return new X11WindowPicker();
 #else
     return NULL;
@@ -46,7 +46,7 @@ class WindowPickerFactory {
   }
 
   static bool IsSupported() {
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
     return GetOSVersionName() >= kMacOSLeopard;
 #else
     return true;

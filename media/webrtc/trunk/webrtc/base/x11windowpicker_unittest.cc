@@ -14,7 +14,7 @@
 #include "webrtc/base/testutils.h"
 #include "webrtc/base/windowpicker.h"
 
-#if !defined(WEBRTC_LINUX) || defined(WEBRTC_ANDROID)
+#if !defined(WEBRTC_LINUX)
 #error Only for Linux
 #endif
 

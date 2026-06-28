@@ -153,7 +153,7 @@ class AcmReceiverTest : public AudioPacketizationCallback,
   FrameType last_frame_type_;
 };
 
-TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(AddCodecGetCodec)) {
+TEST_F(AcmReceiverTest, AddCodecGetCodec) {
   // Add codec.
   for (int n = 0; n < ACMCodecDB::kNumCodecs; ++n) {
     if (n & 0x1)  // Just add codecs with odd index.
@@ -176,7 +176,7 @@ TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(AddCodecGetCodec)) {
   }
 }
 
-TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(AddCodecChangePayloadType)) {
+TEST_F(AcmReceiverTest, AddCodecChangePayloadType) {
   const int codec_id = ACMCodecDB::kPCMA;
   CodecInst ref_codec1;
   EXPECT_EQ(0, ACMCodecDB::Codec(codec_id, &ref_codec1));
@@ -197,7 +197,7 @@ TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(AddCodecChangePayloadType)) {
   EXPECT_EQ(true, CodecsEqual(ref_codec2, test_codec));
 }
 
-TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(AddCodecChangeCodecId)) {
+TEST_F(AcmReceiverTest, AddCodecChangeCodecId) {
   const int codec_id1 = ACMCodecDB::kPCMU;
   CodecInst ref_codec1;
   EXPECT_EQ(0, ACMCodecDB::Codec(codec_id1, &ref_codec1));
@@ -218,7 +218,7 @@ TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(AddCodecChangeCodecId)) {
   EXPECT_EQ(true, CodecsEqual(ref_codec2, test_codec));
 }
 
-TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(AddCodecRemoveCodec)) {
+TEST_F(AcmReceiverTest, AddCodecRemoveCodec) {
   CodecInst codec;
   const int codec_id = ACMCodecDB::kPCMA;
   EXPECT_EQ(0, ACMCodecDB::Codec(codec_id, &codec));
@@ -236,7 +236,7 @@ TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(AddCodecRemoveCodec)) {
   EXPECT_EQ(-1, receiver_->DecoderByPayloadType(payload_type, &codec));
 }
 
-TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(SampleRate)) {
+TEST_F(AcmReceiverTest, SampleRate) {
   const int kCodecId[] = {
       ACMCodecDB::kISAC, ACMCodecDB::kISACSWB, ACMCodecDB::kISACFB,
       -1  // Terminator.
@@ -260,7 +260,7 @@ TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(SampleRate)) {
 }
 
 // Verify that the playout mode is set correctly.
-TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(PlayoutMode)) {
+TEST_F(AcmReceiverTest, PlayoutMode) {
   receiver_->SetPlayoutMode(voice);
   EXPECT_EQ(voice, receiver_->PlayoutMode());
 
@@ -274,7 +274,7 @@ TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(PlayoutMode)) {
   EXPECT_EQ(off, receiver_->PlayoutMode());
 }
 
-TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(PostdecodingVad)) {
+TEST_F(AcmReceiverTest, PostdecodingVad) {
   receiver_->EnableVad();
   EXPECT_TRUE(receiver_->vad_enabled());
 
@@ -302,7 +302,7 @@ TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(PostdecodingVad)) {
   EXPECT_EQ(AudioFrame::kVadUnknown, frame.vad_activity_);
 }
 
-TEST_F(AcmReceiverTest, DISABLED_ON_ANDROID(LastAudioCodec)) {
+TEST_F(AcmReceiverTest, LastAudioCodec) {
   const int kCodecId[] = {
       ACMCodecDB::kISAC, ACMCodecDB::kPCMA, ACMCodecDB::kISACSWB,
       ACMCodecDB::kPCM16Bswb32kHz,

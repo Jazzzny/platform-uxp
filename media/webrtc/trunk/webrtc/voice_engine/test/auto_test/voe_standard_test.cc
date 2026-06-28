@@ -336,7 +336,6 @@ int RunInManualMode() {
 //                                       main
 // ----------------------------------------------------------------------------
 
-#if !defined(WEBRTC_IOS)
 int main(int argc, char** argv) {
   // This function and RunInAutomatedMode is defined in automated_mode.cc
   // to avoid macro clashes with googletest (for instance ASSERT_TRUE).
@@ -352,4 +351,3 @@ int main(int argc, char** argv) {
 
   return RunInManualMode();
 }
-#endif //#if !defined(WEBRTC_IOS)

@@ -29,8 +29,6 @@ class AudioDeviceModule : public RefCountedModule {
     kWindowsCoreAudio = 2,
     kLinuxAlsaAudio = 3,
     kLinuxPulseAudio = 4,
-    kAndroidJavaAudio = 5,
-    kAndroidOpenSLESAudio = 6,
     kSndioAudio = 7,
     kDummyAudio = 8
   };
@@ -180,16 +178,14 @@ class AudioDeviceModule : public RefCountedModule {
   virtual int32_t SetPlayoutSampleRate(const uint32_t samplesPerSec) = 0;
   virtual int32_t PlayoutSampleRate(uint32_t* samplesPerSec) const = 0;
 
-  // Mobile device specific functions
   virtual int32_t ResetAudioDevice() = 0;
   virtual int32_t SetLoudspeakerStatus(bool enable) = 0;
   virtual int32_t GetLoudspeakerStatus(bool* enabled) const = 0;
 
-  // Only supported on Android.
   // TODO(henrika): Make pure virtual after updating Chromium.
   virtual bool BuiltInAECIsAvailable() const { return false; }
 
-  // Enables the built-in AEC. Only supported on Windows and Android.
+  // Enables the built-in AEC. Only supported on Windows.
   //
   // For usage on Windows (requires Core Audio):
   // Must be called before InitRecording(). When enabled:

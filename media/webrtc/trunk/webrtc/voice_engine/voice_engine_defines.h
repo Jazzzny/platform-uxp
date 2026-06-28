@@ -63,18 +63,8 @@ enum { kVoiceEngineVersionMaxMessageSize = 1024 };
 
 // Audio processing
 const NoiseSuppression::Level kDefaultNsMode = NoiseSuppression::kModerate;
-const GainControl::Mode kDefaultAgcMode =
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS) || defined(WEBRTC_GONK) 
-  GainControl::kAdaptiveDigital;
-#else
-  GainControl::kAdaptiveAnalog;
-#endif
-const bool kDefaultAgcState =
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS) || defined(WEBRTC_GONK) 
-  false;
-#else
-  true;
-#endif
+const GainControl::Mode kDefaultAgcMode = GainControl::kAdaptiveAnalog;
+const bool kDefaultAgcState = true;
 const GainControl::Mode kDefaultRxAgcMode = GainControl::kAdaptiveDigital;
 
 // Codec
@@ -219,9 +209,7 @@ inline int VoEChannelId(int moduleId)
 #include <sys/types.h>
 #ifndef QNX
   #include <linux/net.h>
-#ifndef ANDROID
   #include <sys/soundcard.h>
-#endif // ANDROID
 #endif // QNX
 #include <errno.h>
 #include <fcntl.h>
@@ -260,13 +248,12 @@ inline int VoEChannelId(int moduleId)
 #define __cdecl
 #define LPSOCKADDR struct sockaddr *
 
-// Default device for Linux and Android
+// Default device for Linux
 #define WEBRTC_VOICE_ENGINE_DEFAULT_DEVICE 0
 
 #endif  // #ifdef WEBRTC_LINUX
 
 // *** WEBRTC_MAC ***
-// including iPhone
 
 #if defined(WEBRTC_BSD) || defined(WEBRTC_MAC)
 
@@ -288,7 +275,7 @@ inline int VoEChannelId(int moduleId)
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-#if !defined(WEBRTC_BSD) && !defined(WEBRTC_IOS)
+#if !defined(WEBRTC_BSD)
   #include <CoreServices/CoreServices.h>
   #include <CoreAudio/CoreAudio.h>
   #include <AudioToolbox/DefaultAudioOutput.h>
@@ -319,7 +306,7 @@ inline int VoEChannelId(int moduleId)
 #define LPCSTR const char*
 #define ULONG unsigned long
 
-// Default device for Mac and iPhone
+// Default device for Mac
 #define WEBRTC_VOICE_ENGINE_DEFAULT_DEVICE 0
 #endif  // #if defined(WEBRTC_BSD) || defined(WEBRTC_MAC)
 

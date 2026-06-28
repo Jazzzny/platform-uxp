@@ -32,9 +32,7 @@
 #define WEBRTC_ARCH_32_BITS
 #define WEBRTC_ARCH_LITTLE_ENDIAN
 #elif defined(__ARMEL__)
-// TODO(ajm): We'd prefer to control platform defines here, but this is
-// currently provided by the Android makefiles. Commented to avoid duplicate
-// definition warnings.
+// TODO(ajm): We'd prefer to control platform defines here.
 //#define WEBRTC_ARCH_ARM
 // TODO(ajm): Chromium uses the following two defines. Should we switch?
 //#define WEBRTC_ARCH_ARM_FAMILY
@@ -90,11 +88,6 @@
 #define WEBRTC_ARCH_32_BITS 1
 #define WEBRTC_ARCH_BIG_ENDIAN
 #define WEBRTC_BIG_ENDIAN
-#elif defined(__ia64__)
-#define WEBRTC_ARCH_IA64 1
-#define WEBRTC_ARCH_64_BITS 1
-#define WEBRTC_ARCH_LITTLE_ENDIAN
-#define WEBRTC_LITTLE_ENDIAN
 #elif defined(__s390x__)
 #define WEBRTC_ARCH_S390X 1
 #define WEBRTC_ARCH_64_BITS 1
@@ -125,9 +118,6 @@
 #define WEBRTC_ARCH_32_BITS 1
 #define WEBRTC_ARCH_BIG_ENDIAN
 #define WEBRTC_BIG_ENDIAN
-#elif defined(__pnacl__)
-#define WEBRTC_ARCH_32_BITS
-#define WEBRTC_ARCH_LITTLE_ENDIAN
 #elif defined(__loongarch64)
 #define WEBRTC_ARCH_LOONGARCH64 1
 #define WEBRTC_ARCH_64_BITS 1

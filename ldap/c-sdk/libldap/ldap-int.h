@@ -43,9 +43,6 @@
 #include <errno.h>
 #include <time.h>
 #include <fcntl.h>
-#ifdef hpux
-#include <strings.h>
-#endif /* hpux */
 
 #ifdef _WINDOWS
 #  define FD_SETSIZE		256	/* number of connections we support */
@@ -62,9 +59,9 @@
 # include <arpa/inet.h>
 #endif
 # include <netdb.h>
-#if !defined(hpux) && !defined(SUNOS4) && !defined(XP_BEOS)
+#if !defined(SUNOS4) && !defined(XP_BEOS)
 # include <sys/select.h>
-#endif /* !defined(hpux) and others */
+#endif /* !defined(SUNOS4) and others */
 #endif /* _WINDOWS */
 
 #if defined(IRIX)
@@ -818,12 +815,6 @@ void nsldapi_hex_unescape( char *s );
 /*
  * in compat.c
  */
-#ifdef hpux
-char *nsldapi_compat_ctime_r( const time_t *clock, char *buf, int buflen );
-struct hostent *nsldapi_compat_gethostbyname_r( const char *name,
-	struct hostent *result, char *buffer, int buflen, int *h_errnop );
-#endif /* hpux */
-
 /*
  * in control.c
  */

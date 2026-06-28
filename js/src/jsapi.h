@@ -999,6 +999,7 @@ class JS_PUBLIC_API(ContextOptions) {
         strictMode_(false),
         extraWarnings_(false),
         arrayProtoValues_(true),
+        streams_(false),
         weakRefs_(false)
     {
     }
@@ -1186,6 +1187,13 @@ InitSelfHostedCode(JSContext* cx);
  */
 JS_PUBLIC_API(void)
 AssertObjectBelongsToCurrentThread(JSObject* obj);
+
+/**
+ * Clear objects and symbols that WeakRef.prototype.deref kept alive for the
+ * current synchronous JavaScript execution.
+ */
+JS_PUBLIC_API(void)
+ClearWeakRefKeptObjects(JSContext* cx);
 
 } /* namespace JS */
 

@@ -67,6 +67,7 @@
     macro(case, case_, "case") \
     macro(caseFirst, caseFirst, "caseFirst") \
     macro(catch, catch_, "catch") \
+    macro(cause, cause, "cause") \
     macro(class, class_, "class") \
     macro(close, close, "close") \
     macro(collation, collation, "collation") \
@@ -247,6 +248,7 @@
     macro(lookupSetter, lookupSetter, "__lookupSetter__") \
     macro(MapConstructorInit, MapConstructorInit, "MapConstructorInit") \
     macro(MapIterator, MapIterator, "Map Iterator") \
+    macro(maxByteLength, maxByteLength, "maxByteLength") \
     macro(maximumFractionDigits, maximumFractionDigits, "maximumFractionDigits") \
     macro(maximumSignificantDigits, maximumSignificantDigits, "maximumSignificantDigits") \
     macro(message, message, "message") \
@@ -427,7 +429,9 @@
     macro(toISOString, toISOString, "toISOString") \
     macro(toJSON, toJSON, "toJSON") \
     macro(toLocaleString, toLocaleString, "toLocaleString") \
+    macro(toReversed, toReversed, "toReversed") \
     macro(toSource, toSource, "toSource") \
+    macro(toSpliced, toSpliced, "toSpliced") \
     macro(toSorted, toSorted, "toSorted") \
     macro(toString, toString, "toString") \
     macro(toUTCString, toUTCString, "toUTCString") \

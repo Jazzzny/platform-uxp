@@ -11,20 +11,44 @@
 
 namespace js {
 
+bool CanBeHeldWeakly(HandleValue target);
+
 class WeakRefObject : public NativeObject
 {
   public:
     struct Referent {
+        enum class Kind {
+            Object,
+            Symbol
+        };
+
         explicit Referent(JSObject* obj, bool enabled)
-          : target(obj), enabled(enabled) {}
-        WeakRef<JSObject*> target;
+          : kind(Kind::Object)
+          , objectTarget(obj)
+          , symbolTarget(nullptr)
+          , enabled(enabled)
+        {}
+        
+        explicit Referent(JS::Symbol* sym, bool enabled)
+          : kind(Kind::Symbol)
+          , objectTarget(nullptr)
+          , symbolTarget(sym)
+          , enabled(enabled)
+        {}
+        
+        bool isObject() const { return kind == Kind::Object; }
+        bool isSymbol() const { return kind == Kind::Symbol; }
+
+        Kind kind;
+        WeakRef<JSObject*> objectTarget;
+        WeakRef<JS::Symbol*> symbolTarget;
         bool enabled;
     };
 
     static const Class class_;
 
     static JSObject* initClass(JSContext* cx, HandleObject obj);
-    static WeakRefObject* create(JSContext* cx, HandleObject target, HandleObject proto = nullptr);
+    static WeakRefObject* create(JSContext* cx, HandleValue target, HandleObject proto = nullptr);
 
     static void trace(JSTracer* trc, JSObject* obj);
     static void finalize(FreeOp* fop, JSObject* obj);
@@ -37,7 +61,8 @@ class WeakRefObject : public NativeObject
 
     WeakRef<JSObject*>& target() {
         MOZ_ASSERT(getData());
-        return getData()->target;
+        MOZ_ASSERT(getData()->isObject());
+        return getData()->objectTarget;
     }
 
     static const JSPropertySpec properties[];

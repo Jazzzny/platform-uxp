@@ -21,10 +21,8 @@
 #endif
 
 ViEWindowCreator::ViEWindowCreator() {
-#ifndef WEBRTC_ANDROID
   window_manager_ =
       ViEWindowManagerFactory::CreateWindowManagerForCurrentPlatform();
-#endif
 }
 
 ViEWindowCreator::~ViEWindowCreator() {

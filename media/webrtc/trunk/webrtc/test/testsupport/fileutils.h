@@ -94,8 +94,7 @@ std::string ProjectRootPath();
 // Creates and returns the absolute path to the output directory where log files
 // and other test artifacts should be put. The output directory is generally a
 // directory named "out" at the top-level of the project, i.e. a subfolder to
-// the path returned by ProjectRootPath(). The exception is Android where we use
-// /sdcard/ instead.
+// the path returned by ProjectRootPath().
 //
 // Details described for ProjectRootPath() apply here too.
 //

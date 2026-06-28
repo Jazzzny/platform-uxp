@@ -66,50 +66,6 @@
            # TODO(andrew): with the proper suffix, these files will be excluded
            # automatically.
           'conditions': [
-            ['OS=="android"', {
-              'sources': [
-                'android/video_render_android_impl.h',
-                'android/video_render_android_native_opengl2.h',
-                'android/video_render_android_surface_view.h',
-                'android/video_render_opengles20.h',
-                'android/video_render_android_impl.cc',
-                'android/video_render_android_native_opengl2.cc',
-                'android/video_render_android_surface_view.cc',
-                'android/video_render_opengles20.cc',
-              ],
-              'link_settings': {
-                'libraries': [
-                  '-lGLESv2',
-                ],
-              },
-            }],
-            ['OS=="ios"', {
-              'sources': [
-                # iOS
-                'ios/open_gles20.h',
-                'ios/open_gles20.mm',
-                'ios/video_render_ios_channel.h',
-                'ios/video_render_ios_channel.mm',
-                'ios/video_render_ios_gles20.h',
-                'ios/video_render_ios_gles20.mm',
-                'ios/video_render_ios_impl.h',
-                'ios/video_render_ios_impl.mm',
-                'ios/video_render_ios_view.h',
-                'ios/video_render_ios_view.mm',
-              ],
-              'xcode_settings': {
-                'CLANG_ENABLE_OBJC_ARC': 'YES',
-              },
-              'all_dependent_settings': {
-                'xcode_settings': {
-                  'OTHER_LDFLAGS': [
-                    '-framework OpenGLES',
-                    '-framework QuartzCore',
-                    '-framework UIKit',
-                  ],
-                },
-              },
-            }],
             ['OS=="linux"', {
               'sources': [
                 'linux/video_render_linux_impl.h',
@@ -172,7 +128,6 @@
           'sources': [
             'test/testAPI/testAPI.cc',
             'test/testAPI/testAPI.h',
-            'test/testAPI/testAPI_android.cc',
             'test/testAPI/testAPI_mac.mm',
           ],
           'conditions': [
@@ -223,4 +178,3 @@
     }], # include_tests==1
   ], # conditions
 }
-

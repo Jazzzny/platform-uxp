@@ -3,8 +3,6 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "logging.h"
-#include "nsIGfxInfo.h"
-#include "nsServiceManagerUtils.h"
 
 #include "PeerConnectionImpl.h"
 #include "PeerConnectionMedia.h"
@@ -28,18 +26,6 @@
 #endif
 
 #include "GmpVideoCodec.h"
-#ifdef MOZ_WEBRTC_OMX
-#include "OMXVideoCodec.h"
-#include "OMXCodecWrapper.h"
-#endif
-
-#ifdef MOZ_WEBRTC_MEDIACODEC
-#include "MediaCodecVideoCodec.h"
-#endif
-
-#ifdef MOZILLA_INTERNAL_API
-#include "mozilla/Preferences.h"
-#endif
 
 #if !defined(MOZILLA_EXTERNAL_LINKAGE)
 #include "WebrtcGmpVideoCodec.h"
@@ -979,60 +965,7 @@ MediaPipelineFactory::EnsureExternalCodec(VideoSessionConduit& aConduit,
                                           bool aIsSend)
 {
   if (aConfig->mName == "VP8") {
-#ifdef MOZ_WEBRTC_MEDIACODEC
-     if (aIsSend) {
-#ifdef MOZILLA_INTERNAL_API
-       bool enabled = mozilla::Preferences::GetBool("media.navigator.hardware.vp8_encode.acceleration_enabled", false);
-#else
-       bool enabled = false;
-#endif
-       if (enabled) {
-         nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
-         if (gfxInfo) {
-           int32_t status;
-           nsCString discardFailureId;
-           if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_WEBRTC_HW_ACCELERATION_ENCODE, discardFailureId, &status))) {
-             if (status != nsIGfxInfo::FEATURE_STATUS_OK) {
-               NS_WARNING("VP8 encoder hardware is not whitelisted: disabling.\n");
-             } else {
-               VideoEncoder* encoder = nullptr;
-               encoder = MediaCodecVideoCodec::CreateEncoder(MediaCodecVideoCodec::CodecType::CODEC_VP8);
-               if (encoder) {
-                 return aConduit.SetExternalSendCodec(aConfig, encoder);
-               }
-               return kMediaConduitNoError;
-             }
-           }
-         }
-       }
-     } else {
-#ifdef MOZILLA_INTERNAL_API
-       bool enabled = mozilla::Preferences::GetBool("media.navigator.hardware.vp8_decode.acceleration_enabled", false);
-#else
-       bool enabled = false;
-#endif
-       if (enabled) {
-         nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
-         if (gfxInfo) {
-           int32_t status;
-           nsCString discardFailureId;
-           if (NS_SUCCEEDED(gfxInfo->GetFeatureStatus(nsIGfxInfo::FEATURE_WEBRTC_HW_ACCELERATION_DECODE, discardFailureId, &status))) {
-             if (status != nsIGfxInfo::FEATURE_STATUS_OK) {
-               NS_WARNING("VP8 decoder hardware is not whitelisted: disabling.\n");
-             } else {
-               VideoDecoder* decoder;
-               decoder = MediaCodecVideoCodec::CreateDecoder(MediaCodecVideoCodec::CodecType::CODEC_VP8);
-               if (decoder) {
-                 return aConduit.SetExternalRecvCodec(aConfig, decoder);
-               }
-               return kMediaConduitNoError;
-             }
-           }
-         }
-       }
-     }
-#endif
-     return kMediaConduitNoError;
+    return kMediaConduitNoError;
   }
   if (aConfig->mName == "VP9") {
     return kMediaConduitNoError;
@@ -1043,25 +976,13 @@ MediaPipelineFactory::EnsureExternalCodec(VideoSessionConduit& aConduit,
     }
     // Register H.264 codec.
     if (aIsSend) {
-      VideoEncoder* encoder = nullptr;
-#ifdef MOZ_WEBRTC_OMX
-      encoder =
-          OMXVideoCodec::CreateEncoder(OMXVideoCodec::CodecType::CODEC_H264);
-#else
-      encoder = GmpVideoCodec::CreateEncoder();
-#endif
+      VideoEncoder* encoder = GmpVideoCodec::CreateEncoder();
       if (encoder) {
         return aConduit.SetExternalSendCodec(aConfig, encoder);
       }
       return kMediaConduitInvalidSendCodec;
     }
-    VideoDecoder* decoder = nullptr;
-#ifdef MOZ_WEBRTC_OMX
-    decoder =
-      OMXVideoCodec::CreateDecoder(OMXVideoCodec::CodecType::CODEC_H264);
-#else
-    decoder = GmpVideoCodec::CreateDecoder();
-#endif
+    VideoDecoder* decoder = GmpVideoCodec::CreateDecoder();
     if (decoder) {
       return aConduit.SetExternalRecvCodec(aConfig, decoder);
     }

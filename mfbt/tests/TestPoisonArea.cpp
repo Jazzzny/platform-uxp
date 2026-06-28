@@ -156,14 +156,6 @@
 #elif defined __aarch64__
 #define RETURN_INSTR 0xd65f03c0 /* ret */
 
-#elif defined __ia64
-struct ia64_instr { uint32_t mI[4]; };
-static const ia64_instr _return_instr =
-  {{ 0x00000011, 0x00000001, 0x80000200, 0x00840008 }}; /* br.ret.sptk.many b0 */
-
-#define RETURN_INSTR _return_instr
-#define RETURN_INSTR_TYPE ia64_instr
-
 #else
 #error "Need return instruction for this architecture"
 #endif
@@ -393,16 +385,7 @@ ReserveNegativeControl()
 static void
 JumpTo(uintptr_t aOpaddr)
 {
-#ifdef __ia64
-  struct func_call
-  {
-    uintptr_t mFunc;
-    uintptr_t mGp;
-  } call = { aOpaddr, };
-  ((void (*)())&call)();
-#else
   ((void (*)())aOpaddr)();
-#endif
 }
 
 #ifdef _WIN32

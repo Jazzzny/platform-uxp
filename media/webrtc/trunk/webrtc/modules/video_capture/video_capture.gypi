@@ -151,42 +151,6 @@
                 ],
               },
             }],  # win
-            ['OS=="android"', {
-              'sources': [
-                'android/device_info_android.cc',
-                'android/device_info_android.h',
-                'android/video_capture_android.cc',
-                'android/video_capture_android.h',
-              ],
-            }],  # android
-            ['OS=="ios"', {
-              'sources': [
-                'ios/device_info_ios.h',
-                'ios/device_info_ios.mm',
-                'ios/device_info_ios_objc.h',
-                'ios/device_info_ios_objc.mm',
-                'ios/rtc_video_capture_ios_objc.h',
-                'ios/rtc_video_capture_ios_objc.mm',
-                'ios/video_capture_ios.h',
-                'ios/video_capture_ios.mm',
-              ],
-              'xcode_settings': {
-                'CLANG_ENABLE_OBJC_ARC': 'YES',
-              },
-              'cflags_mozilla': [
-                '-fobjc-arc',
-              ],
-              'all_dependent_settings': {
-                'xcode_settings': {
-                  'OTHER_LDFLAGS': [
-                    '-framework AVFoundation',
-                    '-framework CoreMedia',
-                    '-framework CoreVideo',
-                    '-framework UIKit',
-                  ],
-                },
-              },
-            }],  # ios
           ], # conditions
         },
       ],
@@ -210,7 +174,7 @@
             'test/video_capture_main_mac.mm',
           ],
           'conditions': [
-            ['OS!="win" and OS!="android"', {
+            ['OS!="win"', {
               'cflags': [
                 '-Wno-write-strings',
               ],
@@ -227,18 +191,6 @@
             ['OS=="linux"', {
               'libraries': [
                 '-lrt',
-              ],
-            }],
-            ['OS=="android"', {
-              'dependencies': [
-                '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-              ],
-              # Need to disable error due to the line in
-              # base/android/jni_android.h triggering it:
-              # const BASE_EXPORT jobject GetApplicationContext()
-              # error: type qualifiers ignored on function return type
-              'cflags': [
-                '-Wno-ignored-qualifiers',
               ],
             }],
             ['OS=="mac"', {
@@ -263,17 +215,6 @@
         },
       ], # targets
       'conditions': [
-        ['OS=="android"', {
-          'targets': [
-            {
-              'target_name': 'video_capture_tests_apk_target',
-              'type': 'none',
-              'dependencies': [
-                '<(apk_tests_path):video_capture_tests_apk',
-              ],
-            },
-          ],
-        }],
         ['test_isolation_mode != "noop"', {
           'targets': [
             {

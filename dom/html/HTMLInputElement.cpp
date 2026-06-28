@@ -3590,7 +3590,7 @@ HTMLInputElement::Blur(ErrorResult& aError)
 } 
 
 void
-HTMLInputElement::Focus(ErrorResult& aError)
+HTMLInputElement::Focus(const FocusOptions& aOptions, ErrorResult& aError)
 {
   if (mType == NS_FORM_INPUT_NUMBER) {
     // Focus our anonymous text control, if we have one.
@@ -3600,7 +3600,7 @@ HTMLInputElement::Focus(ErrorResult& aError)
       RefPtr<HTMLInputElement> textControl =
         numberControlFrame->GetAnonTextControl();
       if (textControl) {
-        textControl->Focus(aError);
+        textControl->Focus(aOptions, aError);
         return;
       }
     }
@@ -3616,7 +3616,7 @@ HTMLInputElement::Focus(ErrorResult& aError)
   }
 
   if (mType != NS_FORM_INPUT_FILE) {
-    nsGenericHTMLElement::Focus(aError);
+    nsGenericHTMLElement::Focus(aOptions, aError);
     return;
   }
 
@@ -4130,7 +4130,9 @@ HTMLInputElement::StartRangeThumbDrag(WidgetGUIEvent* aEvent)
   // have changed it by then).
   GetValue(mFocusedValue);
 
-  SetValueOfRangeForUserEvent(rangeFrame->GetValueAtEventPoint(aEvent));
+  if (rangeFrame) {
+    SetValueOfRangeForUserEvent(rangeFrame->GetValueAtEventPoint(aEvent));
+  }
 }
 
 void
@@ -4143,7 +4145,9 @@ HTMLInputElement::FinishRangeThumbDrag(WidgetGUIEvent* aEvent)
   }
   if (aEvent) {
     nsRangeFrame* rangeFrame = do_QueryFrame(GetPrimaryFrame());
-    SetValueOfRangeForUserEvent(rangeFrame->GetValueAtEventPoint(aEvent));
+    if (rangeFrame) {
+      SetValueOfRangeForUserEvent(rangeFrame->GetValueAtEventPoint(aEvent));
+    }
   }
   mIsDraggingRange = false;
   FireChangeEventIfNeeded();

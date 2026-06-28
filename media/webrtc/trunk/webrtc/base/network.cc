@@ -21,7 +21,7 @@
 #if defined(WEBRTC_LINUX)
 #include <linux/if.h>
 #include <linux/route.h>
-#elif !defined(__native_client__)
+#else
 #include <net/if.h>
 #endif
 #include <sys/socket.h>
@@ -30,11 +30,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#if defined(WEBRTC_ANDROID)
-#include "webrtc/base/ifaddrs-android.h"
-#elif !defined(__native_client__)
 #include <ifaddrs.h>
-#endif
 
 #endif  // WEBRTC_POSIX
 
@@ -317,16 +313,7 @@ BasicNetworkManager::BasicNetworkManager()
 BasicNetworkManager::~BasicNetworkManager() {
 }
 
-#if defined(__native_client__)
-
-bool BasicNetworkManager::CreateNetworks(bool include_ignored,
-                                         NetworkList* networks) const {
-  ASSERT(false);
-  LOG(LS_WARNING) << "BasicNetworkManager doesn't work on NaCl yet";
-  return false;
-}
-
-#elif defined(WEBRTC_POSIX)
+#if defined(WEBRTC_POSIX)
 void BasicNetworkManager::ConvertIfAddrs(struct ifaddrs* interfaces,
                                          bool include_ignored,
                                          NetworkList* networks) const {

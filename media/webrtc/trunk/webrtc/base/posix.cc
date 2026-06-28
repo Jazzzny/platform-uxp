@@ -14,14 +14,14 @@
 #include <errno.h>
 #include <unistd.h>
 
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 #include "webrtc/base/linuxfdwalk.h"
 #endif
 #include "webrtc/base/logging.h"
 
 namespace rtc {
 
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 static void closefds(void *close_errors, int fd) {
   if (fd <= 2) {
     // We leave stdin/out/err open to the browser's terminal, if any.
@@ -35,7 +35,7 @@ static void closefds(void *close_errors, int fd) {
 
 enum {
   EXIT_FLAG_CHDIR_ERRORS       = 1 << 0,
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
   EXIT_FLAG_FDWALK_ERRORS      = 1 << 1,
   EXIT_FLAG_CLOSE_ERRORS       = 1 << 2,
 #endif
@@ -57,7 +57,7 @@ bool RunAsDaemon(const char *file, const char *const argv[]) {
     if (chdir("/") < 0) {
       exit_code |= EXIT_FLAG_CHDIR_ERRORS;
     }
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
     bool close_errors = false;
     if (fdwalk(&closefds, &close_errors) < 0) {
       exit_code |= EXIT_FLAG_FDWALK_ERRORS;
@@ -112,7 +112,7 @@ bool RunAsDaemon(const char *file, const char *const argv[]) {
   if (exit_code & EXIT_FLAG_CHDIR_ERRORS) {
     LOG(LS_WARNING) << "Child reported probles calling chdir()";
   }
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
   if (exit_code & EXIT_FLAG_FDWALK_ERRORS) {
     LOG(LS_WARNING) << "Child reported problems calling fdwalk()";
   }

@@ -534,22 +534,12 @@ TEST_F(AudioDecoderIsacSwbTest, EncodeDecode) {
   EXPECT_FALSE(decoder_->HasDecodePlc());
 }
 
-// Fails Android ARM64. https://code.google.com/p/webrtc/issues/detail?id=4198
-#if defined(WEBRTC_ANDROID) && defined(__aarch64__)
-#define MAYBE_EncodeDecode DISABLED_EncodeDecode
-#else
-#define MAYBE_EncodeDecode EncodeDecode
-#endif
-TEST_F(AudioDecoderIsacFixTest, MAYBE_EncodeDecode) {
+TEST_F(AudioDecoderIsacFixTest, EncodeDecode) {
   int tolerance = 11034;
   double mse = 3.46e6;
   int delay = 54;  // Delay from input to output.
   EXPECT_TRUE(CodecSupported(kDecoderISAC));
-#ifdef WEBRTC_ANDROID
-  static const int kEncodedBytes = 685;
-#else
   static const int kEncodedBytes = 671;
-#endif
   EncodeDecodeTest(kEncodedBytes, tolerance, mse, delay);
   ReInitTest();
   EXPECT_FALSE(decoder_->HasDecodePlc());

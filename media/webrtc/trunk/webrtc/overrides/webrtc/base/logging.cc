@@ -13,7 +13,7 @@
 // logging.h since logging.h defines some of the same macros as Chrome does
 // and we'll run into conflict.
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 #include <CoreServices/CoreServices.h>
 #endif  // OS_MACOSX
 
@@ -111,11 +111,7 @@ static std::string GenerateExtra(LogErrorContext err_ctx,
         break;
       }
 #endif  // OS_WIN
-#if defined(WEBRTC_IOS)
-      case ERRCTX_OSSTATUS:
-        tmp << " " << "Unknown LibJingle error: " << err;
-        break;
-#elif defined(WEBRTC_MAC)
+#if defined(WEBRTC_MAC)
       case ERRCTX_OSSTATUS: {
         tmp << " " << nonnull(GetMacOSStatusErrorString(err), "Unknown error");
         if (const char* desc = GetMacOSStatusCommentString(err)) {

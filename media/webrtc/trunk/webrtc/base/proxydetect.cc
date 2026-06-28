@@ -19,7 +19,7 @@
 #include "config.h"
 #endif
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 #include <SystemConfiguration/SystemConfiguration.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreServices/CoreServices.h>
@@ -384,7 +384,7 @@ bool GetFirefoxProfilePath(Pathname* path) {
   path->SetFolder(ToUtf8(w_path, wcslen(w_path)));
   path->AppendFolder("Mozilla");
   path->AppendFolder("Firefox");
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
   FSRef fr;
   if (0 != FSFindFolder(kUserDomain, kApplicationSupportFolderType,
                         kCreateFolder, &fr)) {
@@ -941,7 +941,7 @@ bool GetIeProxySettings(const char* agent, const char* url, ProxyInfo* proxy) {
 
 #endif  // WEBRTC_WIN 
 
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)  // WEBRTC_MAC && !defined(WEBRTC_IOS) specific implementation for reading system wide
+#if defined(WEBRTC_MAC)  // WEBRTC_MAC specific implementation for reading system wide
             // proxy settings.
 
 bool p_getProxyInfoForTypeFromDictWithKeys(ProxyInfo* proxy,
@@ -1177,7 +1177,7 @@ bool GetMacProxySettings(ProxyInfo* proxy) {
 
   return result;
 }
-#endif  // WEBRTC_MAC && !defined(WEBRTC_IOS)
+#endif  // WEBRTC_MAC
 
 bool AutoDetectProxySettings(const char* agent, const char* url,
                              ProxyInfo* proxy) {
@@ -1193,7 +1193,7 @@ bool GetSystemDefaultProxySettings(const char* agent, const char* url,
                                    ProxyInfo* proxy) {
 #if defined(WEBRTC_WIN)
   return GetIeProxySettings(agent, url, proxy);
-#elif defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#elif defined(WEBRTC_MAC)
   return GetMacProxySettings(proxy);
 #else
   // TODO: Get System settings if browser is not firefox.

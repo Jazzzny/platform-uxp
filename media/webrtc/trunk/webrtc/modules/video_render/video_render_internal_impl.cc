@@ -22,11 +22,6 @@
 #include "webrtc/modules/video_render/windows/video_render_windows_impl.h"
 #define STANDARD_RENDERING kRenderWindows
 
-// WEBRTC_IOS should go before WEBRTC_MAC because WEBRTC_MAC
-// gets defined if WEBRTC_IOS is defined
-#elif defined(WEBRTC_IOS)
-#define STANDARD_RENDERING kRenderiOS
-#include "webrtc/modules/video_render/ios/video_render_ios_impl.h"
 #elif defined(WEBRTC_MAC)
 #if defined(COCOA_RENDERING)
 #define STANDARD_RENDERING kRenderCocoa
@@ -35,12 +30,6 @@
 #define STANDARD_RENDERING kRenderCarbon
 #include "webrtc/modules/video_render/mac/video_render_mac_carbon_impl.h"
 #endif
-
-#elif defined(WEBRTC_ANDROID)
-#include "webrtc/modules/video_render/android/video_render_android_impl.h"
-#include "webrtc/modules/video_render/android/video_render_android_native_opengl2.h"
-#include "webrtc/modules/video_render/android/video_render_android_surface_view.h"
-#define STANDARD_RENDERING kRenderAndroid
 
 #elif defined(WEBRTC_LINUX)
 #include "webrtc/modules/video_render/linux/video_render_linux_impl.h"
@@ -106,17 +95,6 @@ ModuleVideoRenderImpl::ModuleVideoRenderImpl(
         }
         break;
 
-#elif defined(WEBRTC_IOS)
-        case kRenderiOS:
-        {
-            VideoRenderIosImpl* ptrRenderer = new VideoRenderIosImpl(_id, window, _fullScreen);
-            if(ptrRenderer)
-            {
-                _ptrRenderer = reinterpret_cast<IVideoRender*>(ptrRenderer);
-            }
-        }
-        break;
-
 #elif defined(WEBRTC_MAC)
 
 #if defined(COCOA_RENDERING)
@@ -142,30 +120,6 @@ ModuleVideoRenderImpl::ModuleVideoRenderImpl(
         break;
 #endif
 
-#elif defined(WEBRTC_ANDROID)
-        case kRenderAndroid:
-        {
-            if(AndroidNativeOpenGl2Renderer::UseOpenGL2(window))
-            {
-                AndroidNativeOpenGl2Renderer* ptrRenderer = NULL;
-                ptrRenderer = new AndroidNativeOpenGl2Renderer(_id, videoRenderType, window, _fullScreen);
-                if (ptrRenderer)
-                {
-                    _ptrRenderer = reinterpret_cast<IVideoRender*> (ptrRenderer);
-                }
-            }
-            else
-            {
-                AndroidSurfaceViewRenderer* ptrRenderer = NULL;
-                ptrRenderer = new AndroidSurfaceViewRenderer(_id, videoRenderType, window, _fullScreen);
-                if (ptrRenderer)
-                {
-                    _ptrRenderer = reinterpret_cast<IVideoRender*> (ptrRenderer);
-                }
-            }
-
-        }
-        break;
 #elif defined(WEBRTC_LINUX)
         case kRenderX11:
         {
@@ -238,14 +192,6 @@ ModuleVideoRenderImpl::~ModuleVideoRenderImpl()
                 delete ptrRenderer;
             }
             break;
-#elif defined(WEBRTC_IOS)
-            case kRenderiOS:
-            {
-              VideoRenderIosImpl* ptrRenderer = reinterpret_cast<VideoRenderIosImpl*> (_ptrRenderer);
-              _ptrRenderer = NULL;
-              delete ptrRenderer;
-            }
-            break;
 #elif defined(WEBRTC_MAC)
 
 #if defined(COCOA_RENDERING)
@@ -265,15 +211,6 @@ ModuleVideoRenderImpl::~ModuleVideoRenderImpl()
             }
             break;
 #endif
-
-#elif defined(WEBRTC_ANDROID)
-            case kRenderAndroid:
-            {
-                VideoRenderAndroid* ptrRenderer = reinterpret_cast<VideoRenderAndroid*> (_ptrRenderer);
-                _ptrRenderer = NULL;
-                delete ptrRenderer;
-            }
-            break;
 
 #elif defined(WEBRTC_LINUX)
             case kRenderX11:
@@ -317,19 +254,7 @@ int32_t ModuleVideoRenderImpl::ChangeWindow(void* window)
 
     CriticalSectionScoped cs(&_moduleCrit);
 
-#if defined(WEBRTC_IOS) // WEBRTC_IOS must go before WEBRTC_MAC
-    _ptrRenderer = NULL;
-    delete _ptrRenderer;
-
-    VideoRenderIosImpl* ptrRenderer;
-    ptrRenderer = new VideoRenderIosImpl(_id, window, _fullScreen);
-    if (!ptrRenderer)
-    {
-        return -1;
-    }
-    _ptrRenderer = reinterpret_cast<IVideoRender*>(ptrRenderer);
-    return _ptrRenderer->ChangeWindow(window);
-#elif defined(WEBRTC_MAC)
+#if defined(WEBRTC_MAC)
 
     _ptrRenderer = NULL;
     delete _ptrRenderer;

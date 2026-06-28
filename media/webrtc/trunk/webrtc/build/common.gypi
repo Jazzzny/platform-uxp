@@ -23,21 +23,15 @@
           ['build_with_chromium==1', {
             'build_with_libjingle': 1,
             'webrtc_root%': '<(DEPTH)/third_party/webrtc',
-            'apk_tests_path%': '<(DEPTH)/third_party/webrtc/build/apk_tests_noop.gyp',
-            'modules_java_gyp_path%': '<(DEPTH)/third_party/webrtc/modules/modules_java_chromium.gyp',
           }, {
             'build_with_libjingle%': 0,
             'webrtc_root%': '<(DEPTH)/webrtc',
-            'apk_tests_path%': '<(DEPTH)/webrtc/build/apk_tests.gyp',
-            'modules_java_gyp_path%': '<(DEPTH)/webrtc/modules/modules_java.gyp',
           }],
         ],
       },
       'build_with_chromium%': '<(build_with_chromium)',
       'build_with_libjingle%': '<(build_with_libjingle)',
       'webrtc_root%': '<(webrtc_root)',
-      'apk_tests_path%': '<(apk_tests_path)',
-      'modules_java_gyp_path%': '<(modules_java_gyp_path)',
       'webrtc_vp8_dir%': '<(webrtc_root)/modules/video_coding/codecs/vp8',
       'webrtc_vp9_dir%': '<(webrtc_root)/modules/video_coding/codecs/vp9',
       'webrtc_h264_dir%': '<(webrtc_root)/modules/video_coding/codecs/h264',
@@ -52,8 +46,6 @@
     'build_with_chromium%': '<(build_with_chromium)',
     'build_with_libjingle%': '<(build_with_libjingle)',
     'webrtc_root%': '<(webrtc_root)',
-    'apk_tests_path%': '<(apk_tests_path)',
-    'modules_java_gyp_path%': '<(modules_java_gyp_path)',
     'webrtc_vp8_dir%': '<(webrtc_vp8_dir)',
     'webrtc_vp9_dir%': '<(webrtc_vp9_dir)',
     'webrtc_h264_dir%': '<(webrtc_h264_dir)',
@@ -107,9 +99,6 @@
     'build_openmax_dl%': 1,
     'build_opus%': 1,
 
-    # Disable by default
-    'have_dbus_glib%': 0,
-
     # Enable to use the Mozilla internal settings.
     'build_with_mozilla%': 0,
 
@@ -117,11 +106,6 @@
     'libvpx_dir%': '<(DEPTH)/third_party/libvpx',
     'libyuv_dir%': '<(DEPTH)/third_party/libyuv',
     'opus_dir%': '<(opus_dir)',
-
-    # Use Java based audio layer as default for Android.
-    # Change this setting to 1 to use Open SL audio instead.
-    # TODO(henrika): add support for Open SL ES.
-    'enable_android_opensl%': 0,
 
     # Link-Time Optimizations
     # Executes code generation at link-time instead of compile-time
@@ -184,14 +168,10 @@
       }, {
         'include_v4l2_video_capture%': 0,
       }],
-      ['OS=="ios"', {
-        'build_libjpeg%': 0,
-        'enable_protobuf%': 0,
-      }],
       ['target_arch=="arm" or target_arch=="arm64"', {
         'prefer_fixed_point%': 1,
       }],
-      ['OS!="ios" and (target_arch!="arm" or arm_version>=7) and target_arch!="mips64el" and build_with_mozilla==0', {
+      ['(target_arch!="arm" or arm_version>=7) and target_arch!="mips64el" and build_with_mozilla==0', {
         'rtc_use_openmax_dl%': 1,
       }, {
         'rtc_use_openmax_dl%': 0,
@@ -209,14 +189,6 @@
           'WEBRTC_MOZILLA_BUILD',
          ],
       }],
-      ['have_dbus_glib==1', {
-        'defines': [
-          'HAVE_DBUS_GLIB',
-         ],
-         'cflags': [
-           '<!@(pkg-config --cflags dbus-glib-1)',
-         ],
-      }],
       ['rtc_relative_path==1', {
         'defines': ['EXPAT_RELATIVE_PATH',],
       }],
@@ -225,7 +197,7 @@
           'Debug_Base': {
             'defines': [
               # Chromium's build/common.gypi defines _DEBUG for all posix
-              # _except_ for ios & mac.  The size of data types such as
+              # _except_ for mac.  The size of data types such as
               # pthread_mutex_t varies between release and debug builds
               # and is controlled via this flag.  Since we now share code
               # between base/base.gyp and build/common.gypi (this file),
@@ -264,23 +236,15 @@
         ],
         'conditions': [
           ['os_posix==1', {
-            'conditions': [
-              # -Wextra is currently disabled in Chromium's common.gypi. Enable
-              # for targets that can handle it. For Android/arm64 right now
-              # there will be an 'enumeral and non-enumeral type in conditional
-              # expression' warning in android_tools/ndk_experimental's version
-              # of stlport.
-              # See: https://code.google.com/p/chromium/issues/detail?id=379699
-              ['target_arch!="arm64" or OS!="android"', {
-                'cflags': [
-                  '-Wextra',
-                  # We need to repeat some flags from Chromium's common.gypi
-                  # here that get overridden by -Wextra.
-                  '-Wno-unused-parameter',
-                  '-Wno-missing-field-initializers',
-                  '-Wno-strict-overflow',
-                ],
-              }],
+            # -Wextra is currently disabled in Chromium's common.gypi. Enable
+            # for targets that can handle it.
+            'cflags': [
+              '-Wextra',
+              # We need to repeat some flags from Chromium's common.gypi
+              # here that get overridden by -Wextra.
+              '-Wno-unused-parameter',
+              '-Wno-missing-field-initializers',
+              '-Wno-strict-overflow',
             ],
             'cflags_cc': [
               '-Wnon-virtual-dtor',
@@ -338,7 +302,7 @@
         ],
       }],
       # Mozilla: if we support Mozilla on MIPS, we'll need to mod the cflags entries here
-      ['target_arch=="mipsel" and mips_arch_variant!="r6" and android_webview_build==0', {
+      ['target_arch=="mipsel" and mips_arch_variant!="r6"', {
         'defines': [
           'MIPS32_LE',
         ],
@@ -378,12 +342,6 @@
           'WEBRTC_POSIX',
         ],
       }],
-      ['OS=="ios"', {
-        'defines': [
-          'WEBRTC_MAC',
-          'WEBRTC_IOS',
-        ],
-      }],
       ['OS=="linux"', {
 #        'conditions': [
 #          ['have_clock_monotonic==1', {
@@ -415,35 +373,6 @@
         # Re-enable some warnings that Chromium disables.
         'msvs_disabled_warnings!': [4189,],
       }],
-      # used on GONK as well
-      ['enable_android_opensl==1 and OS=="android"', {
-        'defines': [
-          'WEBRTC_ANDROID_OPENSLES',
-        ],
-      }],
-      ['moz_webrtc_omx==1', {
-        'defines' : [
-          'MOZ_WEBRTC_OMX'
-        ],
-      }],
-      ['OS=="android"', {
-        'defines': [
-          'WEBRTC_LINUX',
-          'WEBRTC_ANDROID',
-         ],
-         'conditions': [
-           ['clang!=1', {
-             # The Android NDK doesn't provide optimized versions of these
-             # functions. Ensure they are disabled for all compilers.
-             'cflags': [
-               '-fno-builtin-cos',
-               '-fno-builtin-sin',
-               '-fno-builtin-cosf',
-               '-fno-builtin-sinf',
-             ],
-           }],
-         ],
-      }],
     ], # conditions
     'direct_dependent_settings': {
       'conditions': [
@@ -474,12 +403,6 @@
             'WEBRTC_MAC',
           ],
         }],
-        ['OS=="ios"', {
-          'defines': [
-            'WEBRTC_MAC',
-            'WEBRTC_IOS',
-          ],
-        }],
         ['OS=="win"', {
           'defines': [
             'WEBRTC_WIN',
@@ -489,19 +412,6 @@
           'defines': [
             'WEBRTC_LINUX',
           ],
-        }],
-        ['OS=="android"', {
-          'defines': [
-            'WEBRTC_LINUX',
-            'WEBRTC_ANDROID',
-           ],
-           'conditions': [
-             ['enable_android_opensl==1', {
-               'defines': [
-                 'WEBRTC_ANDROID_OPENSLES',
-               ],
-             }]
-           ],
         }],
         ['os_posix==1', {
           # For access to standard POSIXish features, use WEBRTC_POSIX instead
@@ -514,4 +424,3 @@
     },
   }, # target_defaults
 }
-

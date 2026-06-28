@@ -3283,7 +3283,7 @@ NSC_SignFinal(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pSignature,
 {
     SFTKSession *session;
     SFTKSessionContext *context;
-    unsigned int outlen;
+    unsigned int outlen = 0;
     unsigned int maxoutlen = *pulSignatureLen;
     CK_RV crv;
 
@@ -4785,15 +4785,20 @@ NSC_GenerateKey(CK_SESSION_HANDLE hSession,
      */
     crv = sftk_handleObject(key, session);
     sftk_FreeSession(session);
-    if (crv == CKR_OK && sftk_isTrue(key, CKA_SENSITIVE)) {
+    if (crv != CKR_OK) {
+        goto loser;
+    }
+    if (sftk_isTrue(key, CKA_SENSITIVE)) {
         crv = sftk_forceAttribute(key, CKA_ALWAYS_SENSITIVE, &cktrue, sizeof(CK_BBOOL));
     }
     if (crv == CKR_OK && !sftk_isTrue(key, CKA_EXTRACTABLE)) {
         crv = sftk_forceAttribute(key, CKA_NEVER_EXTRACTABLE, &cktrue, sizeof(CK_BBOOL));
     }
-    if (crv == CKR_OK) {
-        *phKey = key->handle;
+    if (crv != CKR_OK) {
+        NSC_DestroyObject(hSession, key->handle);
+        goto loser;
     }
+    *phKey = key->handle;
 loser:
     PORT_Memset(buf, 0, sizeof buf);
     sftk_FreeObject(key);
@@ -6026,8 +6031,10 @@ NSC_WrapKey(CK_SESSION_HANDLE hSession,
 
             /* Find out if this is a block cipher. */
             crv = sftk_GetContext(hSession, &context, SFTK_ENCRYPT, PR_FALSE, NULL);
-            if (crv != CKR_OK || !context)
+            if (crv != CKR_OK || !context) {
+                sftk_FreeAttribute(attribute);
                 break;
+            }
             if (context->blockSize > 1) {
                 unsigned int remainder = pText.len % context->blockSize;
                 if (!context->doPad && remainder) {
@@ -6041,6 +6048,7 @@ NSC_WrapKey(CK_SESSION_HANDLE hSession,
                         memcpy(pText.data, attribute->attrib.pValue,
                                attribute->attrib.ulValueLen);
                     else {
+                        sftk_FreeAttribute(attribute);
                         crv = CKR_HOST_MEMORY;
                         break;
                     }
@@ -6790,6 +6798,10 @@ sftk_compute_ANSI_X9_63_kdf(CK_BYTE **key, CK_ULONG key_len, SECItem *SharedSecr
 
     if (SharedInfo == NULL)
         SharedInfoLen = 0;
+
+    if (SharedSecret->len > PR_UINT32_MAX - 4 ||
+        SharedInfoLen > PR_UINT32_MAX - 4 - SharedSecret->len)
+        return CKR_ARGUMENTS_BAD;
 
     buffer_len = SharedSecret->len + 4 + SharedInfoLen;
     buffer = (CK_BYTE *)PORT_Alloc(buffer_len);
@@ -8111,8 +8123,8 @@ NSC_DeriveKey(CK_SESSION_HANDLE hSession,
             if (keySize == 0)
                 keySize = tmpKeySize;
             if (keySize > tmpKeySize) {
-                sftk_FreeObject(newKey);
                 sftk_FreeAttribute(att2);
+                sftk_FreeObject(newKey);
                 crv = CKR_TEMPLATE_INCONSISTENT;
                 break;
             }
@@ -8954,12 +8966,13 @@ NSC_DigestKey(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hKey)
     }
     /* get the key value */
     att = sftk_FindAttribute(key, CKA_VALUE);
-    sftk_FreeObject(key);
     if (!att) {
+        sftk_FreeObject(key);
         return CKR_KEY_HANDLE_INVALID;
     }
     crv = NSC_DigestUpdate(hSession, (CK_BYTE_PTR)att->attrib.pValue,
                            att->attrib.ulValueLen);
     sftk_FreeAttribute(att);
+    sftk_FreeObject(key);
     return crv;
 }

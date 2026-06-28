@@ -142,11 +142,9 @@ class AudioDeviceGeneric
 	virtual int32_t SetPlayoutSampleRate(
         const uint32_t samplesPerSec);
 
-    // Speaker audio routing (for mobile devices)
     virtual int32_t SetLoudspeakerStatus(bool enable);
     virtual int32_t GetLoudspeakerStatus(bool& enable) const;
 
-    // Reset Audio Device (for mobile devices)
     virtual int32_t ResetAudioDevice();
 
     // Sound Audio Device control (for WinCE only)
@@ -155,10 +153,9 @@ class AudioDeviceGeneric
                                        unsigned int par3 = 0,
                                        unsigned int par4 = 0);
 
-    // Android only
     virtual bool BuiltInAECIsAvailable() const;
 
-    // Windows Core Audio and Android only.
+    // Windows Core Audio only.
     virtual int32_t EnableBuiltInAEC(bool enable);
 
     // Windows Core Audio only.

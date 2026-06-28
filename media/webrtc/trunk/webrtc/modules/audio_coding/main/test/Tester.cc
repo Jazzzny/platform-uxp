@@ -42,7 +42,7 @@ TEST(AudioCodingModuleTest, TestAllCodecs) {
   Trace::ReturnTrace();
 }
 
-TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TestEncodeDecode)) {
+TEST(AudioCodingModuleTest, TestEncodeDecode) {
   Trace::CreateTrace();
   Trace::SetTraceFile((webrtc::test::OutputPath() +
       "acm_encodedecode_trace.txt").c_str());
@@ -50,7 +50,7 @@ TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TestEncodeDecode)) {
   Trace::ReturnTrace();
 }
 
-TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TestRedFec)) {
+TEST(AudioCodingModuleTest, TestRedFec) {
   Trace::CreateTrace();
   Trace::SetTraceFile((webrtc::test::OutputPath() +
       "acm_fec_trace.txt").c_str());
@@ -58,7 +58,7 @@ TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TestRedFec)) {
   Trace::ReturnTrace();
 }
 
-TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TestIsac)) {
+TEST(AudioCodingModuleTest, TestIsac) {
   Trace::CreateTrace();
   Trace::SetTraceFile((webrtc::test::OutputPath() +
       "acm_isac_trace.txt").c_str());
@@ -66,7 +66,7 @@ TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TestIsac)) {
   Trace::ReturnTrace();
 }
 
-TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TwoWayCommunication)) {
+TEST(AudioCodingModuleTest, TwoWayCommunication) {
   Trace::CreateTrace();
   Trace::SetTraceFile((webrtc::test::OutputPath() +
       "acm_twowaycom_trace.txt").c_str());
@@ -74,7 +74,7 @@ TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TwoWayCommunication)) {
   Trace::ReturnTrace();
 }
 
-TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TestStereo)) {
+TEST(AudioCodingModuleTest, TestStereo) {
   Trace::CreateTrace();
   Trace::SetTraceFile((webrtc::test::OutputPath() +
       "acm_stereo_trace.txt").c_str());
@@ -82,7 +82,7 @@ TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TestStereo)) {
   Trace::ReturnTrace();
 }
 
-TEST(AudioCodingModuleTest, DISABLED_ON_ANDROID(TestWebRtcVadDtx)) {
+TEST(AudioCodingModuleTest, TestWebRtcVadDtx) {
   Trace::CreateTrace();
   Trace::SetTraceFile((webrtc::test::OutputPath() +
       "acm_vaddtx_trace.txt").c_str());

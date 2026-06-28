@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 #include <math.h>
 #endif
 
@@ -17,7 +17,7 @@
 
 namespace rtc {
 
-#if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
+#if defined(WEBRTC_LINUX)
 
 #define LIBM_SYMBOLS_CLASS_NAME LibmTestSymbolTable
 #define LIBM_SYMBOLS_LIST \

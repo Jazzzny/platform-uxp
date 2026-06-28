@@ -28,16 +28,10 @@
           'webrtc/modules/modules.gyp:video_render',
 #          'webrtc/system_wrappers/source/system_wrappers.gyp:system_wrappers',
 #	  'webrtc/system_wrappers/source/system_wrappers.gyp:metrics_default',
+          'webrtc/modules/modules.gyp:desktop_capture',
           'webrtc/video_engine/video_engine.gyp:video_engine_core',
           'webrtc/voice_engine/voice_engine.gyp:voice_engine',
         ],
-        'conditions': [
-          ['OS!="android" and OS!="ios"', {
-            'dependencies': [
-              'webrtc/modules/modules.gyp:desktop_capture',
-            ],
-          },
-         ]],
       }, ],
     ],
   }, ],

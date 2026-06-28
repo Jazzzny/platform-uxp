@@ -17,13 +17,15 @@ import buildconfig
 
 
 def main(output, input):
-    if buildconfig.substs['OS_ARCH'] not in ('Linux', 'SunOS', 'Darwin', 'FreeBSD'):
-        print "Error: unhandled OS_ARCH %s" % buildconfig.substs['OS_ARCH']
+    if buildconfig.substs['OS_ARCH'] not in ('Linux', 'SunOS', 'Darwin', 'FreeBSD', 'NetBSD'):
+        print("Error: unhandled OS_ARCH %s" % buildconfig.substs['OS_ARCH'])
         return 1
-    is_linux = buildconfig.substs['OS_ARCH'] in ('Linux', 'SunOS', 'FreeBSD')
+    is_linux = buildconfig.substs['OS_ARCH'] in ('Linux', 'SunOS', 'FreeBSD', 'NetBSD')
 
     with open(input, 'rb') as f:
         for line in f:
+            if isinstance(line, bytes):
+                line = line.decode('utf-8')
             line = line.rstrip()
             # Remove all lines containing ';-'
             if ';-' in line:

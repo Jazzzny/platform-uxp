@@ -36,11 +36,7 @@
 
 #ifdef WEBRTC_AUDIOPROC_DEBUG_DUMP
 // Files generated at build-time by the protobuf compiler.
-#ifdef WEBRTC_ANDROID_PLATFORM_BUILD
-#include "external/webrtc/webrtc/modules/audio_processing/debug.pb.h"
-#else
 #include "webrtc/audio_processing/debug.pb.h"
-#endif
 #endif  // WEBRTC_AUDIOPROC_DEBUG_DUMP
 
 #define RETURN_ON_ERR(expr)  \
@@ -172,11 +168,7 @@ AudioProcessingImpl::AudioProcessingImpl(const Config& config,
       was_stream_delay_set_(false),
       output_will_be_muted_(false),
       key_pressed_(false),
-#if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS)
-      use_new_agc_(false),
-#else
       use_new_agc_(config.Get<ExperimentalAgc>().enabled),
-#endif
       transient_suppressor_enabled_(config.Get<ExperimentalNs>().enabled),
       beamformer_enabled_(config.Get<Beamforming>().enabled),
       beamformer_(beamformer),

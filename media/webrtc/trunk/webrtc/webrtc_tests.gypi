@@ -24,13 +24,6 @@
         'sound/sound.gyp:rtc_sound',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
-      'conditions': [
-        ['OS=="android"', {
-          'dependencies': [
-            '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-          ],
-        }],
-      ],
     },
     {
       'target_name': 'webrtc_tests',
@@ -165,13 +158,6 @@
         'tools/tools.gyp:agc_manager',
         'webrtc',
       ],
-      'conditions': [
-        ['OS=="android"', {
-          'dependencies': [
-            '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-          ],
-        }],
-      ],
     },
     {
       'target_name': 'webrtc_perf_tests',
@@ -197,41 +183,9 @@
         'tools/tools.gyp:agc_manager',
         'webrtc',
       ],
-      'conditions': [
-        ['OS=="android"', {
-          'dependencies': [
-            '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
-          ],
-        }],
-      ],
     },
   ],
   'conditions': [
-    ['OS=="android"', {
-      'targets': [
-        {
-          'target_name': 'rtc_unittests_apk_target',
-          'type': 'none',
-          'dependencies': [
-            '<(apk_tests_path):rtc_unittests_apk',
-          ],
-        },
-        {
-          'target_name': 'video_engine_tests_apk_target',
-          'type': 'none',
-          'dependencies': [
-            '<(apk_tests_path):video_engine_tests_apk',
-          ],
-        },
-        {
-          'target_name': 'webrtc_perf_tests_apk_target',
-          'type': 'none',
-          'dependencies': [
-            '<(apk_tests_path):webrtc_perf_tests_apk',
-          ],
-        },
-      ],
-    }],
     ['test_isolation_mode != "noop"', {
       'targets': [
         {

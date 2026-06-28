@@ -429,7 +429,7 @@ class FileStream : public StreamInterface {
 
   bool Flush() override;
 
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
+#if defined(WEBRTC_POSIX)
   // Tries to aquire an exclusive lock on the file.
   // Use OpenShare(...) on win32 to get similar functionality.
   bool TryLock();
@@ -521,7 +521,7 @@ class AsyncWriteStream : public StreamInterface {
 };
 
 
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
+#if defined(WEBRTC_POSIX)
 // A FileStream that is actually not a file, but the output or input of a
 // sub-command. See "man 3 popen" for documentation of the underlying OS popen()
 // function.

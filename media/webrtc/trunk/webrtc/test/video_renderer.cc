@@ -9,8 +9,6 @@
  */
 #include "webrtc/test/video_renderer.h"
 
-// TODO(pbos): Android renderer
-
 #include "webrtc/typedefs.h"
 
 namespace webrtc {

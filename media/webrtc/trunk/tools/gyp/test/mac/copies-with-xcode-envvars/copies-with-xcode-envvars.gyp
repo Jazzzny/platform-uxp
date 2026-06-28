@@ -12,7 +12,7 @@
     'mac_bundle': 1,
     'sources': [ 'empty.c' ],
     'conditions': [
-      ['OS == "ios" or OS == "mac"', {
+      ['OS == "mac"', {
         'copies': [{
           'destination': '$(BUILT_PRODUCTS_DIR)',
           'files': [
@@ -79,8 +79,7 @@
             'file11',
           ],
         }], # copies
-      }], # OS == "ios" or OS == "mac"
+      }], # OS == "mac"
     ], # conditions
   }], # targets
 }
-

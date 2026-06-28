@@ -29,9 +29,6 @@ namespace test {
 
 bool UdpSocketWrapper::_initiated = false;
 
-// Temporary Android hack. The value 1024 is taken from
-// <ndk>/build/platforms/android-1.5/arch-arm/usr/include/linux/posix_types.h
-// TODO (tomasl): can we remove this now?
 #ifndef FD_SETSIZE
 #define FD_SETSIZE 1024
 #endif

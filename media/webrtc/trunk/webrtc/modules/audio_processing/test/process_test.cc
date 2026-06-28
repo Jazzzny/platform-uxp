@@ -11,9 +11,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef WEBRTC_ANDROID
-#include <sys/stat.h>
-#endif
 
 #include <algorithm>
 
@@ -26,13 +23,8 @@
 #include "webrtc/system_wrappers/interface/tick_util.h"
 #include "webrtc/test/testsupport/fileutils.h"
 #include "webrtc/test/testsupport/perf_test.h"
-#ifdef WEBRTC_ANDROID_PLATFORM_BUILD
-#include "gtest/gtest.h"
-#include "external/webrtc/webrtc/modules/audio_processing/debug.pb.h"
-#else
 #include "testing/gtest/include/gtest/gtest.h"
 #include "webrtc/audio_processing/debug.pb.h"
-#endif
 
 namespace webrtc {
 

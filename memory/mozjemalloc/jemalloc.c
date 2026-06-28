@@ -896,7 +896,8 @@ static const bool config_recycle = false;
  * controlling the malloc behavior are defined as compile-time constants
  * for best performance and cannot be altered at runtime.
  */
-#if !defined(__ia64__) && !defined(__sparc__) && !defined(__mips__) && !defined(__aarch64__)
+#if !defined(__sparc__) && !defined(__mips__) && \
+    !defined(__aarch64__) && !defined(__loongarch__) && !defined(__loongarch64)
 #define MALLOC_STATIC_SIZES 1
 #endif
 
@@ -908,12 +909,10 @@ static const bool config_recycle = false;
  * Platform specific page size conditions copied from js/public/HeapAPI.h
  */
 #if (defined(SOLARIS) || defined(__FreeBSD__)) && \
-    (defined(__sparc) || defined(__sparcv9) || defined(__ia64))
+    (defined(__sparc) || defined(__sparcv9))
 #define pagesize_2pow			((size_t) 13)
 #elif defined(__powerpc64__)
 #define pagesize_2pow			((size_t) 16)
-#elif defined(__loongarch__) || defined(__loongarch64)
-#define pagesize_2pow			((size_t) 14)
 #else
 #define pagesize_2pow			((size_t) 12)
 #endif
@@ -1968,14 +1967,14 @@ static void *
 pages_map(void *addr, size_t size)
 {
 	void *ret;
-#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__) && defined(__linux__)) || (defined(__sun) && defined(__x86_64__))
+#if (defined(__sparc__) && defined(__arch64__) && defined(__linux__)) || (defined(__sun) && defined(__x86_64__))
         /*
          * The JS engine assumes that all allocated pointers have their high 17 bits clear,
-         * which ia64's mmap doesn't support directly. However, we can emulate it by passing
-         * mmap an "addr" parameter with those bits clear. The mmap will return that address,
-         * or the nearest available memory above that address, providing a near-guarantee
-         * that those bits are clear. If they are not, we return NULL below to indicate
-         * out-of-memory.
+         * which mmap on these platforms doesn't support directly. However, we can emulate
+         * it by passing mmap an "addr" parameter with those bits clear. The mmap will
+         * return that address, or the nearest available memory above that address,
+         * providing a near-guarantee that those bits are clear. If they are not, we return
+         * NULL below to indicate out-of-memory.
          *
          * The addr is chosen as 0x0000070000000000, which still allows about 120TB of virtual
          * address space.
@@ -2023,7 +2022,7 @@ pages_map(void *addr, size_t size)
 	if (ret == MAP_FAILED) {
 		ret = NULL;
 	}
-#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__) && defined(__linux__)) || (defined(__sun) && defined(__x86_64__))
+#if (defined(__sparc__) && defined(__arch64__) && defined(__linux__)) || (defined(__sun) && defined(__x86_64__))
         /*
          * If the allocated memory doesn't have its upper 17 bits clear, consider it
          * as out of memory.
@@ -2056,7 +2055,7 @@ pages_map(void *addr, size_t size)
 		MozTagAnonymousMemory(ret, size, "jemalloc");
 	}
 
-#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__) && defined(__linux__)) || (defined(__sun) && defined(__x86_64__))
+#if (defined(__sparc__) && defined(__arch64__) && defined(__linux__)) || (defined(__sun) && defined(__x86_64__))
 	assert(ret == NULL || (!check_placement && ret != NULL)
 	    || (check_placement && ret == addr));
 #else

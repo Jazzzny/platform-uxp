@@ -28,7 +28,7 @@ def _WriteWorkspace(main_gyp, sources_gyp, params):
     workspace_path = os.path.join(options.generator_output, workspace_path)
   try:
     os.makedirs(workspace_path)
-  except OSError, e:
+  except OSError as e:
     if e.errno != errno.EEXIST:
       raise
   output_string = '<?xml version="1.0" encoding="UTF-8"?>\n' + \
@@ -85,13 +85,9 @@ def _TargetFromSpec(old_spec, params):
         "%s/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" % ninja_toplevel
 
   if 'configurations' in old_spec:
-    for config in old_spec['configurations'].iterkeys():
+    for config in old_spec['configurations'].keys():
       old_xcode_settings = \
         old_spec['configurations'][config].get('xcode_settings', {})
-      if 'IPHONEOS_DEPLOYMENT_TARGET' in old_xcode_settings:
-        new_xcode_settings['CODE_SIGNING_REQUIRED'] = "NO"
-        new_xcode_settings['IPHONEOS_DEPLOYMENT_TARGET'] = \
-            old_xcode_settings['IPHONEOS_DEPLOYMENT_TARGET']
       for key in ['BUNDLE_LOADER', 'TEST_HOST']:
         if key in old_xcode_settings:
           new_xcode_settings[key] = old_xcode_settings[key]
@@ -102,10 +98,6 @@ def _TargetFromSpec(old_spec, params):
 
   ninja_target['mac_bundle'] = old_spec.get('mac_bundle', 0)
   ninja_target['mac_xctest_bundle'] = old_spec.get('mac_xctest_bundle', 0)
-  ninja_target['ios_app_extension'] = old_spec.get('ios_app_extension', 0)
-  ninja_target['ios_watchkit_extension'] = \
-      old_spec.get('ios_watchkit_extension', 0)
-  ninja_target['ios_watchkit_app'] = old_spec.get('ios_watchkit_app', 0)
   ninja_target['type'] = old_spec['type']
   if ninja_toplevel:
     ninja_target['actions'] = [
@@ -167,7 +159,7 @@ def CreateWrapper(target_list, target_dicts, data, params):
     params: Dict of global options for gyp.
   """
   orig_gyp = params['build_files'][0]
-  for gyp_name, gyp_dict in data.iteritems():
+  for gyp_name, gyp_dict in data.items():
     if gyp_name == orig_gyp:
       depth = gyp_dict['_DEPTH']
 
@@ -238,7 +230,7 @@ def CreateWrapper(target_list, target_dicts, data, params):
       not generator_flags.get('xcode_ninja_list_excluded_files', True)
 
   sources = []
-  for target, target_dict in target_dicts.iteritems():
+  for target, target_dict in target_dicts.items():
     base = os.path.dirname(target)
     files = target_dict.get('sources', []) + \
             target_dict.get('mac_bundle_resources', [])

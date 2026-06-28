@@ -38,7 +38,7 @@ typedef __int64 int64;
 #else  // COMPILER_MSVC
 // On Mac OS X, cssmconfig.h defines uint64 as uint64_t
 // TODO(fbarchard): Use long long for compatibility with chromium on BSD/OSX.
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
 typedef uint64_t uint64;
 typedef int64_t int64;
 #ifndef INT64_C

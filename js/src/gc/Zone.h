@@ -12,6 +12,7 @@
 #include "jscntxt.h"
 
 #include "ds/SplayTree.h"
+#include "gc/Barrier.h"
 #include "gc/FindSCCs.h"
 #include "gc/GCRuntime.h"
 #include "js/GCHashTable.h"
@@ -325,6 +326,10 @@ struct Zone : public JS::shadow::Zone,
     using WeakEdges = js::Vector<js::gc::TenuredCell**, 0, js::SystemAllocPolicy>;
     WeakEdges gcWeakRefs;
 
+    // FinalizationRegistry objects with weakly-held target cells in this zone.
+    using FinalizationRegistryVector = js::Vector<js::WeakRef<JSObject*>, 0, js::SystemAllocPolicy>;
+    FinalizationRegistryVector finalizationRegistries;
+
     // List of non-ephemeron weak containers to sweep during beginSweepingZoneGroup.
     mozilla::LinkedList<WeakCache<void*>> weakCaches_;
     void registerWeakCache(WeakCache<void*>* cachep) {
@@ -355,9 +360,13 @@ struct Zone : public JS::shadow::Zone,
                                              js::MovableCellHasher<JSObject*>,
                                              js::SystemAllocPolicy>;
     JS::WeakCache<TypeDescrObjectSet> typeDescrObjects;
-	
+
     bool addTypeDescrObject(JSContext* cx, HandleObject obj);
 
+    // Set of atoms recently used by this Zone. Purged on GC.
+    js::AtomSet atomCache_;
+
+    js::AtomSet& atomCache() { return atomCache_; }
 
     // Malloc counter to measure memory pressure for GC scheduling. It runs from
     // gcMaxMallocBytes down to zero. This counter should be used only when it's

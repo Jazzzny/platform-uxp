@@ -15,6 +15,7 @@
 #include "DXVA2Manager.h"
 #include "nsThreadUtils.h"
 #include "Layers.h"
+#include "mozilla/CheckedInt.h"
 #include "mozilla/ClearOnShutdown.h"
 #include "mozilla/layers/LayersTypes.h"
 #include "MediaInfo.h"
@@ -576,6 +577,16 @@ WMFVideoMFTManager::Input(MediaRawData* aSample)
     return E_FAIL;
   }
 
+  if (mStreamType == VP9 && aSample->mKeyframe) {
+    // Check the VP9 profile. the VP9 MFT can only handle correctly profile 0
+    // and 2 (yuv420 8/10/12 bits)
+    int profile =
+      VPXDecoder::GetVP9Profile(MakeSpan(aSample->Data(), aSample->Size()));
+    if (profile != 0 && profile != 2) {
+      return E_FAIL;
+    }
+  }
+
   HRESULT hr = mDecoder->CreateInputSample(aSample->Data(),
                                            uint32_t(aSample->Size()),
                                            aSample->mTime,
@@ -750,6 +761,10 @@ WMFVideoMFTManager::CreateBasicVideoFrame(IMFSample* aSample,
     NS_ENSURE_TRUE(SUCCEEDED(hr), hr);
     stride = mVideoStride;
   }
+  if (stride <= 0) {
+    LOG("CreateBasicVideoFrame: invalid stride %ld", stride);
+    return E_FAIL;
+  }
 
   // YV12, planar format: [YYYY....][VVVV....][UUUU....]
   // i.e., Y, then V, then U.
@@ -772,9 +787,16 @@ WMFVideoMFTManager::CreateBasicVideoFrame(IMFSample* aSample,
   if (videoHeight % 16 != 0) {
     padding = 16 - (videoHeight % 16);
   }
-  uint32_t y_size = stride * (videoHeight + padding);
-  uint32_t v_size = stride * (videoHeight + padding) / 4;
-  uint32_t halfStride = (stride + 1) / 2;
+  mozilla::CheckedInt<uint32_t> y_size_checked =
+      mozilla::CheckedInt<uint32_t>(static_cast<uint32_t>(stride)) *
+      (videoHeight + padding);
+  if (!y_size_checked.isValid()) {
+    LOG("CreateBasicVideoFrame: plane size too large");
+    return E_FAIL;
+  }
+  uint32_t y_size = y_size_checked.value();
+  uint32_t v_size = y_size / 4;
+  uint32_t halfStride = static_cast<uint32_t>((static_cast<int64_t>(stride) + 1) / 2);
   uint32_t halfHeight = (videoHeight + 1) / 2;
   uint32_t halfWidth = (videoWidth + 1) / 2;
 
@@ -990,7 +1012,12 @@ WMFVideoMFTManager::Output(int64_t aStreamOffset,
   aOutData = frame;
   // Set the potentially corrected pts and duration.
   aOutData->mTime = pts.ToMicroseconds();
-  aOutData->mDuration = duration.ToMicroseconds();
+  // The VP9 decoder doesn't provide a valid duration. AS VP9 doesn't have a
+  // concept of pts vs dts and have no latency. We can as such use the last
+  // known input duration.
+  aOutData->mDuration = (mStreamType == VP9 && duration == media::TimeUnit())
+                        ? mLastDuration
+                        : duration.ToMicroseconds();
 
   if (mNullOutputCount) {
     mGotValidOutputAfterNullOutput = true;

@@ -28,7 +28,7 @@
         'temp_gyp/googleurl.gyp:*',
       ],
       'conditions': [
-        ['OS!="ios"', {
+        ['1==1', {
           'dependencies': [
             '../cc/cc_tests.gyp:*',
             '../chrome/chrome.gyp:*',
@@ -64,17 +64,17 @@
             '<(libjpeg_gyp_path):*',
           ],
         }],
-        ['os_posix==1 and OS!="android" and OS!="ios"', {
+        ['os_posix==1', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
           ],
         }],
-        ['OS=="mac" or OS=="ios" or OS=="win"', {
+        ['OS=="mac" or OS=="win"', {
           'dependencies': [
             '../third_party/nss/nss.gyp:*',
            ],
         }],
-        ['OS=="win" or OS=="ios" or OS=="linux"', {
+        ['OS=="win" or OS=="linux"', {
           'dependencies': [
             '../breakpad/breakpad.gyp:*',
            ],
@@ -184,7 +184,7 @@
         'temp_gyp/googleurl.gyp:googleurl_unittests',
       ],
       'conditions': [
-        ['OS!="ios"', {
+        ['1==1', {
           'dependencies': [
             '../cc/cc_tests.gyp:cc_unittests',
             '../chrome/chrome.gyp:browser_tests',
@@ -246,16 +246,8 @@
     }, # target_name: chromium_2010_builder_tests
   ],
   'conditions': [
-    ['OS!="ios"', {
+    ['1==1', {
       'targets': [
-        {
-          'target_name': 'chromium_builder_nacl_win_integration',
-          'type': 'none',
-          'dependencies': [
-            'chromium_builder_qa', # needed for pyauto
-            'chromium_builder_tests',
-          ],
-        }, # target_name: chromium_builder_nacl_win_integration
         {
           'target_name': 'chromium_builder_perf',
           'type': 'none',
@@ -576,14 +568,6 @@
             '../webkit/webkit.gyp:pull_in_DumpRenderTree',
           ],
         },
-        {
-          'target_name': 'chromium_builder_qa_nacl_win64',
-          'type': 'none',
-          'dependencies': [
-            'chromium_builder_qa', # needed for pyauto
-            '../chrome/chrome.gyp:chrome_nacl_win64',
-          ],
-        }, # target_name: chromium_builder_qa_nacl_win64
       ],  # targets
       'conditions': [
         ['branding=="Chrome"', {

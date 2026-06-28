@@ -119,8 +119,6 @@ void ViEAutoTest::ViERenderStandardTest()
     EXPECT_EQ(0, ViE.render->StopRender(tbCapture.captureId));
     EXPECT_EQ(0, ViE.render->RemoveRenderer(tbCapture.captureId));
 
-    // PIP and full screen rendering is not supported on Android
-#ifndef WEBRTC_ANDROID
     EXPECT_EQ(0, ViE.render->DeRegisterVideoRenderModule(*_vrm1));
     EXPECT_EQ(0, ViE.render->AddRenderer(
         tbCapture.captureId, _window2, 0, 0.75, 0.75, 1.0, 1.0));
@@ -163,7 +161,6 @@ void ViEAutoTest::ViERenderStandardTest()
     _vrm1 = webrtc::VideoRender::CreateVideoRender(
         4561, _window1, false, _renderType);
     EXPECT_TRUE(_vrm1 != NULL);
-#endif
 
     //***************************************************************
     //	Engine ready. Begin testing class

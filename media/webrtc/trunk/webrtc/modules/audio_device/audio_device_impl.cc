@@ -24,19 +24,6 @@
  #if defined(WEBRTC_WINDOWS_CORE_AUDIO_BUILD)
     #include "audio_device_core_win.h"
  #endif
-#elif defined(WEBRTC_ANDROID_OPENSLES)
-// ANDROID and GONK
-    #include <stdlib.h>
-    #include <dlfcn.h>
-    #include "audio_device_utility_android.h"
-    #include "webrtc/modules/audio_device/android/audio_device_template.h"
-#if !defined(WEBRTC_GONK)
-// GONK only supports opensles; android can use that or jni
-    #include "webrtc/modules/audio_device/android/audio_record_jni.h"
-    #include "webrtc/modules/audio_device/android/audio_track_jni.h"
-#endif
-    #include "webrtc/modules/audio_device/android/opensles_input.h"
-    #include "webrtc/modules/audio_device/android/opensles_output.h"
 #elif defined(WEBRTC_AUDIO_SNDIO)
     #include "audio_device_utility_sndio.h"
     #include "audio_device_sndio.h"
@@ -48,9 +35,6 @@
  #if defined(LINUX_PULSE)
     #include "audio_device_pulse_linux.h"
  #endif
-#elif defined(WEBRTC_IOS)
-    #include "audio_device_utility_ios.h"
-    #include "audio_device_ios.h"
 #elif defined(WEBRTC_MAC)
     #include "audio_device_utility_mac.h"
     #include "audio_device_mac.h"
@@ -171,18 +155,12 @@ int32_t AudioDeviceModuleImpl::CheckPlatform()
 #if defined(_WIN32)
     platform = kPlatformWin32;
     WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "current platform is WIN32");
-#elif defined(WEBRTC_ANDROID)
-    platform = kPlatformAndroid;
-    WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "current platform is ANDROID");
 #elif defined(WEBRTC_AUDIO_SNDIO)
     platform = kPlatformSndio;
     WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "current platform is POSIX using SNDIO");
 #elif defined(WEBRTC_LINUX) || defined(WEBRTC_BSD)
     platform = kPlatformLinux;
     WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "current platform is LINUX");
-#elif defined(WEBRTC_IOS)
-    platform = kPlatformIOS;
-    WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "current platform is IOS");
 #elif defined(WEBRTC_MAC)
     platform = kPlatformMac;
     WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "current platform is MAC");
@@ -282,47 +260,7 @@ int32_t AudioDeviceModuleImpl::CreatePlatformSpecificObjects()
     }
 #endif  // #if defined(_WIN32)
 
-    // Create the *Android OpenSLES* implementation of the Audio Device
-    //
-#if defined(WEBRTC_ANDROID) || defined (WEBRTC_GONK)
-    if (audioLayer == kPlatformDefaultAudio) {
-    // AudioRecordJni provides hardware AEC and OpenSlesOutput low latency.
-#if defined (WEBRTC_ANDROID_OPENSLES)
-      // Android and Gonk
-      // Check if the OpenSLES library is available before going further.
-      void* opensles_lib = dlopen("libOpenSLES.so", RTLD_LAZY);
-      if (opensles_lib) {
-        // That worked, close for now and proceed normally.
-        dlclose(opensles_lib);
-        if (audioLayer == kPlatformDefaultAudio)
-          {
-            // Create *Android OpenSLES Audio* implementation
-            ptrAudioDevice = new AudioDeviceTemplate<OpenSlesInput, OpenSlesOutput>(Id());
-            WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id,
-                         "Android OpenSLES Audio APIs will be utilized");
-          }
-      }
-#endif // defined (WEBRTC_ANDROID_OPENSLES)
-#if !defined(WEBRTC_GONK)
-      // Fall back to this case if on Android 2.2/OpenSLES not available.
-      if (ptrAudioDevice == NULL) {
-        // Create the *Android Java* implementation of the Audio Device
-        if (audioLayer == kPlatformDefaultAudio)
-          {
-            // Create *Android JNI Audio* implementation
-            ptrAudioDevice = new AudioDeviceTemplate<AudioRecordJni, AudioTrackJni>(Id());
-            WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "Android JNI Audio APIs will be utilized");
-          }
-      }
-#endif // !defined (WEBRTC_GONK)
-    }
-
-    if (ptrAudioDevice != NULL) {
-        // Create the Android implementation of the Device Utility.
-        ptrAudioDeviceUtility = new AudioDeviceUtilityAndroid(Id());
-    }
-
-#elif defined(WEBRTC_AUDIO_SNDIO)
+#if defined(WEBRTC_AUDIO_SNDIO)
     ptrAudioDevice = new AudioDeviceSndio(Id());
     if (ptrAudioDevice != NULL)
     {
@@ -384,26 +322,9 @@ int32_t AudioDeviceModuleImpl::CreatePlatformSpecificObjects()
     }
 #endif  // #if defined(WEBRTC_LINUX) || defined(WEBRTC_BSD)
 
-    // Create the *iPhone* implementation of the Audio Device
-    //
-#if defined(WEBRTC_IOS)
-    if (audioLayer == kPlatformDefaultAudio)
-    {
-        // Create iOS Audio Device implementation.
-        ptrAudioDevice = new AudioDeviceIOS(Id());
-        WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "iPhone Audio APIs will be utilized");
-    }
-
-    if (ptrAudioDevice != NULL)
-    {
-        // Create iOS Device Utility implementation.
-        ptrAudioDeviceUtility = new AudioDeviceUtilityIOS(Id());
-    }
-    // END #if defined(WEBRTC_IOS)
-
     // Create the *Mac* implementation of the Audio Device
     //
-#elif defined(WEBRTC_MAC)
+#if defined(WEBRTC_MAC)
     if (audioLayer == kPlatformDefaultAudio)
     {
         // Create *Mac Audio* implementation

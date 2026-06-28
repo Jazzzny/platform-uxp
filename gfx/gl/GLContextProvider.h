@@ -11,6 +11,10 @@
 
 #include "nsSize.h" // for gfx::IntSize (needed by GLContextProviderImpl.h below)
 
+#if defined(MOZ_X11)
+#include "GLContextProviderX11.h"
+#endif
+
 class nsIWidget;
 
 namespace mozilla {
@@ -45,23 +49,16 @@ namespace gl {
   #define GL_CONTEXT_PROVIDER_NAME GLContextProviderGLX
   #include "GLContextProviderImpl.h"
   #undef GL_CONTEXT_PROVIDER_NAME
-  #define GL_CONTEXT_PROVIDER_DEFAULT GLContextProviderGLX
 #endif
 
 #define GL_CONTEXT_PROVIDER_NAME GLContextProviderEGL
 #include "GLContextProviderImpl.h"
 #undef GL_CONTEXT_PROVIDER_NAME
-#ifndef GL_CONTEXT_PROVIDER_DEFAULT
-  #define GL_CONTEXT_PROVIDER_DEFAULT GLContextProviderEGL
-#endif
 
-#if defined(MOZ_WIDGET_UIKIT)
-#define GL_CONTEXT_PROVIDER_NAME GLContextProviderEAGL
-#include "GLContextProviderImpl.h"
-#undef GL_CONTEXT_PROVIDER_NAME
-#ifndef GL_CONTEXT_PROVIDER_DEFAULT
-#define GL_CONTEXT_PROVIDER_DEFAULT GLContextProviderEAGL
-#endif
+#if defined(MOZ_X11)
+  #define GL_CONTEXT_PROVIDER_DEFAULT GLContextProviderX11
+#elif !defined(GL_CONTEXT_PROVIDER_DEFAULT)
+  #define GL_CONTEXT_PROVIDER_DEFAULT GLContextProviderEGL
 #endif
 
 #ifdef MOZ_GL_PROVIDER

@@ -149,10 +149,6 @@ int VideoEngineSampleCode(void* window1, void* window2)
         printf("\t %d. %s\n", captureIdx + 1, deviceName);
     }
     printf("\nChoose capture device: ");
-#ifdef WEBRTC_ANDROID
-    captureIdx = 0;
-    printf("0\n");
-#else
     if (scanf("%d", &captureIdx) != 1)
     {
         printf("Error in scanf()\n");
@@ -160,7 +156,6 @@ int VideoEngineSampleCode(void* window1, void* window2)
     }
     getc(stdin);
     captureIdx = captureIdx - 1; // Compensate for idx start at 1.
-#endif
     error = ptrViECapture->GetCaptureDevice(captureIdx, deviceName,
                                             KMaxDeviceNameLength, uniqueId,
                                             KMaxUniqueIdLength);
@@ -341,10 +336,6 @@ int VideoEngineSampleCode(void* window1, void* window2)
     printf("%d. VP8 over Generic.\n", ptrViECodec->NumberOfCodecs() + 1);
 
     printf("Choose codec: ");
-#ifdef WEBRTC_ANDROID
-    codecIdx = 0;
-    printf("0\n");
-#else
     if (scanf("%d", &codecIdx) != 1)
     {
         printf("Error in scanf()\n");
@@ -352,7 +343,6 @@ int VideoEngineSampleCode(void* window1, void* window2)
     }
     getc(stdin);
     codecIdx = codecIdx - 1; // Compensate for idx start at 1.
-#endif
     // VP8 over generic transport gets this special one.
     if (codecIdx == ptrViECodec->NumberOfCodecs()) {
       for (codecIdx = 0; codecIdx < ptrViECodec->NumberOfCodecs(); ++codecIdx) {

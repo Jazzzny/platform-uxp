@@ -67,7 +67,7 @@ TEST(SystemInfoTest, MachineModelKnown) {
   const char *machine_model = info.GetMachineModel().c_str();
   LOG(LS_INFO) << "MachineModel: " << machine_model;
   bool known = true;
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
+#if defined(WEBRTC_MAC)
   // Full list as of May 2012.  Update when new OSX based models are added.
   known = rtc::string_match(machine_model, "MacBookPro*") ||
           rtc::string_match(machine_model, "MacBookAir*") ||
@@ -76,7 +76,7 @@ TEST(SystemInfoTest, MachineModelKnown) {
           rtc::string_match(machine_model, "Macmini*") ||
           rtc::string_match(machine_model, "iMac*") ||
           rtc::string_match(machine_model, "Xserve*");
-#elif !defined(WEBRTC_IOS)
+#else
   // All other machines return Not available.
   known = rtc::string_match(info.GetMachineModel().c_str(),
                                   "Not available");

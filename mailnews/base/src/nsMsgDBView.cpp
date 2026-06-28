@@ -3964,9 +3964,9 @@ nsMsgDBView::FnSortIdUint32(const void *pItem1, const void *pItem2, void *privat
 
 
 // XXX are these still correct?
-//To compensate for memory alignment required for
-//systems such as HP-UX these values must be 4 bytes
-//aligned.  Don't break this when modify the constants
+// To compensate for memory alignment required by strict-alignment systems,
+// these values must be 4 bytes aligned. Don't break this when modifying
+// the constants.
 const int kMaxSubjectKey = 160;
 const int kMaxLocationKey = 160;  // also used for account
 const int kMaxAuthorKey = 160;
@@ -4804,8 +4804,8 @@ NS_IMETHODIMP nsMsgDBView::Sort(nsMsgViewSortTypeValue sortType,
     info->folder = folders ? folders->ObjectAt(numSoFar) : m_folder.get();
 
     memcpy(info->key, keyValue, actualFieldLen);
-    //In order to align memory for systems that require it, such as HP-UX
-    //calculate the correct value to pad the actualFieldLen value
+    // In order to align memory for systems that require it, calculate the
+    // correct value to pad the actualFieldLen value.
     const uint32_t align = sizeof(IdKey) - sizeof(IdUint32) - 1;
     actualFieldLen = (actualFieldLen + align) & ~align;
 

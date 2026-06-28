@@ -416,13 +416,13 @@ MapMemoryAt(void* desired, size_t length, int prot = PROT_READ | PROT_WRITE,
             int flags = MAP_PRIVATE | MAP_ANON, int fd = -1, off_t offset = 0)
 
 // Solaris manages 64-bit address space in a different manner from every other
-// AMD64 operating system, but fortunately the fix is the same one 
-// required for every operating system on 64-bit SPARC, Itanium, and ARM. 
+// AMD64 operating system, but fortunately the fix is the same one
+// required for every operating system on 64-bit SPARC and ARM.
 // Most people's intuition failed them here and they thought this couldn't
 // possibly be correct on AMD64, but for Solaris/illumos it is.	
 	
 {
-#if defined(__ia64__) || defined(__aarch64__) || (defined(__sun) && defined(__x86_64__)) || (defined(__sparc__) && defined(__arch64__) && (defined(__NetBSD__) || defined(__linux__)))
+#if defined(__aarch64__) || (defined(__sun) && defined(__x86_64__)) || (defined(__sparc__) && defined(__arch64__) && (defined(__NetBSD__) || defined(__linux__)))
     MOZ_ASSERT((0xffff800000000000ULL & (uintptr_t(desired) + length - 1)) == 0);
 #endif
     void* region = mmap(desired, length, prot, flags, fd, offset);
@@ -445,14 +445,14 @@ static inline void*
 MapMemory(size_t length, int prot = PROT_READ | PROT_WRITE,
           int flags = MAP_PRIVATE | MAP_ANON, int fd = -1, off_t offset = 0)
 {
-#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__) && defined(__NetBSD__))
+#if defined(__sparc__) && defined(__arch64__) && defined(__NetBSD__)
     /*
      * The JS engine assumes that all allocated pointers have their high 17 bits clear,
-     * which ia64's mmap doesn't support directly. However, we can emulate it by passing
-     * mmap an "addr" parameter with those bits clear. The mmap will return that address,
-     * or the nearest available memory above that address, providing a near-guarantee
-     * that those bits are clear. If they are not, we return nullptr below to indicate
-     * out-of-memory.
+     * which mmap on this platform doesn't support directly. However, we can emulate it
+     * by passing mmap an "addr" parameter with those bits clear. The mmap will return
+     * that address, or the nearest available memory above that address, providing a
+     * near-guarantee that those bits are clear. If they are not, we return nullptr below
+     * to indicate out-of-memory.
      *
      * The addr is chosen as 0x0000070000000000, which still allows about 120TB of virtual
      * address space.
@@ -479,7 +479,7 @@ MapMemory(size_t length, int prot = PROT_READ | PROT_WRITE,
     * different due to the different mmap behavior.
     *
     * TODO: Merge with the above code block if this implementation works for
-    * ia64 and sparc64.
+    * sparc64.
     */
     const uintptr_t start = UINT64_C(0x0000070000000000);
     const uintptr_t end   = UINT64_C(0x0000800000000000);

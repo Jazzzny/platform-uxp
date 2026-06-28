@@ -11,11 +11,7 @@
 #ifndef WEBRTC_BASE_GUNIT_PROD_H_
 #define WEBRTC_BASE_GUNIT_PROD_H_
 
-#if defined(WEBRTC_ANDROID)
-// Android doesn't use gtest at all, so anything that relies on gtest should
-// check this define first.
-#define NO_GTEST
-#elif defined (GTEST_RELATIVE_PATH)
+#if defined (GTEST_RELATIVE_PATH)
 #include "gtest/gtest_prod.h"
 #else
 #include "testing/base/gunit_prod.h"

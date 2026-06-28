@@ -268,12 +268,6 @@ float CpuSampler::GetSystemLoad() {
   const uint64 total_times = cpu_times + idle;
 #endif  // defined(WEBRTC_LINUX)
 
-#if defined(__native_client__)
-  // TODO(ryanpetrie): Implement this via PPAPI when it's available.
-  const uint64 cpu_times = 0;
-  const uint64 total_times = 0;
-#endif  // defined(__native_client__)
-
   system_.prev_load_time_ = timenow;
   system_.prev_load_ = UpdateCpuLoad(total_times,
                                      cpu_times * cpus_,
@@ -352,11 +346,6 @@ float CpuSampler::GetProcessLoad() {
       (usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) * kNumMicrosecsPerSec +
       usage.ru_utime.tv_usec + usage.ru_stime.tv_usec;
 #endif  // defined(WEBRTC_LINUX)
-
-#if defined(__native_client__)
-  // TODO(ryanpetrie): Implement this via PPAPI when it's available.
-  const uint64 cpu_times = 0;
-#endif  // defined(__native_client__)
 
   process_.prev_load_time_ = timenow;
   process_.prev_load_ = UpdateCpuLoad(total_times,

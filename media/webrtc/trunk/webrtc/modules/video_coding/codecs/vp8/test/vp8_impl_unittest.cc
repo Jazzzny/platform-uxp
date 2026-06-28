@@ -216,7 +216,7 @@ TEST_F(TestVp8Impl, EncoderParameterTest) {
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK, decoder_->InitDecode(&codec_inst_, 1));
 }
 
-TEST_F(TestVp8Impl, DISABLED_ON_ANDROID(AlignedStrideEncodeDecode)) {
+TEST_F(TestVp8Impl, AlignedStrideEncodeDecode) {
   SetUpEncodeDecode();
   encoder_->Encode(input_frame_, NULL, NULL);
   EXPECT_GT(WaitForEncodedFrame(), 0u);
@@ -232,7 +232,7 @@ TEST_F(TestVp8Impl, DISABLED_ON_ANDROID(AlignedStrideEncodeDecode)) {
   EXPECT_EQ(kTestNtpTimeMs, decoded_frame_.ntp_time_ms());
 }
 
-TEST_F(TestVp8Impl, DISABLED_ON_ANDROID(DecodeWithACompleteKeyFrame)) {
+TEST_F(TestVp8Impl, DecodeWithACompleteKeyFrame) {
   SetUpEncodeDecode();
   encoder_->Encode(input_frame_, NULL, NULL);
   EXPECT_GT(WaitForEncodedFrame(), 0u);

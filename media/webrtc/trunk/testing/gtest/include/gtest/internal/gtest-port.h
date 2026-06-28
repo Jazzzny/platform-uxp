@@ -90,10 +90,7 @@
 //   GTEST_OS_CYGWIN   - Cygwin
 //   GTEST_OS_HPUX     - HP-UX
 //   GTEST_OS_LINUX    - Linux
-//     GTEST_OS_LINUX_ANDROID - Google Android
 //   GTEST_OS_MAC      - Mac OS X
-//     GTEST_OS_IOS    - iOS
-//   GTEST_OS_NACL     - Google Native Client (NaCl)
 //   GTEST_OS_OPENBSD  - OpenBSD
 //   GTEST_OS_QNX      - QNX
 //   GTEST_OS_SOLARIS  - Sun Solaris
@@ -237,14 +234,8 @@
 # endif  // _WIN32_WCE
 #elif defined __APPLE__
 # define GTEST_OS_MAC 1
-# if TARGET_OS_IPHONE
-#  define GTEST_OS_IOS 1
-# endif
 #elif defined __linux__
 # define GTEST_OS_LINUX 1
-# ifdef ANDROID
-#  define GTEST_OS_LINUX_ANDROID 1
-# endif  // ANDROID
 #elif defined __MVS__
 # define GTEST_OS_ZOS 1
 #elif defined(__sun) && defined(__SVR4)
@@ -253,8 +244,6 @@
 # define GTEST_OS_AIX 1
 #elif defined(__hpux)
 # define GTEST_OS_HPUX 1
-#elif defined __native_client__
-# define GTEST_OS_NACL 1
 #elif defined __OpenBSD__
 # define GTEST_OS_OPENBSD 1
 #elif defined __QNX__
@@ -374,10 +363,9 @@
 //   is available.
 
 // Cygwin 1.7 and below doesn't support ::std::wstring.
-// Solaris' libc++ doesn't support it either.  Android has
-// no support for it at least as recent as Froyo (2.2).
+// Solaris' libc++ doesn't support it either.
 # define GTEST_HAS_STD_WSTRING \
-    (!(GTEST_OS_LINUX_ANDROID || GTEST_OS_CYGWIN || GTEST_OS_SOLARIS))
+    (!(GTEST_OS_CYGWIN || GTEST_OS_SOLARIS))
 
 #endif  // GTEST_HAS_STD_WSTRING
 
@@ -571,17 +559,16 @@ using ::std::tuple_size;
 #endif  // GTEST_HAS_TR1_TUPLE
 
 // Determines whether clone(2) is supported.
-// Usually it will only be available on Linux, excluding
-// Linux on the Itanium architecture, and x86 Android.
+// Usually it will only be available on Linux.
 // Also see http://linux.die.net/man/2/clone.
 #ifndef GTEST_HAS_CLONE
 // The user didn't tell us, so we need to figure it out.
 
-# if GTEST_OS_LINUX && !defined(__ia64__) && !(defined(ANDROID) && defined(__i386__))
+# if GTEST_OS_LINUX
 #  define GTEST_HAS_CLONE 1
 # else
 #  define GTEST_HAS_CLONE 0
-# endif  // GTEST_OS_LINUX && !defined(__ia64__) && !(defined(ANDROID) && defined(__i386__))
+# endif  // GTEST_OS_LINUX
 
 #endif  // GTEST_HAS_CLONE
 
@@ -602,7 +589,7 @@ using ::std::tuple_size;
 // abort() in a VC 7.1 application compiled as GUI in debug config
 // pops up a dialog window that cannot be suppressed programmatically.
 #if (GTEST_OS_LINUX || GTEST_OS_CYGWIN || GTEST_OS_SOLARIS || \
-     (GTEST_OS_MAC && !GTEST_OS_IOS) || \
+     GTEST_OS_MAC || \
      (GTEST_OS_WINDOWS_DESKTOP && _MSC_VER >= 1400) || \
      GTEST_OS_WINDOWS_MINGW || GTEST_OS_AIX || GTEST_OS_HPUX || \
      GTEST_OS_OPENBSD || GTEST_OS_QNX)

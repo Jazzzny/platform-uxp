@@ -155,7 +155,7 @@
               'sslstreamadapter_unittest.cc',
             ],
           }],
-          ['OS=="ios" or (OS=="mac" and target_arch!="ia32")', {
+          ['OS=="mac" and target_arch!="ia32"', {
             'defines': [
               'CARBON_DEPRECATED=YES',
             ],

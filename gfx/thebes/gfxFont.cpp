@@ -50,7 +50,7 @@
 #include "gfxWindowsPlatform.h"
 #endif
 
-#ifdef XP_DARWIN
+#ifdef XP_MACOSX
 #include <AvailabilityMacros.h>
 #endif
 
