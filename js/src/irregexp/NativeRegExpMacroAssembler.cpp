@@ -99,6 +99,12 @@ NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(LifoAlloc* alloc, JSRunti
 
 #define SPEW_PREFIX JitSpew_Codegen, "!!! "
 
+#ifdef JS_CODEGEN_PPC_OSX
+# define PPC_B(l) BufferOffset bo_##l = masm._b(0)
+# define PPC_BC(l, x, y, z) BufferOffset bo_##l = masm._bc(0, masm.ma_cmp(x, y, Assembler::z))
+# define PPC_BB(l) masm.bindSS(bo_##l)
+#endif
+
 // The signature of the code which this generates is:
 //
 // void execute(InputOutputData*);
@@ -155,14 +161,24 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
     // see bug 1208819.
     Label stack_ok;
     void* stack_limit = runtime->addressOfJitStackLimitNoInterrupt();
+#ifdef JS_CODEGEN_PPC_OSX
+    masm.x_li32(addressTempRegister, (uint32_t)stack_limit);
+    masm.lwz(tempRegister, addressTempRegister, 0);
+    PPC_BC(stack_ok, tempRegister, stackPointerRegister, Below);
+#else
     masm.branchStackPtrRhs(Assembler::Below, AbsoluteAddress(stack_limit), &stack_ok);
+#endif
 
     // Exit with an exception. There is not enough space on the stack
     // for our working registers.
     masm.movePtr(ImmWord(RegExpRunStatus_Error), temp0);
     masm.jump(&return_temp0);
 
+#ifdef JS_CODEGEN_PPC_OSX
+    PPC_BB(stack_ok);
+#else
     masm.bind(&stack_ok);
+#endif
 
 #ifdef XP_WIN
     // Ensure that we write to each stack page, in order. Skipping a page
@@ -234,6 +250,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
 
     Label load_char_start_regexp, start_regexp;
 
+#ifndef JS_CODEGEN_PPC_OSX
     // Load newline if index is at start, previous character otherwise.
     masm.branchPtr(Assembler::NotEqual, 
                    Address(masm.getStackPointer(), offsetof(FrameData, startIndex)), ImmWord(0),
@@ -246,6 +263,20 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
 
     // Load previous char as initial value of current character register.
     LoadCurrentCharacterUnchecked(-1, 1);
+#else
+    PPC_BC(load_char_start_regexp, Address(masm.getStackPointer(), offsetof(FrameData, startIndex)),
+           Imm32(0), NotEqual);
+    masm.movePtr(ImmWord('\n'), current_character);
+    PPC_B(start_regexp);
+
+    // Global regexp restarts matching here.
+    PPC_BB(load_char_start_regexp);
+    masm.bind(&load_char_start_regexp);
+
+    // Load previous char as initial value of current character register.
+    LoadCurrentCharacterUnchecked(-1, 1);
+    PPC_BB(start_regexp);
+#endif
     masm.bind(&start_regexp);
 
     // Initialize on-stack registers.
@@ -254,7 +285,12 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
     // Fill saved registers with initial value = start offset - 1
     // Fill in stack push order, to avoid accessing across an unwritten
     // page (a problem on Windows).
+#ifndef JS_CODEGEN_PPC_OSX
     if (num_saved_registers_ > 8) {
+#else
+    // On PPC this short loop is not a win over straight-line stores.
+    if (false) {
+#endif
         masm.movePtr(ImmWord(register_offset(0)), temp1);
         Label init_loop;
         masm.bind(&init_loop);
@@ -571,6 +607,7 @@ NativeRegExpMacroAssembler::Backtrack()
 {
     JitSpew(SPEW_PREFIX "Backtrack");
 
+#ifndef JS_CODEGEN_PPC_OSX
     // Check for an interrupt.
     Label noInterrupt;
     masm.branch32(Assembler::Equal,
@@ -583,6 +620,27 @@ NativeRegExpMacroAssembler::Backtrack()
     // Pop code location from backtrack stack and jump to location.
     PopBacktrack(temp0);
     masm.jump(temp0);
+#else
+    masm.x_li32(addressTempRegister, (uint32_t)runtime->addressOfInterruptUint32());
+    masm.lwz(tempRegister, addressTempRegister, 0);
+    PPC_BC(noInterrupt, tempRegister, Imm32(0), Equal);
+    masm.movePtr(ImmWord(RegExpRunStatus_Error), temp0);
+    masm.jump(&exit_label_);
+    PPC_BB(noInterrupt);
+
+    // Load the target before popping. This is the TFF fast path, with the
+    // PPC970 mtctr/bctr spacing kept in sync with MacroAssemblerPPC::branch.
+    masm.lwz(temp0, backtrack_stack_pointer, -int32_t(sizeof(void*)));
+    masm.x_mtctr(temp0);
+    masm.subPtr(Imm32(sizeof(void*)), backtrack_stack_pointer);
+# if defined(_PPC970_)
+    masm.x_nop();
+    masm.x_nop();
+    masm.x_nop();
+    masm.x_nop();
+# endif
+    masm.bctr();
+#endif
 }
 
 void
@@ -684,6 +742,7 @@ NativeRegExpMacroAssembler::CheckGreedyLoop(Label* on_tos_equals_current_positio
 {
     JitSpew(SPEW_PREFIX "CheckGreedyLoop");
 
+#ifndef JS_CODEGEN_PPC_OSX
     Label fallthrough;
     masm.branchPtr(Assembler::NotEqual,
                    Address(backtrack_stack_pointer, -int(sizeof(void*))), current_position,
@@ -691,6 +750,13 @@ NativeRegExpMacroAssembler::CheckGreedyLoop(Label* on_tos_equals_current_positio
     masm.subPtr(Imm32(sizeof(void*)), backtrack_stack_pointer);  // Pop.
     JumpOrBacktrack(on_tos_equals_current_position);
     masm.bind(&fallthrough);
+#else
+    PPC_BC(fallthrough, Address(backtrack_stack_pointer, -int(sizeof(void*))), current_position,
+           NotEqual);
+    masm.subPtr(Imm32(sizeof(void*)), backtrack_stack_pointer);  // Pop.
+    JumpOrBacktrack(on_tos_equals_current_position);
+    PPC_BB(fallthrough);
+#endif
 }
 
 void
@@ -1191,8 +1257,14 @@ NativeRegExpMacroAssembler::CheckBacktrackStackLimit()
     const void* limitAddr = runtime->regexpStack.addressOfLimit();
 
     Label no_stack_overflow;
+#ifndef JS_CODEGEN_PPC_OSX
     masm.branchPtr(Assembler::AboveOrEqual, AbsoluteAddress(limitAddr),
                    backtrack_stack_pointer, &no_stack_overflow);
+#else
+    masm.x_li32(addressTempRegister, (uint32_t)limitAddr);
+    masm.lwz(tempRegister, addressTempRegister, 0);
+    PPC_BC(no_stack_overflow, tempRegister, backtrack_stack_pointer, AboveOrEqual);
+#endif
 
     // Copy the stack pointer before the call() instruction modifies it.
     masm.moveStackPtrTo(temp2);
@@ -1202,7 +1274,11 @@ NativeRegExpMacroAssembler::CheckBacktrackStackLimit()
     // Exit with an exception if the call failed.
     masm.branchTest32(Assembler::Zero, temp0, temp0, &exit_with_exception_label_);
 
+#ifndef JS_CODEGEN_PPC_OSX
     masm.bind(&no_stack_overflow);
+#else
+    PPC_BB(no_stack_overflow);
+#endif
 }
 
 void
@@ -1271,16 +1347,25 @@ NativeRegExpMacroAssembler::SetCurrentPositionFromEnd(int by)
 {
     JitSpew(SPEW_PREFIX "SetCurrentPositionFromEnd(%d)", by);
 
+#ifndef JS_CODEGEN_PPC_OSX
     Label after_position;
     masm.branchPtr(Assembler::GreaterThanOrEqual, current_position,
                    ImmWord(-by * char_size()), &after_position);
     masm.movePtr(ImmWord(-by * char_size()), current_position);
+#else
+    PPC_BC(after_position, current_position, Imm32(-by * char_size()), GreaterThanOrEqual);
+    masm.movePtr(ImmWord(-by * char_size()), current_position);
+#endif
 
     // On RegExp code entry (where this operation is used), the character before
     // the current position is expected to be already loaded.
     // We have advanced the position, so it's safe to read backwards.
     LoadCurrentCharacterUnchecked(-1, 1);
+#ifndef JS_CODEGEN_PPC_OSX
     masm.bind(&after_position);
+#else
+    PPC_BB(after_position);
+#endif
 }
 
 void
