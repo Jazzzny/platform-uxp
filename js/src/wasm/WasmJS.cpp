@@ -47,6 +47,10 @@ using mozilla::Nothing;
 bool
 wasm::HasCompilerSupport(ExclusiveContext* cx)
 {
+#if defined(JS_CODEGEN_PPC_OSX)
+    return false;
+#endif
+
     if (gc::SystemPageSize() > wasm::PageSize)
         return false;
 

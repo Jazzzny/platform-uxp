@@ -323,6 +323,8 @@ PodSet(T* aDst, const T& aSrc, size_t aNElem)
 # define JS_SWEPT_CODE_PATTERN 0xA3 // undefined instruction
 #elif defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
 # define JS_SWEPT_CODE_PATTERN 0x01 // undefined instruction
+#elif defined(JS_CODEGEN_PPC_OSX)
+# define JS_SWEPT_CODE_PATTERN 0x01 // no valid instruction prefixed with this
 #else
 # error "JS_SWEPT_CODE_PATTERN not defined for this platform"
 #endif

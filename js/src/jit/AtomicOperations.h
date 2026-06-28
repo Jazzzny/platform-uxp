@@ -15,6 +15,107 @@ namespace jit {
 
 class RegionLock;
 
+#if defined(JS_CODEGEN_PPC_OSX)
+template<typename T> struct AtomicPPCUnsigned;
+template<> struct AtomicPPCUnsigned<int8_t> { typedef uint8_t Type; };
+template<> struct AtomicPPCUnsigned<uint8_t> { typedef uint8_t Type; };
+template<> struct AtomicPPCUnsigned<int16_t> { typedef uint16_t Type; };
+template<> struct AtomicPPCUnsigned<uint16_t> { typedef uint16_t Type; };
+template<> struct AtomicPPCUnsigned<int32_t> { typedef uint32_t Type; };
+template<> struct AtomicPPCUnsigned<uint32_t> { typedef uint32_t Type; };
+template<> struct AtomicPPCUnsigned<int64_t> { typedef uint64_t Type; };
+template<> struct AtomicPPCUnsigned<uint64_t> { typedef uint64_t Type; };
+
+template<typename T>
+static inline T
+AtomicPPCLittleEndian(T val)
+{
+    return val;
+}
+
+template<>
+inline int16_t
+AtomicPPCLittleEndian<int16_t>(int16_t val)
+{
+    return int16_t(__builtin_bswap16(uint16_t(val)));
+}
+
+template<>
+inline uint16_t
+AtomicPPCLittleEndian<uint16_t>(uint16_t val)
+{
+    return __builtin_bswap16(val);
+}
+
+template<>
+inline int32_t
+AtomicPPCLittleEndian<int32_t>(int32_t val)
+{
+    return int32_t(__builtin_bswap32(uint32_t(val)));
+}
+
+template<>
+inline uint32_t
+AtomicPPCLittleEndian<uint32_t>(uint32_t val)
+{
+    return __builtin_bswap32(val);
+}
+
+template<>
+inline int64_t
+AtomicPPCLittleEndian<int64_t>(int64_t val)
+{
+    return int64_t(__builtin_bswap64(uint64_t(val)));
+}
+
+template<>
+inline uint64_t
+AtomicPPCLittleEndian<uint64_t>(uint64_t val)
+{
+    return __builtin_bswap64(val);
+}
+
+template<typename T>
+static inline T
+AtomicPPCAdd(T lhs, T rhs)
+{
+    typedef typename AtomicPPCUnsigned<T>::Type U;
+    return T(U(lhs) + U(rhs));
+}
+
+template<typename T>
+static inline T
+AtomicPPCSub(T lhs, T rhs)
+{
+    typedef typename AtomicPPCUnsigned<T>::Type U;
+    return T(U(lhs) - U(rhs));
+}
+
+template<typename T>
+static inline T
+AtomicPPCAnd(T lhs, T rhs)
+{
+    typedef typename AtomicPPCUnsigned<T>::Type U;
+    return T(U(lhs) & U(rhs));
+}
+
+template<typename T>
+static inline T
+AtomicPPCOr(T lhs, T rhs)
+{
+    typedef typename AtomicPPCUnsigned<T>::Type U;
+    return T(U(lhs) | U(rhs));
+}
+
+template<typename T>
+static inline T
+AtomicPPCXor(T lhs, T rhs)
+{
+    typedef typename AtomicPPCUnsigned<T>::Type U;
+    return T(U(lhs) ^ U(rhs));
+}
+#endif
+
 /*
  * The atomic operations layer defines types and functions for
  * JIT-compatible atomic operation.
@@ -176,47 +277,130 @@ class AtomicOperations
 
     template<typename T>
     static T loadSeqCst(SharedMem<T*> addr) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        return AtomicPPCLittleEndian(loadSeqCst(addr.unwrap()));
+#else
         return loadSeqCst(addr.unwrap());
+#endif
     }
 
     template<typename T>
     static void storeSeqCst(SharedMem<T*> addr, T val) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        return storeSeqCst(addr.unwrap(), AtomicPPCLittleEndian(val));
+#else
         return storeSeqCst(addr.unwrap(), val);
+#endif
     }
 
     template<typename T>
     static T exchangeSeqCst(SharedMem<T*> addr, T val) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        return AtomicPPCLittleEndian(exchangeSeqCst(addr.unwrap(), AtomicPPCLittleEndian(val)));
+#else
         return exchangeSeqCst(addr.unwrap(), val);
+#endif
     }
 
     template<typename T>
     static T compareExchangeSeqCst(SharedMem<T*> addr, T oldval, T newval) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        return AtomicPPCLittleEndian(compareExchangeSeqCst(addr.unwrap(),
+                                                          AtomicPPCLittleEndian(oldval),
+                                                          AtomicPPCLittleEndian(newval)));
+#else
         return compareExchangeSeqCst(addr.unwrap(), oldval, newval);
+#endif
     }
 
     template<typename T>
     static T fetchAddSeqCst(SharedMem<T*> addr, T val) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        T* rawAddr = addr.unwrap();
+        T oldRaw = loadSeqCst(rawAddr);
+        for (;;) {
+            T oldVal = AtomicPPCLittleEndian(oldRaw);
+            T newRaw = AtomicPPCLittleEndian(AtomicPPCAdd(oldVal, val));
+            T observed = compareExchangeSeqCst(rawAddr, oldRaw, newRaw);
+            if (observed == oldRaw)
+                return oldVal;
+            oldRaw = observed;
+        }
+#else
         return fetchAddSeqCst(addr.unwrap(), val);
+#endif
     }
 
     template<typename T>
     static T fetchSubSeqCst(SharedMem<T*> addr, T val) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        T* rawAddr = addr.unwrap();
+        T oldRaw = loadSeqCst(rawAddr);
+        for (;;) {
+            T oldVal = AtomicPPCLittleEndian(oldRaw);
+            T newRaw = AtomicPPCLittleEndian(AtomicPPCSub(oldVal, val));
+            T observed = compareExchangeSeqCst(rawAddr, oldRaw, newRaw);
+            if (observed == oldRaw)
+                return oldVal;
+            oldRaw = observed;
+        }
+#else
         return fetchSubSeqCst(addr.unwrap(), val);
+#endif
     }
 
     template<typename T>
     static T fetchAndSeqCst(SharedMem<T*> addr, T val) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        T* rawAddr = addr.unwrap();
+        T oldRaw = loadSeqCst(rawAddr);
+        for (;;) {
+            T oldVal = AtomicPPCLittleEndian(oldRaw);
+            T newRaw = AtomicPPCLittleEndian(AtomicPPCAnd(oldVal, val));
+            T observed = compareExchangeSeqCst(rawAddr, oldRaw, newRaw);
+            if (observed == oldRaw)
+                return oldVal;
+            oldRaw = observed;
+        }
+#else
         return fetchAndSeqCst(addr.unwrap(), val);
+#endif
     }
 
     template<typename T>
     static T fetchOrSeqCst(SharedMem<T*> addr, T val) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        T* rawAddr = addr.unwrap();
+        T oldRaw = loadSeqCst(rawAddr);
+        for (;;) {
+            T oldVal = AtomicPPCLittleEndian(oldRaw);
+            T newRaw = AtomicPPCLittleEndian(AtomicPPCOr(oldVal, val));
+            T observed = compareExchangeSeqCst(rawAddr, oldRaw, newRaw);
+            if (observed == oldRaw)
+                return oldVal;
+            oldRaw = observed;
+        }
+#else
         return fetchOrSeqCst(addr.unwrap(), val);
+#endif
     }
 
     template<typename T>
     static T fetchXorSeqCst(SharedMem<T*> addr, T val) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        T* rawAddr = addr.unwrap();
+        T oldRaw = loadSeqCst(rawAddr);
+        for (;;) {
+            T oldVal = AtomicPPCLittleEndian(oldRaw);
+            T newRaw = AtomicPPCLittleEndian(AtomicPPCXor(oldVal, val));
+            T observed = compareExchangeSeqCst(rawAddr, oldRaw, newRaw);
+            if (observed == oldRaw)
+                return oldVal;
+            oldRaw = observed;
+        }
+#else
         return fetchXorSeqCst(addr.unwrap(), val);
+#endif
     }
 
     template<typename T>
@@ -325,6 +509,8 @@ AtomicOperations::isLockfree(int32_t size)
 # include "jit/arm64/AtomicOperations-arm64.h"
 #elif defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
 # include "jit/mips-shared/AtomicOperations-mips-shared.h"
+#elif defined(JS_CODEGEN_PPC_OSX)
+# include "jit/osxppc/AtomicOperations-ppc.h"
 #elif defined(__loongarch__) || defined(__loongarch64)
 # include "jit/none/AtomicOperations-loongarch.h"
 #elif defined(__ppc__) || defined(__PPC__) || defined(__powerpc__)

@@ -31,6 +31,88 @@ using namespace js::wasm;
 
 using mozilla::ArrayLength;
 
+#if defined(JS_CODEGEN_PPC_OSX)
+
+Offsets
+wasm::GenerateEntry(MacroAssembler& masm, const FuncExport& fe)
+{
+    (void)masm;
+    (void)fe;
+    MOZ_CRASH("WebAssembly stubs are not supported on PPC OS X");
+}
+
+FuncOffsets
+wasm::GenerateImportFunction(MacroAssembler& masm, const FuncImport& fi, SigIdDesc sigId)
+{
+    (void)masm;
+    (void)fi;
+    (void)sigId;
+    MOZ_CRASH("WebAssembly stubs are not supported on PPC OS X");
+}
+
+ProfilingOffsets
+wasm::GenerateImportInterpExit(MacroAssembler& masm, const FuncImport& fi, uint32_t funcImportIndex,
+                               Label* throwLabel)
+{
+    (void)masm;
+    (void)fi;
+    (void)funcImportIndex;
+    (void)throwLabel;
+    MOZ_CRASH("WebAssembly stubs are not supported on PPC OS X");
+}
+
+ProfilingOffsets
+wasm::GenerateImportJitExit(MacroAssembler& masm, const FuncImport& fi, Label* throwLabel)
+{
+    (void)masm;
+    (void)fi;
+    (void)throwLabel;
+    MOZ_CRASH("WebAssembly stubs are not supported on PPC OS X");
+}
+
+ProfilingOffsets
+wasm::GenerateTrapExit(MacroAssembler& masm, Trap trap, Label* throwLabel)
+{
+    (void)masm;
+    (void)trap;
+    (void)throwLabel;
+    MOZ_CRASH("WebAssembly stubs are not supported on PPC OS X");
+}
+
+Offsets
+wasm::GenerateOutOfBoundsExit(MacroAssembler& masm, Label* throwLabel)
+{
+    (void)masm;
+    (void)throwLabel;
+    MOZ_CRASH("WebAssembly stubs are not supported on PPC OS X");
+}
+
+Offsets
+wasm::GenerateUnalignedExit(MacroAssembler& masm, Label* throwLabel)
+{
+    (void)masm;
+    (void)throwLabel;
+    MOZ_CRASH("WebAssembly stubs are not supported on PPC OS X");
+}
+
+Offsets
+wasm::GenerateInterruptExit(MacroAssembler& masm, Label* throwLabel)
+{
+    (void)masm;
+    (void)throwLabel;
+    MOZ_CRASH("WebAssembly stubs are not supported on PPC OS X");
+}
+
+Offsets
+wasm::GenerateThrowStub(MacroAssembler& masm, Label* throwLabel)
+{
+    (void)masm;
+    (void)throwLabel;
+    MOZ_CRASH("WebAssembly stubs are not supported on PPC OS X");
+}
+
+#else
+
 static void
 AssertStackAlignment(MacroAssembler& masm, uint32_t alignment, uint32_t addBeforeAssert = 0)
 {
@@ -1093,3 +1175,5 @@ wasm::GenerateThrowStub(MacroAssembler& masm, Label* throwLabel)
     offsets.end = masm.currentOffset();
     return offsets;
 }
+
+#endif // JS_CODEGEN_PPC_OSX

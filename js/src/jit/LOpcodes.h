@@ -18,6 +18,8 @@
 # include "jit/mips32/LOpcodes-mips32.h"
 #elif defined(JS_CODEGEN_MIPS64)
 # include "jit/mips64/LOpcodes-mips64.h"
+#elif defined(JS_CODEGEN_PPC_OSX)
+# include "jit/osxppc/LOpcodes-ppc.h"
 #elif defined(JS_CODEGEN_NONE)
 # include "jit/none/LOpcodes-none.h"
 #else

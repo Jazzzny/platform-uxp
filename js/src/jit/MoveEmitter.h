@@ -16,6 +16,8 @@
 # include "jit/mips32/MoveEmitter-mips32.h"
 #elif defined(JS_CODEGEN_MIPS64)
 # include "jit/mips64/MoveEmitter-mips64.h"
+#elif defined(JS_CODEGEN_PPC_OSX)
+# include "jit/osxppc/MoveEmitter-ppc.h"
 #elif defined(JS_CODEGEN_NONE)
 # include "jit/none/MoveEmitter-none.h"
 #else

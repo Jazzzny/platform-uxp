@@ -4151,7 +4151,11 @@ GenerateGetTypedOrUnboxedArrayElement(JSContext* cx, MacroAssembler& masm,
 
     if (array->is<TypedArrayObject>()) {
         // Guard on the initialized length.
+#if defined(JS_CODEGEN_PPC_OSX)
+        Address length(object, TypedArrayObject::lengthOffset() + NUNBOX32_PAYLOAD_OFFSET);
+#else
         Address length(object, TypedArrayObject::lengthOffset());
+#endif
         masm.branch32(Assembler::BelowOrEqual, length, indexReg, &failures);
 
         // Save the object register on the stack in case of failure.
@@ -4589,8 +4593,13 @@ GenerateSetTypedArrayElement(JSContext* cx, MacroAssembler& masm, IonCache::Stub
     }
 
     // Guard on the length.
+#if defined(JS_CODEGEN_PPC_OSX)
+    masm.load32(Address(object, TypedArrayObject::lengthOffset() + NUNBOX32_PAYLOAD_OFFSET),
+                temp);
+#else
     Address length(object, TypedArrayObject::lengthOffset());
     masm.unboxInt32(length, temp);
+#endif
     masm.branch32(Assembler::BelowOrEqual, temp, indexReg, &done);
 
     // Load the elements vector.

@@ -399,7 +399,7 @@ GetCPUID()
 #elif defined(JS_CODEGEN_MIPS64)
     MOZ_ASSERT(jit::GetMIPSFlags() <= (UINT32_MAX >> ARCH_BITS));
     return MIPS64 | (jit::GetMIPSFlags() << ARCH_BITS);
-#elif defined(JS_CODEGEN_NONE)
+#elif defined(JS_CODEGEN_NONE) || defined(JS_CODEGEN_PPC_OSX)
     return 0;
 #else
 # error "unknown architecture"

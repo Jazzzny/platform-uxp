@@ -1025,6 +1025,29 @@ CodeGenerator::visitRegExp(LRegExp* lir)
 static const size_t RegExpReservedStack = sizeof(irregexp::InputOutputData)
                                         + sizeof(MatchPairs)
                                         + RegExpObject::MaxPairCount * sizeof(MatchPair);
+#if defined(JS_CODEGEN_PPC_OSX)
+static constexpr Register RegExpPPCSavedRegExpReg = r23;
+static constexpr Register RegExpPPCSavedInputReg = r24;
+static constexpr Register RegExpPPCSavedLastIndexReg = r25;
+
+static void
+RegExpPPCSaveInputRegisters(MacroAssembler& masm, Register regexp, Register input,
+                            Register lastIndex)
+{
+    masm.movePtr(regexp, RegExpPPCSavedRegExpReg);
+    masm.movePtr(input, RegExpPPCSavedInputReg);
+    masm.movePtr(lastIndex, RegExpPPCSavedLastIndexReg);
+}
+
+static void
+RegExpPPCRestoreInputRegisters(MacroAssembler& masm, Register regexp, Register input,
+                               Register lastIndex)
+{
+    masm.movePtr(RegExpPPCSavedRegExpReg, regexp);
+    masm.movePtr(RegExpPPCSavedInputReg, input);
+    masm.movePtr(RegExpPPCSavedLastIndexReg, lastIndex);
+}
+#endif
 
 static size_t
 RegExpPairsVectorStartOffset(size_t inputOutputDataStartOffset)
@@ -1077,7 +1100,7 @@ PrepareAndExecuteRegExp(JSContext* cx, MacroAssembler& masm, Register regexp, Re
     RegExpStatics* res = GlobalObject::getRegExpStatics(cx, cx->global());
     if (!res)
         return false;
-#ifdef JS_USE_LINK_REGISTER
+#if defined(JS_USE_LINK_REGISTER) && !defined(JS_CODEGEN_PPC_OSX)
     if (mode != RegExpShared::MatchOnly)
         masm.pushReturnAddress();
 #endif
@@ -1091,6 +1114,10 @@ PrepareAndExecuteRegExp(JSContext* cx, MacroAssembler& masm, Register regexp, Re
         masm.computeEffectiveAddress(pairsVectorAddress, temp1);
         masm.storePtr(temp1, pairsPointerAddress);
     }
+
+#if defined(JS_CODEGEN_PPC_OSX)
+    RegExpPPCSaveInputRegisters(masm, regexp, input, lastIndex);
+#endif
 
     // Check for a linear input string.
     masm.branchIfRopeOrExternal(input, temp1, failure);
@@ -1192,6 +1219,10 @@ PrepareAndExecuteRegExp(JSContext* cx, MacroAssembler& masm, Register regexp, Re
     masm.storePtr(lastIndex, startIndexAddress);
     masm.store32(Imm32(0), matchResultAddress);
 
+#if defined(JS_CODEGEN_PPC_OSX)
+    RegExpPPCSaveInputRegisters(masm, regexp, input, lastIndex);
+#endif
+
     // Save any volatile inputs.
     LiveGeneralRegisterSet volatileRegs;
     if (lastIndex.volatile_())
@@ -1203,11 +1234,15 @@ PrepareAndExecuteRegExp(JSContext* cx, MacroAssembler& masm, Register regexp, Re
 
     // Execute the RegExp.
     masm.computeEffectiveAddress(Address(masm.getStackPointer(), inputOutputDataStartOffset), temp2);
+#if !defined(JS_CODEGEN_PPC_OSX)
     masm.PushRegsInMask(volatileRegs);
+#endif
     masm.setupUnalignedABICall(temp3);
     masm.passABIArg(temp2);
     masm.callWithABI(codePointer);
+#if !defined(JS_CODEGEN_PPC_OSX)
     masm.PopRegsInMask(volatileRegs);
+#endif
 
     Label success;
     masm.branch32(Assembler::Equal, matchResultAddress,
@@ -1226,6 +1261,11 @@ PrepareAndExecuteRegExp(JSContext* cx, MacroAssembler& masm, Register regexp, Re
     masm.patchableCallPreBarrier(pendingInputAddress, MIRType::String);
     masm.patchableCallPreBarrier(matchesInputAddress, MIRType::String);
     masm.patchableCallPreBarrier(lazySourceAddress, MIRType::String);
+
+#if defined(JS_CODEGEN_PPC_OSX)
+    RegExpPPCRestoreInputRegisters(masm, regexp, input, lastIndex);
+    masm.movePtr(ImmPtr(res), temp1);
+#endif
 
     masm.storePtr(input, pendingInputAddress);
     masm.storePtr(input, matchesInputAddress);
@@ -1490,6 +1530,11 @@ JitCompartment::generateRegExpMatcherStub(JSContext* cx)
     regs.take(input);
     regs.take(regexp);
     regs.take(lastIndex);
+#if defined(JS_CODEGEN_PPC_OSX)
+    regs.take(RegExpPPCSavedRegExpReg);
+    regs.take(RegExpPPCSavedInputReg);
+    regs.take(RegExpPPCSavedLastIndexReg);
+#endif
 
     // temp5 is used in single byte instructions when creating dependent
     // strings, and has restrictions on which register it can be on some
@@ -1710,6 +1755,9 @@ JitCompartment::generateRegExpMatcherStub(JSContext* cx)
 
     // Use an undefined value to signal to the caller that the OOL stub needs to be called.
     masm.bind(&oolEntry);
+#if defined(JS_CODEGEN_PPC_OSX)
+    RegExpPPCRestoreInputRegisters(masm, regexp, input, lastIndex);
+#endif
     masm.moveValue(UndefinedValue(), result);
     masm.ret();
 
@@ -1832,6 +1880,11 @@ JitCompartment::generateRegExpSearcherStub(JSContext* cx)
     regs.take(input);
     regs.take(regexp);
     regs.take(lastIndex);
+#if defined(JS_CODEGEN_PPC_OSX)
+    regs.take(RegExpPPCSavedRegExpReg);
+    regs.take(RegExpPPCSavedInputReg);
+    regs.take(RegExpPPCSavedLastIndexReg);
+#endif
 
     Register temp1 = regs.takeAny();
     Register temp2 = regs.takeAny();
@@ -1867,6 +1920,9 @@ JitCompartment::generateRegExpSearcherStub(JSContext* cx)
     masm.ret();
 
     masm.bind(&oolEntry);
+#if defined(JS_CODEGEN_PPC_OSX)
+    RegExpPPCRestoreInputRegisters(masm, regexp, input, lastIndex);
+#endif
     masm.move32(Imm32(RegExpSearcherResultFailed), result);
     masm.ret();
 
@@ -1977,7 +2033,7 @@ JitCompartment::generateRegExpTesterStub(JSContext* cx)
 
     MacroAssembler masm(cx);
 
-#ifdef JS_USE_LINK_REGISTER
+#if defined(JS_USE_LINK_REGISTER) && !defined(JS_CODEGEN_PPC_OSX)
     masm.pushReturnAddress();
 #endif
 
@@ -1986,6 +2042,11 @@ JitCompartment::generateRegExpTesterStub(JSContext* cx)
     regs.take(input);
     regs.take(regexp);
     regs.take(lastIndex);
+#if defined(JS_CODEGEN_PPC_OSX)
+    regs.take(RegExpPPCSavedRegExpReg);
+    regs.take(RegExpPPCSavedInputReg);
+    regs.take(RegExpPPCSavedLastIndexReg);
+#endif
 
     Register temp1 = regs.takeAny();
     Register temp2 = regs.takeAny();
@@ -2012,6 +2073,9 @@ JitCompartment::generateRegExpTesterStub(JSContext* cx)
     masm.jump(&done);
 
     masm.bind(&oolEntry);
+#if defined(JS_CODEGEN_PPC_OSX)
+    RegExpPPCRestoreInputRegisters(masm, regexp, input, lastIndex);
+#endif
     masm.move32(Imm32(RegExpTesterResultFailed), result);
 
     masm.bind(&done);
@@ -6570,7 +6634,7 @@ CodeGenerator::visitAbsI(LAbsI* ins)
     masm.branchTest32(Assembler::NotSigned, input, input, &positive);
     masm.neg32(input);
     LSnapshot* snapshot = ins->snapshot();
-#if defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
+#if defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64) || defined(JS_CODEGEN_PPC_OSX)
     if (snapshot)
         bailoutCmp32(Assembler::Equal, input, Imm32(INT32_MIN), snapshot);
 #else
@@ -10748,11 +10812,25 @@ CodeGenerator::visitLoadUnboxedScalar(LLoadUnboxedScalar* lir)
     Label fail;
     if (lir->index()->isConstant()) {
         Address source(elements, ToInt32(lir->index()) * width + mir->offsetAdjustment());
+#if defined(JS_CODEGEN_PPC_OSX)
+        if (mir->target() == MLoadUnboxedScalar::TypedArrayTarget)
+            masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble);
+        else
+            masm.loadFromTypedArrayNative(readType, source, out, temp, &fail, canonicalizeDouble);
+#else
         masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble);
+#endif
     } else {
         BaseIndex source(elements, ToRegister(lir->index()), ScaleFromElemWidth(width),
                          mir->offsetAdjustment());
+#if defined(JS_CODEGEN_PPC_OSX)
+        if (mir->target() == MLoadUnboxedScalar::TypedArrayTarget)
+            masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble);
+        else
+            masm.loadFromTypedArrayNative(readType, source, out, temp, &fail, canonicalizeDouble);
+#else
         masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble);
+#endif
     }
 
     if (fail.used())
@@ -10817,6 +10895,25 @@ StoreToTypedArray(MacroAssembler& masm, Scalar::Type writeType, const LAllocatio
     }
 }
 
+#if defined(JS_CODEGEN_PPC_OSX)
+template <typename T>
+static inline void
+StoreToTypedArrayNative(MacroAssembler& masm, Scalar::Type writeType, const LAllocation* value,
+                        const T& dest)
+{
+    if (writeType == Scalar::Float32 ||
+        writeType == Scalar::Float64)
+    {
+        masm.storeToTypedFloatArray(writeType, ToFloatRegister(value), dest);
+    } else {
+        if (value->isConstant())
+            masm.storeToTypedIntArrayNative(writeType, Imm32(ToInt32(value)), dest);
+        else
+            masm.storeToTypedIntArrayNative(writeType, ToRegister(value), dest);
+    }
+}
+#endif
+
 void
 CodeGenerator::visitStoreUnboxedScalar(LStoreUnboxedScalar* lir)
 {
@@ -10831,11 +10928,25 @@ CodeGenerator::visitStoreUnboxedScalar(LStoreUnboxedScalar* lir)
 
     if (lir->index()->isConstant()) {
         Address dest(elements, ToInt32(lir->index()) * width + mir->offsetAdjustment());
+#if defined(JS_CODEGEN_PPC_OSX)
+        if (mir->target() == MStoreUnboxedScalar::TypedArrayTarget)
+            StoreToTypedArray(masm, writeType, value, dest);
+        else
+            StoreToTypedArrayNative(masm, writeType, value, dest);
+#else
         StoreToTypedArray(masm, writeType, value, dest);
+#endif
     } else {
         BaseIndex dest(elements, ToRegister(lir->index()), ScaleFromElemWidth(width),
                        mir->offsetAdjustment());
+#if defined(JS_CODEGEN_PPC_OSX)
+        if (mir->target() == MStoreUnboxedScalar::TypedArrayTarget)
+            StoreToTypedArray(masm, writeType, value, dest);
+        else
+            StoreToTypedArrayNative(masm, writeType, value, dest);
+#else
         StoreToTypedArray(masm, writeType, value, dest);
+#endif
     }
 }
 

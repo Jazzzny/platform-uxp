@@ -568,6 +568,19 @@ elif CONFIG['JS_CODEGEN_MIPS32'] or CONFIG['JS_CODEGEN_MIPS64']:
             jit_ioncheck3_deunified_sources += [
                 'jit/mips64/Simulator-mips64.cpp'
             ]
+elif CONFIG['JS_CODEGEN_PPC_OSX']:
+    jit_ioncheck1_deunified_sources += [
+        'jit/osxppc/Architecture-ppc.cpp',
+        'jit/osxppc/Assembler-ppc.cpp',
+        'jit/osxppc/Bailouts-ppc.cpp',
+        'jit/osxppc/BaselineCompiler-ppc.cpp',
+        'jit/osxppc/BaselineIC-ppc.cpp',
+        'jit/osxppc/CodeGenerator-ppc.cpp',
+        'jit/osxppc/Lowering-ppc.cpp',
+        'jit/osxppc/MacroAssembler-ppc.cpp',
+        'jit/osxppc/MoveEmitter-ppc.cpp',
+        'jit/osxppc/Trampoline-ppc.cpp',
+    ]
 
 if CONFIG['OS_ARCH'] == 'WINNT':
     SOURCES += [
@@ -638,12 +651,17 @@ else:
     STATIC_LIBRARY_NAME = 'js_static'
     NO_EXPAND_LIBS = True
     if CONFIG['MOZ_ICU_DATA_ARCHIVE']:
-        # Linking 'icu' will pull in the stubdata library,
-        # which the shell doesn't want, so link the other bits.
-        USE_LIBS += [
-            'icui18n',
-            'icuuc',
-        ]
+        if CONFIG['OS_ARCH'] == 'Darwin' and CONFIG['CPU_ARCH'] == 'ppc':
+            # Match the browser's PPC path: link ICU stubdata and load the
+            # data archive from dist/bin at startup.
+            USE_LIBS += ['icu']
+        else:
+            # Linking 'icu' will pull in the stubdata library,
+            # which the shell doesn't want, so link the other bits.
+            USE_LIBS += [
+                'icui18n',
+                'icuuc',
+            ]
 
 # Explicitly enable WPO and LTCG in MSVC, and deunify sources if
 # we're doing LTO

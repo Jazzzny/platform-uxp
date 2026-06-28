@@ -238,21 +238,126 @@ template void MacroAssembler::guardTypeSetMightBeIncomplete(const TemporaryTypeS
                                                             Register obj, Register scratch,
                                                             Label* label);
 
+#if defined(JS_CODEGEN_PPC_OSX)
+static inline Address
+OffsetTypedArrayAddress(const Address& address, int32_t offset)
+{
+    return Address(address.base, address.offset + offset);
+}
+
+static inline BaseIndex
+OffsetTypedArrayAddress(const BaseIndex& address, int32_t offset)
+{
+    return BaseIndex(address.base, address.index, address.scale, address.offset + offset);
+}
+
+static inline void
+StoreTypedFloatWord(MacroAssembler& masm, uint32_t stackOffset, const Address& dest,
+                    int32_t destOffset = 0)
+{
+    masm.load32(Address(masm.getStackPointer(), stackOffset), tempRegister);
+    masm.store32ByteSwapped(tempRegister, OffsetTypedArrayAddress(dest, destOffset));
+}
+
+static inline void
+StoreTypedFloatWord(MacroAssembler& masm, uint32_t stackOffset, const BaseIndex& dest,
+                    int32_t destOffset = 0)
+{
+    masm.computeScaledAddress(dest, addressTempRegister);
+    masm.load32(Address(masm.getStackPointer(), stackOffset), tempRegister);
+    masm.store32ByteSwapped(tempRegister,
+                            Address(addressTempRegister, dest.offset + destOffset));
+}
+#endif
+
 template<typename S, typename T>
 static void
 StoreToTypedFloatArray(MacroAssembler& masm, int arrayType, const S& value, const T& dest)
 {
     switch (arrayType) {
       case Scalar::Float32:
+#if defined(JS_CODEGEN_PPC_OSX)
+      {
+        masm.reserveStack(sizeof(uint32_t));
+        masm.storeFloat32(value, Address(masm.getStackPointer(), 0));
+        StoreTypedFloatWord(masm, 0, dest);
+        masm.freeStack(sizeof(uint32_t));
+        break;
+      }
+#else
         masm.storeFloat32(value, dest);
         break;
+#endif
       case Scalar::Float64:
+#if defined(JS_CODEGEN_PPC_OSX)
+      {
+        masm.reserveStack(sizeof(double));
+        masm.storeDouble(value, Address(masm.getStackPointer(), 0));
+        StoreTypedFloatWord(masm, sizeof(uint32_t), dest);
+        StoreTypedFloatWord(masm, 0, dest, sizeof(uint32_t));
+        masm.freeStack(sizeof(double));
+        break;
+      }
+#else
         masm.storeDouble(value, dest);
         break;
+#endif
       default:
         MOZ_CRASH("Invalid typed array type");
     }
 }
+
+#if defined(JS_CODEGEN_PPC_OSX)
+static void
+LoadTypedFloat32(MacroAssembler& masm, const Address& src, FloatRegister dest, Register temp)
+{
+    Register scratch = temp == InvalidReg ? tempRegister : temp;
+    masm.reserveStack(sizeof(uint32_t));
+    masm.load32ByteSwapped(src, scratch);
+    masm.store32(scratch, Address(masm.getStackPointer(), 0));
+    masm.loadFloat32(Address(masm.getStackPointer(), 0), dest);
+    masm.freeStack(sizeof(uint32_t));
+}
+
+static void
+LoadTypedFloat32(MacroAssembler& masm, const BaseIndex& src, FloatRegister dest, Register temp)
+{
+    Register scratch = temp == InvalidReg ? tempRegister : temp;
+    masm.reserveStack(sizeof(uint32_t));
+    masm.computeScaledAddress(src, addressTempRegister);
+    masm.load32ByteSwapped(Address(addressTempRegister, src.offset), scratch);
+    masm.store32(scratch, Address(masm.getStackPointer(), 0));
+    masm.loadFloat32(Address(masm.getStackPointer(), 0), dest);
+    masm.freeStack(sizeof(uint32_t));
+}
+
+static void
+LoadTypedFloat64(MacroAssembler& masm, const Address& src, FloatRegister dest, Register temp)
+{
+    Register scratch = temp == InvalidReg ? tempRegister : temp;
+    masm.reserveStack(sizeof(double));
+    masm.load32ByteSwapped(src, scratch);
+    masm.store32(scratch, Address(masm.getStackPointer(), sizeof(uint32_t)));
+    masm.load32ByteSwapped(OffsetTypedArrayAddress(src, sizeof(uint32_t)), scratch);
+    masm.store32(scratch, Address(masm.getStackPointer(), 0));
+    masm.loadDouble(Address(masm.getStackPointer(), 0), dest);
+    masm.freeStack(sizeof(double));
+}
+
+static void
+LoadTypedFloat64(MacroAssembler& masm, const BaseIndex& src, FloatRegister dest, Register temp)
+{
+    Register scratch = temp == InvalidReg ? tempRegister : temp;
+    masm.reserveStack(sizeof(double));
+    masm.computeScaledAddress(src, addressTempRegister);
+    masm.load32ByteSwapped(Address(addressTempRegister, src.offset), scratch);
+    masm.store32(scratch, Address(masm.getStackPointer(), sizeof(uint32_t)));
+    masm.load32ByteSwapped(Address(addressTempRegister, src.offset + sizeof(uint32_t)), scratch);
+    masm.store32(scratch, Address(masm.getStackPointer(), 0));
+    masm.loadDouble(Address(masm.getStackPointer(), 0), dest);
+    masm.freeStack(sizeof(double));
+}
+#endif
 
 void
 MacroAssembler::storeToTypedFloatArray(Scalar::Type arrayType, FloatRegister value,
@@ -271,6 +376,94 @@ template<typename T>
 void
 MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, AnyRegister dest, Register temp,
                                    Label* fail, bool canonicalizeDoubles)
+{
+    switch (arrayType) {
+      case Scalar::Int8:
+        load8SignExtend(src, dest.gpr());
+        break;
+      case Scalar::Uint8:
+      case Scalar::Uint8Clamped:
+        load8ZeroExtend(src, dest.gpr());
+        break;
+      case Scalar::Int16:
+#if defined(JS_CODEGEN_PPC_OSX)
+        load16SignExtendSwapped(src, dest.gpr());
+#else
+        load16SignExtend(src, dest.gpr());
+#endif
+        break;
+      case Scalar::Uint16:
+#if defined(JS_CODEGEN_PPC_OSX)
+        load16ZeroExtendSwapped(src, dest.gpr());
+#else
+        load16ZeroExtend(src, dest.gpr());
+#endif
+        break;
+      case Scalar::Int32:
+#if defined(JS_CODEGEN_PPC_OSX)
+        load32ByteSwapped(src, dest.gpr());
+#else
+        load32(src, dest.gpr());
+#endif
+        break;
+      case Scalar::Uint32:
+        if (dest.isFloat()) {
+#if defined(JS_CODEGEN_PPC_OSX)
+            load32ByteSwapped(src, temp);
+#else
+            load32(src, temp);
+#endif
+            convertUInt32ToDouble(temp, dest.fpu());
+        } else {
+#if defined(JS_CODEGEN_PPC_OSX)
+            load32ByteSwapped(src, dest.gpr());
+#else
+            load32(src, dest.gpr());
+#endif
+
+            // Bail out if the value doesn't fit into a signed int32 value. This
+            // is what allows MLoadUnboxedScalar to have a type() of
+            // MIRType::Int32 for UInt32 array loads.
+            branchTest32(Assembler::Signed, dest.gpr(), dest.gpr(), fail);
+        }
+        break;
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+        // FIXME: https://bugzil.la/1536702
+        jump(fail);
+        break;
+      case Scalar::Float32:
+#if defined(JS_CODEGEN_PPC_OSX)
+        LoadTypedFloat32(*this, src, dest.fpu(), temp);
+#else
+        loadFloat32(src, dest.fpu());
+#endif
+        canonicalizeFloat(dest.fpu());
+        break;
+      case Scalar::Float64:
+#if defined(JS_CODEGEN_PPC_OSX)
+        LoadTypedFloat64(*this, src, dest.fpu(), temp);
+#else
+        loadDouble(src, dest.fpu());
+#endif
+        if (canonicalizeDoubles)
+            canonicalizeDouble(dest.fpu());
+        break;
+      default:
+        MOZ_CRASH("Invalid typed array type");
+    }
+}
+
+template void MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const Address& src, AnyRegister dest,
+                                                 Register temp, Label* fail, bool canonicalizeDoubles);
+template void MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const BaseIndex& src, AnyRegister dest,
+                                                 Register temp, Label* fail, bool canonicalizeDoubles);
+
+#if defined(JS_CODEGEN_PPC_OSX)
+template<typename T>
+void
+MacroAssembler::loadFromTypedArrayNative(Scalar::Type arrayType, const T& src, AnyRegister dest, Register temp,
+                                         Label* fail, bool canonicalizeDoubles)
 {
     switch (arrayType) {
       case Scalar::Int8:
@@ -321,10 +514,13 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, AnyRegi
     }
 }
 
-template void MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const Address& src, AnyRegister dest,
-                                                 Register temp, Label* fail, bool canonicalizeDoubles);
-template void MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const BaseIndex& src, AnyRegister dest,
-                                                 Register temp, Label* fail, bool canonicalizeDoubles);
+template void MacroAssembler::loadFromTypedArrayNative(Scalar::Type arrayType, const Address& src,
+                                                       AnyRegister dest, Register temp, Label* fail,
+                                                       bool canonicalizeDoubles);
+template void MacroAssembler::loadFromTypedArrayNative(Scalar::Type arrayType, const BaseIndex& src,
+                                                       AnyRegister dest, Register temp, Label* fail,
+                                                       bool canonicalizeDoubles);
+#endif
 
 template<typename T>
 void
@@ -343,7 +539,11 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, const V
         break;
       case Scalar::Uint32:
         // Don't clobber dest when we could fail, instead use temp.
+#if defined(JS_CODEGEN_PPC_OSX)
+        load32ByteSwapped(src, temp);
+#else
         load32(src, temp);
+#endif
         if (allowDouble) {
             // If the value fits in an int32, store an int32 type tag.
             // Else, convert the value to double and box it.
@@ -1439,7 +1639,9 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             // Discard exit frame.
             addToStackPtr(Imm32(ExitFrameLayout::SizeWithFooter()));
 
-#if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
+#if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64) || defined(JS_CODEGEN_PPC_OSX)
+            // The target IC stub expects the tail-call return address at the
+            // top of the stack. osxppc follows that x86-style IC convention.
             push(ICTailCallReg);
 #endif
             jump(Address(ICStubReg, ICStub::offsetOfStubCode()));
@@ -1875,6 +2077,7 @@ MacroAssembler::outOfLineTruncateSlow(FloatRegister src, Register dest, bool wid
                                       bool compilingWasm)
 {
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || \
+    defined(JS_CODEGEN_PPC_OSX) || \
     defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
     if (widenFloatToDouble) {
         convertFloat32ToDouble(src, ScratchDoubleReg);
@@ -1905,6 +2108,7 @@ MacroAssembler::outOfLineTruncateSlow(FloatRegister src, Register dest, bool wid
     storeCallInt32Result(dest);
 
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || \
+    defined(JS_CODEGEN_PPC_OSX) || \
     defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
     // Nothing
 #elif defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
@@ -2582,10 +2786,14 @@ MacroAssembler::callWithABINoProfiler(void* fun, MoveOp::Type result)
     fun = Simulator::RedirectNativeFunction(fun, signature());
 #endif
 
+#ifdef JS_CODEGEN_PPC_OSX
+    callWithABIOptimized(fun, result);
+#else
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
     call(ImmPtr(fun));
     callWithABIPost(stackAdjust, result);
+#endif
 }
 
 void

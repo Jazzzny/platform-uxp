@@ -19,6 +19,8 @@
 # include "jit/mips32/BaselineCompiler-mips32.h"
 #elif defined(JS_CODEGEN_MIPS64)
 # include "jit/mips64/BaselineCompiler-mips64.h"
+#elif defined(JS_CODEGEN_PPC_OSX)
+# include "jit/osxppc/BaselineCompiler-ppc.h"
 #elif defined(JS_CODEGEN_NONE)
 # include "jit/none/BaselineCompiler-none.h"
 #else

@@ -18,6 +18,8 @@
 # include "jit/mips32/SharedICRegisters-mips32.h"
 #elif defined(JS_CODEGEN_MIPS64)
 # include "jit/mips64/SharedICRegisters-mips64.h"
+#elif defined(JS_CODEGEN_PPC_OSX)
+# include "jit/osxppc/SharedICRegisters-ppc.h"
 #elif defined(JS_CODEGEN_NONE)
 # include "jit/none/SharedICRegisters-none.h"
 #else

@@ -8930,6 +8930,17 @@ class MLoadUnboxedScalar
     int32_t offsetAdjustment_;
     bool canonicalizeDoubles_;
 
+#if defined(JS_CODEGEN_PPC_OSX)
+  public:
+    enum TargetKind {
+        ScalarTarget = 0,
+        TypedArrayTarget
+    };
+
+  private:
+    TargetKind target_;
+#endif
+
     MLoadUnboxedScalar(MDefinition* elements, MDefinition* index, Scalar::Type storageType,
                        MemoryBarrierRequirement requiresBarrier = DoesNotRequireMemoryBarrier,
                        int32_t offsetAdjustment = 0, bool canonicalizeDoubles = true)
@@ -8939,6 +8950,10 @@ class MLoadUnboxedScalar
         requiresBarrier_(requiresBarrier == DoesRequireMemoryBarrier),
         offsetAdjustment_(offsetAdjustment),
         canonicalizeDoubles_(canonicalizeDoubles)
+#if defined(JS_CODEGEN_PPC_OSX)
+        ,
+        target_(ScalarTarget)
+#endif
     {
         setResultType(MIRType::Value);
         if (requiresBarrier_)
@@ -8955,6 +8970,14 @@ class MLoadUnboxedScalar
     TRIVIAL_NEW_WRAPPERS
     NAMED_OPERANDS((0, elements), (1, index))
 
+#if defined(JS_CODEGEN_PPC_OSX)
+    TargetKind target() const {
+        return target_;
+    }
+    void setTarget(TargetKind target) {
+        target_ = target;
+    }
+#endif
     Scalar::Type readType() const {
         return readType_;
     }
@@ -8996,6 +9019,10 @@ class MLoadUnboxedScalar
             return false;
         if (readType_ != other->readType_)
             return false;
+#if defined(JS_CODEGEN_PPC_OSX)
+        if (target_ != other->target_)
+            return false;
+#endif
         if (offsetAdjustment() != other->offsetAdjustment())
             return false;
         if (canonicalizeDoubles() != other->canonicalizeDoubles())
@@ -9176,6 +9203,12 @@ class MStoreUnboxedScalar
         DontTruncateInput,
         TruncateInput
     };
+#if defined(JS_CODEGEN_PPC_OSX)
+    enum TargetKind {
+        ScalarTarget = 0,
+        TypedArrayTarget
+    };
+#endif
 
   private:
     Scalar::Type storageType_;
@@ -9185,6 +9218,9 @@ class MStoreUnboxedScalar
 
     bool requiresBarrier_;
     int32_t offsetAdjustment_;
+#if defined(JS_CODEGEN_PPC_OSX)
+    TargetKind target_;
+#endif
 
     MStoreUnboxedScalar(MDefinition* elements, MDefinition* index, MDefinition* value,
                         Scalar::Type storageType, TruncateInputKind truncateInput,
@@ -9196,6 +9232,10 @@ class MStoreUnboxedScalar
         truncateInput_(truncateInput),
         requiresBarrier_(requiresBarrier == DoesRequireMemoryBarrier),
         offsetAdjustment_(offsetAdjustment)
+#if defined(JS_CODEGEN_PPC_OSX)
+        ,
+        target_(ScalarTarget)
+#endif
     {
         if (requiresBarrier_)
             setGuard();         // Not removable or movable
@@ -9214,6 +9254,14 @@ class MStoreUnboxedScalar
     Scalar::Type storageType() const {
         return storageType_;
     }
+#if defined(JS_CODEGEN_PPC_OSX)
+    TargetKind target() const {
+        return target_;
+    }
+    void setTarget(TargetKind target) {
+        target_ = target;
+    }
+#endif
     AliasSet getAliasSet() const override {
         return AliasSet::Store(AliasSet::UnboxedElement);
     }

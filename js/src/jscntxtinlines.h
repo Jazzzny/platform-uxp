@@ -278,9 +278,15 @@ CallJSNativeConstructor(JSContext* cx, Native native, const CallArgs& args)
      * constructor to return the callee, the assertion can be removed or
      * (another) conjunct can be added to the antecedent.
      *
-     * Exception: (new Object(Object)) returns the callee.
+     * Exceptions:
+     *
+     * - new Iterator(x) is user-hookable; it returns x.__iterator__(), which
+     *   could be any object.
+     *
+     * - (new Object(Object)) returns the callee.
      */
-    MOZ_ASSERT_IF((!callee->is<JSFunction>() || callee->as<JSFunction>().native() != obj_construct),
+    MOZ_ASSERT_IF(native != js::IteratorConstructor &&
+                  (!callee->is<JSFunction>() || callee->as<JSFunction>().native() != obj_construct),
                   args.rval().isObject() && callee != &args.rval().toObject());
 
     return true;

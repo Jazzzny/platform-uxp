@@ -38,6 +38,24 @@ using mozilla::Maybe;
 using mozilla::Nothing;
 using mozilla::Some;
 
+#if defined(JS_CODEGEN_PPC_OSX)
+
+bool
+wasm::IonCompileFunction(IonCompileTask* task)
+{
+    (void)task;
+    MOZ_CRASH("WebAssembly Ion compilation is not supported on PPC OS X");
+}
+
+bool
+wasm::CompileFunction(IonCompileTask* task)
+{
+    (void)task;
+    MOZ_CRASH("WebAssembly compilation is not supported on PPC OS X");
+}
+
+#else
+
 namespace {
 
 typedef Vector<MBasicBlock*, 8, SystemAllocPolicy> BlockVector;
@@ -2958,3 +2976,5 @@ wasm::CompileFunction(IonCompileTask* task)
 
     MOZ_CRASH("Uninitialized task");
 }
+
+#endif // JS_CODEGEN_PPC_OSX

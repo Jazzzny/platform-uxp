@@ -33,7 +33,7 @@ class XULInfo:
 
         return ('var xulRuntime = {{ OS: "{}", XPCOMABI: "{}", shell: true }};'
                 'var isDebugBuild={}; var Android={}; '
-                'var browserIsRemote={}'.format(
+                'var browserIsRemote={}; var release_or_beta=false'.format(
                     self.os,
                     self.abi,
                     str(self.isdebug).lower(),

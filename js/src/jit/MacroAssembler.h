@@ -23,6 +23,8 @@
 # include "jit/mips32/MacroAssembler-mips32.h"
 #elif defined(JS_CODEGEN_MIPS64)
 # include "jit/mips64/MacroAssembler-mips64.h"
+#elif defined(JS_CODEGEN_PPC_OSX)
+# include "jit/osxppc/MacroAssembler-ppc.h"
 #elif defined(JS_CODEGEN_NONE)
 # include "jit/none/MacroAssembler-none.h"
 #else
@@ -66,8 +68,8 @@ using mozilla::FloatingPoint;
 // architectures on each method declaration, such as PER_ARCH and
 // PER_SHARED_ARCH.
 
-# define ALL_ARCH mips32, mips64, arm, arm64, x86, x64
-# define ALL_SHARED_ARCH arm, arm64, x86_shared, mips_shared
+# define ALL_ARCH mips32, mips64, arm, arm64, ppc, x86, x64
+# define ALL_SHARED_ARCH arm, arm64, ppc, x86_shared, mips_shared
 
 // * How this macro works:
 //
@@ -113,6 +115,7 @@ using mozilla::FloatingPoint;
 # define DEFINED_ON_mips32
 # define DEFINED_ON_mips64
 # define DEFINED_ON_mips_shared
+# define DEFINED_ON_ppc
 # define DEFINED_ON_none
 
 // Specialize for each architecture.
@@ -142,6 +145,9 @@ using mozilla::FloatingPoint;
 # define DEFINED_ON_mips64 define
 # undef DEFINED_ON_mips_shared
 # define DEFINED_ON_mips_shared define
+#elif defined(JS_CODEGEN_PPC_OSX)
+# undef DEFINED_ON_ppc
+# define DEFINED_ON_ppc define
 #elif defined(JS_CODEGEN_NONE)
 # undef DEFINED_ON_none
 # define DEFINED_ON_none crash
@@ -419,13 +425,13 @@ class MacroAssembler : public MacroAssemblerSpecific
     // Stack manipulation functions.
 
     void PushRegsInMask(LiveRegisterSet set)
-                            DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+                            DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
     void PushRegsInMask(LiveGeneralRegisterSet set);
 
     void PopRegsInMask(LiveRegisterSet set);
     void PopRegsInMask(LiveGeneralRegisterSet set);
     void PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
-                                 DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+                                 DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     void Push(const Operand op) DEFINED_ON(x86_shared);
     void Push(Register reg) PER_SHARED_ARCH;
@@ -494,11 +500,11 @@ class MacroAssembler : public MacroAssemblerSpecific
     // Push the return address and make a call. On platforms where this function
     // is not defined, push the link register (pushReturnAddress) at the entry
     // point of the callee.
-    void callAndPushReturnAddress(Register reg) DEFINED_ON(x86_shared);
-    void callAndPushReturnAddress(Label* label) DEFINED_ON(x86_shared);
+    void callAndPushReturnAddress(Register reg) DEFINED_ON(x86_shared, ppc);
+    void callAndPushReturnAddress(Label* label) DEFINED_ON(x86_shared, ppc);
 
-    void pushReturnAddress() DEFINED_ON(mips_shared, arm, arm64);
-    void popReturnAddress() DEFINED_ON(mips_shared, arm, arm64);
+    void pushReturnAddress() DEFINED_ON(mips_shared, arm, arm64, ppc);
+    void popReturnAddress() DEFINED_ON(mips_shared, arm, arm64, ppc);
 
   public:
     // ===============================================================
@@ -543,7 +549,11 @@ class MacroAssembler : public MacroAssemblerSpecific
     template <typename T>
     inline void callWithABI(const T& fun, MoveOp::Type result = MoveOp::GENERAL);
 
+#if defined(JS_CODEGEN_PPC_OSX)
+  public:
+#else
   private:
+#endif
     // Reinitialize the variables which have to be cleared before making a call
     // with callWithABI.
     void setupABICall();
@@ -560,6 +570,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     // Restore the stack to its state before the setup function call.
     void callWithABIPost(uint32_t stackAdjust, MoveOp::Type result) PER_ARCH;
 
+  private:
     // Create the signature to be able to decode the arguments of a native
     // function, when calling a function within the simulator.
     inline void appendSignatureType(MoveOp::Type type);
@@ -759,9 +770,9 @@ class MacroAssembler : public MacroAssemblerSpecific
     inline void addPtr(Imm32 imm, Register src, Register dest) DEFINED_ON(arm64);
     inline void addPtr(ImmWord imm, Register dest) PER_ARCH;
     inline void addPtr(ImmPtr imm, Register dest);
-    inline void addPtr(Imm32 imm, const Address& dest) DEFINED_ON(mips_shared, arm, arm64, x86, x64);
+    inline void addPtr(Imm32 imm, const Address& dest) DEFINED_ON(mips_shared, arm, arm64, ppc, x86, x64);
     inline void addPtr(Imm32 imm, const AbsoluteAddress& dest) DEFINED_ON(x86, x64);
-    inline void addPtr(const Address& src, Register dest) DEFINED_ON(mips_shared, arm, arm64, x86, x64);
+    inline void addPtr(const Address& src, Register dest) DEFINED_ON(mips_shared, arm, arm64, ppc, x86, x64);
 
     inline void add64(Register64 src, Register64 dest) PER_ARCH;
     inline void add64(Imm32 imm, Register64 dest) PER_ARCH;
@@ -781,7 +792,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     inline void subPtr(Register src, const Address& dest) DEFINED_ON(mips_shared, arm, arm64, x86, x64);
     inline void subPtr(Imm32 imm, Register dest) PER_ARCH;
     inline void subPtr(ImmWord imm, Register dest) DEFINED_ON(x64);
-    inline void subPtr(const Address& addr, Register dest) DEFINED_ON(mips_shared, arm, arm64, x86, x64);
+    inline void subPtr(const Address& addr, Register dest) DEFINED_ON(mips_shared, arm, arm64, ppc, x86, x64);
 
     inline void sub64(Register64 src, Register64 dest) PER_ARCH;
     inline void sub64(Imm64 imm, Register64 dest) DEFINED_ON(x86, x64, arm, mips32, mips64);
@@ -810,7 +821,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     inline void mulFloat32(FloatRegister src, FloatRegister dest) PER_SHARED_ARCH;
     inline void mulDouble(FloatRegister src, FloatRegister dest) PER_SHARED_ARCH;
 
-    inline void mulDoublePtr(ImmPtr imm, Register temp, FloatRegister dest) DEFINED_ON(mips_shared, arm, arm64, x86, x64);
+    inline void mulDoublePtr(ImmPtr imm, Register temp, FloatRegister dest) DEFINED_ON(mips_shared, arm, arm64, ppc, x86, x64);
 
     // Perform an integer division, returning the integer part rounded toward zero.
     // rhs must not be zero, and the division must not overflow.
@@ -899,7 +910,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     inline void rotateLeft64(Imm32 count, Register64 input, Register64 dest) DEFINED_ON(x64);
     inline void rotateLeft64(Register count, Register64 input, Register64 dest) DEFINED_ON(x64);
     inline void rotateLeft64(Imm32 count, Register64 input, Register64 dest, Register temp)
-        DEFINED_ON(x86, x64, arm, mips32, mips64);
+        DEFINED_ON(x86, x64, arm, mips32, mips64, ppc);
     inline void rotateLeft64(Register count, Register64 input, Register64 dest, Register temp)
         PER_ARCH;
 
@@ -934,7 +945,7 @@ class MacroAssembler : public MacroAssemblerSpecific
 
     template <typename T1, typename T2>
     inline void cmp32Set(Condition cond, T1 lhs, T2 rhs, Register dest)
-        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64);
+        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64, ppc);
 
     template <typename T1, typename T2>
     inline void cmpPtrSet(Condition cond, T1 lhs, T2 rhs, Register dest)
@@ -944,25 +955,30 @@ class MacroAssembler : public MacroAssemblerSpecific
     // Branch functions
 
     template <class L>
-    inline void branch32(Condition cond, Register lhs, Register rhs, L label) PER_SHARED_ARCH;
+    inline void branch32(Condition cond, Register lhs, Register rhs, L label)
+        PER_SHARED_ARCH;
     template <class L>
-    inline void branch32(Condition cond, Register lhs, Imm32 rhs, L label) PER_SHARED_ARCH;
+    inline void branch32(Condition cond, Register lhs, Imm32 rhs, L label)
+        PER_SHARED_ARCH;
     inline void branch32(Condition cond, Register length, const RegisterOrInt32Constant& key,
                          Label* label);
 
-    inline void branch32(Condition cond, const Address& lhs, Register rhs, Label* label) PER_SHARED_ARCH;
-    inline void branch32(Condition cond, const Address& lhs, Imm32 rhs, Label* label) PER_SHARED_ARCH;
+    inline void branch32(Condition cond, const Address& lhs, Register rhs, Label* label)
+        PER_SHARED_ARCH;
+    inline void branch32(Condition cond, const Address& lhs, Imm32 rhs, Label* label)
+        PER_SHARED_ARCH;
     inline void branch32(Condition cond, const Address& length, const RegisterOrInt32Constant& key,
                          Label* label);
 
     inline void branch32(Condition cond, const AbsoluteAddress& lhs, Register rhs, Label* label)
-        DEFINED_ON(arm, arm64, mips_shared, x86, x64);
+        DEFINED_ON(arm, arm64, mips_shared, ppc, x86, x64);
     inline void branch32(Condition cond, const AbsoluteAddress& lhs, Imm32 rhs, Label* label)
-        DEFINED_ON(arm, arm64, mips_shared, x86, x64);
+        DEFINED_ON(arm, arm64, mips_shared, ppc, x86, x64);
 
     inline void branch32(Condition cond, const BaseIndex& lhs, Register rhs, Label* label)
         DEFINED_ON(x86_shared);
-    inline void branch32(Condition cond, const BaseIndex& lhs, Imm32 rhs, Label* label) PER_SHARED_ARCH;
+    inline void branch32(Condition cond, const BaseIndex& lhs, Imm32 rhs, Label* label)
+        PER_SHARED_ARCH;
 
     inline void branch32(Condition cond, const Operand& lhs, Register rhs, Label* label) DEFINED_ON(x86_shared);
     inline void branch32(Condition cond, const Operand& lhs, Imm32 rhs, Label* label) DEFINED_ON(x86_shared);
@@ -988,22 +1004,31 @@ class MacroAssembler : public MacroAssemblerSpecific
                          Label* label) PER_ARCH;
 
     template <class L>
-    inline void branchPtr(Condition cond, Register lhs, Register rhs, L label) PER_SHARED_ARCH;
-    inline void branchPtr(Condition cond, Register lhs, Imm32 rhs, Label* label) PER_SHARED_ARCH;
-    inline void branchPtr(Condition cond, Register lhs, ImmPtr rhs, Label* label) PER_SHARED_ARCH;
-    inline void branchPtr(Condition cond, Register lhs, ImmGCPtr rhs, Label* label) PER_SHARED_ARCH;
-    inline void branchPtr(Condition cond, Register lhs, ImmWord rhs, Label* label) PER_SHARED_ARCH;
+    inline void branchPtr(Condition cond, Register lhs, Register rhs, L label)
+        PER_SHARED_ARCH;
+    inline void branchPtr(Condition cond, Register lhs, Imm32 rhs, Label* label)
+        PER_SHARED_ARCH;
+    inline void branchPtr(Condition cond, Register lhs, ImmPtr rhs, Label* label)
+        PER_SHARED_ARCH;
+    inline void branchPtr(Condition cond, Register lhs, ImmGCPtr rhs, Label* label)
+        PER_SHARED_ARCH;
+    inline void branchPtr(Condition cond, Register lhs, ImmWord rhs, Label* label)
+        PER_SHARED_ARCH;
 
     template <class L>
-    inline void branchPtr(Condition cond, const Address& lhs, Register rhs, L label) PER_SHARED_ARCH;
-    inline void branchPtr(Condition cond, const Address& lhs, ImmPtr rhs, Label* label) PER_SHARED_ARCH;
-    inline void branchPtr(Condition cond, const Address& lhs, ImmGCPtr rhs, Label* label) PER_SHARED_ARCH;
-    inline void branchPtr(Condition cond, const Address& lhs, ImmWord rhs, Label* label) PER_SHARED_ARCH;
+    inline void branchPtr(Condition cond, const Address& lhs, Register rhs, L label)
+        PER_SHARED_ARCH;
+    inline void branchPtr(Condition cond, const Address& lhs, ImmPtr rhs, Label* label)
+        PER_SHARED_ARCH;
+    inline void branchPtr(Condition cond, const Address& lhs, ImmGCPtr rhs, Label* label)
+        PER_SHARED_ARCH;
+    inline void branchPtr(Condition cond, const Address& lhs, ImmWord rhs, Label* label)
+        PER_SHARED_ARCH;
 
     inline void branchPtr(Condition cond, const AbsoluteAddress& lhs, Register rhs, Label* label)
-        DEFINED_ON(arm, arm64, mips_shared, x86, x64);
+        DEFINED_ON(arm, arm64, mips_shared, ppc, x86, x64);
     inline void branchPtr(Condition cond, const AbsoluteAddress& lhs, ImmWord rhs, Label* label)
-        DEFINED_ON(arm, arm64, mips_shared, x86, x64);
+        DEFINED_ON(arm, arm64, mips_shared, ppc, x86, x64);
 
     inline void branchPtr(Condition cond, wasm::SymbolicAddress lhs, Register rhs, Label* label)
         DEFINED_ON(arm, arm64, mips_shared, x86, x64);
@@ -1014,7 +1039,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     inline CodeOffsetJump branchPtrWithPatch(Condition cond, Address lhs, T rhs, RepatchLabel* label) PER_SHARED_ARCH;
 
     void branchPtrInNurseryChunk(Condition cond, Register ptr, Register temp, Label* label)
-        DEFINED_ON(arm, arm64, mips_shared, x86, x64);
+        DEFINED_ON(arm, arm64, mips_shared, ppc, x86, x64);
     void branchPtrInNurseryChunk(Condition cond, const Address& address, Register temp, Label* label)
         DEFINED_ON(x86);
     void branchValueIsNurseryObject(Condition cond, const Address& address, Register temp, Label* label) PER_ARCH;
@@ -1032,9 +1057,9 @@ class MacroAssembler : public MacroAssemblerSpecific
     // which isn't implemented on all architectures.
     // E.g. the x64 variants will do this only in the int64_t range.
     inline void branchTruncateFloat32MaybeModUint32(FloatRegister src, Register dest, Label* fail)
-        DEFINED_ON(arm, arm64, mips_shared, x86, x64);
+        DEFINED_ON(arm, arm64, mips_shared, ppc, x86, x64);
     inline void branchTruncateDoubleMaybeModUint32(FloatRegister src, Register dest, Label* fail)
-        DEFINED_ON(arm, arm64, mips_shared, x86, x64);
+        DEFINED_ON(arm, arm64, mips_shared, ppc, x86, x64);
 
     // Truncate a double/float32 to intptr and when it doesn't fit jump to the failure label.
     inline void branchTruncateFloat32ToPtr(FloatRegister src, Register dest, Label* fail)
@@ -1064,17 +1089,23 @@ class MacroAssembler : public MacroAssemblerSpecific
     inline void decBranchPtr(Condition cond, Register lhs, Imm32 rhs, Label* label) PER_SHARED_ARCH;
 
     template <class L>
-    inline void branchTest32(Condition cond, Register lhs, Register rhs, L label) PER_SHARED_ARCH;
+    inline void branchTest32(Condition cond, Register lhs, Register rhs, L label)
+        PER_SHARED_ARCH;
     template <class L>
-    inline void branchTest32(Condition cond, Register lhs, Imm32 rhs, L label) PER_SHARED_ARCH;
-    inline void branchTest32(Condition cond, const Address& lhs, Imm32 rhh, Label* label) PER_SHARED_ARCH;
+    inline void branchTest32(Condition cond, Register lhs, Imm32 rhs, L label)
+        PER_SHARED_ARCH;
+    inline void branchTest32(Condition cond, const Address& lhs, Imm32 rhh, Label* label)
+        PER_SHARED_ARCH;
     inline void branchTest32(Condition cond, const AbsoluteAddress& lhs, Imm32 rhs, Label* label)
-        DEFINED_ON(arm, arm64, mips_shared, x86, x64);
+        DEFINED_ON(arm, arm64, mips_shared, ppc, x86, x64);
 
     template <class L>
-    inline void branchTestPtr(Condition cond, Register lhs, Register rhs, L label) PER_SHARED_ARCH;
-    inline void branchTestPtr(Condition cond, Register lhs, Imm32 rhs, Label* label) PER_SHARED_ARCH;
-    inline void branchTestPtr(Condition cond, const Address& lhs, Imm32 rhs, Label* label) PER_SHARED_ARCH;
+    inline void branchTestPtr(Condition cond, Register lhs, Register rhs, L label)
+        PER_SHARED_ARCH;
+    inline void branchTestPtr(Condition cond, Register lhs, Imm32 rhs, Label* label)
+        PER_SHARED_ARCH;
+    inline void branchTestPtr(Condition cond, const Address& lhs, Imm32 rhs, Label* label)
+        PER_SHARED_ARCH;
 
     template <class L>
     inline void branchTest64(Condition cond, Register64 lhs, Register64 rhs, Register temp,
@@ -1132,7 +1163,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     inline void branchTestUndefined(Condition cond, Register tag, Label* label) PER_SHARED_ARCH;
     inline void branchTestInt32(Condition cond, Register tag, Label* label) PER_SHARED_ARCH;
     inline void branchTestDouble(Condition cond, Register tag, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
     inline void branchTestNumber(Condition cond, Register tag, Label* label) PER_SHARED_ARCH;
     inline void branchTestBoolean(Condition cond, Register tag, Label* label) PER_SHARED_ARCH;
     inline void branchTestString(Condition cond, Register tag, Label* label) PER_SHARED_ARCH;
@@ -1150,60 +1181,60 @@ class MacroAssembler : public MacroAssemblerSpecific
     inline void branchTestUndefined(Condition cond, const Address& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestUndefined(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestUndefined(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestInt32(Condition cond, const Address& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestInt32(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestInt32(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestDouble(Condition cond, const Address& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestDouble(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestDouble(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestNumber(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestBoolean(Condition cond, const Address& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestBoolean(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestBoolean(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestString(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestString(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestSymbol(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestSymbol(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestBigInt(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestBigInt(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestNull(Condition cond, const Address& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestNull(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestNull(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     // Clobbers the ScratchReg on x64.
     inline void branchTestObject(Condition cond, const Address& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestObject(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestObject(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestGCThing(Condition cond, const Address& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestGCThing(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
 
     inline void branchTestPrimitive(Condition cond, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestMagic(Condition cond, const Address& address, Label* label) PER_SHARED_ARCH;
     inline void branchTestMagic(Condition cond, const BaseIndex& address, Label* label) PER_SHARED_ARCH;
     template <class L>
     inline void branchTestMagic(Condition cond, const ValueOperand& value, L label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
     inline void branchTestMagic(Condition cond, const Address& valaddr, JSWhyMagic why, Label* label) PER_ARCH;
 
@@ -1216,13 +1247,13 @@ class MacroAssembler : public MacroAssemblerSpecific
     // Checks if given Value is evaluated to true or false in a condition.
     // The type of the value should match the type of the method.
     inline void branchTestInt32Truthy(bool truthy, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
     inline void branchTestDoubleTruthy(bool truthy, FloatRegister reg, Label* label) PER_SHARED_ARCH;
     inline void branchTestBooleanTruthy(bool truthy, const ValueOperand& value, Label* label) PER_ARCH;
     inline void branchTestStringTruthy(bool truthy, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
     inline void branchTestBigIntTruthy(bool truthy, const ValueOperand& value, Label* label)
-        DEFINED_ON(arm, arm64, mips32, mips64, x86_shared);
+        DEFINED_ON(arm, arm64, mips32, mips64, ppc, x86_shared);
 
   private:
 
@@ -1294,9 +1325,9 @@ class MacroAssembler : public MacroAssemblerSpecific
     // ========================================================================
     // Memory access primitives.
     inline void storeUncanonicalizedDouble(FloatRegister src, const Address& dest)
-        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64);
+        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64, ppc);
     inline void storeUncanonicalizedDouble(FloatRegister src, const BaseIndex& dest)
-        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64);
+        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64, ppc);
     inline void storeUncanonicalizedDouble(FloatRegister src, const Operand& dest)
         DEFINED_ON(x86_shared);
 
@@ -1304,9 +1335,9 @@ class MacroAssembler : public MacroAssemblerSpecific
     inline void storeDouble(FloatRegister src, const T& dest);
 
     inline void storeUncanonicalizedFloat32(FloatRegister src, const Address& dest)
-        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64);
+        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64, ppc);
     inline void storeUncanonicalizedFloat32(FloatRegister src, const BaseIndex& dest)
-        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64);
+        DEFINED_ON(x86_shared, arm, arm64, mips32, mips64, ppc);
     inline void storeUncanonicalizedFloat32(FloatRegister src, const Operand& dest)
         DEFINED_ON(x86_shared);
 
@@ -1602,12 +1633,53 @@ class MacroAssembler : public MacroAssemblerSpecific
     void loadFromTypedArray(Scalar::Type arrayType, const T& src, AnyRegister dest, Register temp, Label* fail,
                             bool canonicalizeDoubles = true);
 
+#if defined(JS_CODEGEN_PPC_OSX)
+    template<typename T>
+    void loadFromTypedArrayNative(Scalar::Type arrayType, const T& src, AnyRegister dest, Register temp,
+                                  Label* fail, bool canonicalizeDoubles = true);
+#endif
+
     template<typename T>
     void loadFromTypedArray(Scalar::Type arrayType, const T& src, const ValueOperand& dest, bool allowDouble,
                             Register temp, Label* fail);
 
     template<typename S, typename T>
     void storeToTypedIntArray(Scalar::Type arrayType, const S& value, const T& dest) {
+        switch (arrayType) {
+          case Scalar::Int8:
+          case Scalar::Uint8:
+          case Scalar::Uint8Clamped:
+            store8(value, dest);
+            break;
+          case Scalar::Int16:
+          case Scalar::Uint16:
+#if defined(JS_CODEGEN_PPC_OSX)
+            store16Swapped(value, dest);
+#else
+            store16(value, dest);
+#endif
+            break;
+          case Scalar::Int32:
+          case Scalar::Uint32:
+#if defined(JS_CODEGEN_PPC_OSX)
+            store32ByteSwapped(value, dest);
+#else
+            store32(value, dest);
+#endif
+            break;
+          case Scalar::BigInt64:
+          case Scalar::BigUint64:
+            //FIXME: storing 64-bit values doesn't actually work yet.
+            // store64(value, dest);
+            break;
+          default:
+            MOZ_CRASH("Invalid typed array type");
+        }
+    }
+
+#if defined(JS_CODEGEN_PPC_OSX)
+    template<typename S, typename T>
+    void storeToTypedIntArrayNative(Scalar::Type arrayType, const S& value, const T& dest) {
         switch (arrayType) {
           case Scalar::Int8:
           case Scalar::Uint8:
@@ -1631,6 +1703,7 @@ class MacroAssembler : public MacroAssemblerSpecific
             MOZ_CRASH("Invalid typed array type");
         }
     }
+#endif
 
     void storeToTypedFloatArray(Scalar::Type arrayType, FloatRegister value, const BaseIndex& dest);
     void storeToTypedFloatArray(Scalar::Type arrayType, FloatRegister value, const Address& dest);
@@ -1747,7 +1820,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     template <typename T> inline void addToStackPtr(T t);
     template <typename T> inline void addStackPtrTo(T t);
 
-    void subFromStackPtr(Imm32 imm32) DEFINED_ON(mips32, mips64, arm, x86, x64);
+    void subFromStackPtr(Imm32 imm32) DEFINED_ON(mips32, mips64, arm, ppc, x86, x64);
     void subFromStackPtr(Register reg);
 
     template <typename T>

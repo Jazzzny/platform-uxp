@@ -124,7 +124,7 @@ DefaultJitOptions::DefaultJitOptions()
 
     // Toggles whether sincos optimization is globally disabled.
     // See bug984018: The MacOS is the only one that has the sincos fast.
-    #if defined(XP_MACOSX)
+    #if defined(XP_MACOSX) && !defined(JS_CODEGEN_PPC_OSX)
         SET_DEFAULT(disableSincos, false);
     #else
         SET_DEFAULT(disableSincos, true);
@@ -150,7 +150,11 @@ DefaultJitOptions::DefaultJitOptions()
 
     // How many invocations or loop iterations are needed before functions
     // are compiled with the baseline compiler.
+#ifdef JS_CODEGEN_PPC_OSX
+    SET_DEFAULT(baselineWarmUpThreshold, 2);
+#else
     SET_DEFAULT(baselineWarmUpThreshold, 10);
+#endif
 
     // Number of exception bailouts (resuming into catch/finally block) before
     // we invalidate and forbid Ion compilation.

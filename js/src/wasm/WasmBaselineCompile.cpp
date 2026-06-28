@@ -133,6 +133,27 @@ namespace wasm {
 using namespace js::jit;
 using JS::GenericNaN;
 
+#if defined(JS_CODEGEN_PPC_OSX)
+
+bool
+BaselineCanCompile(const FunctionGenerator* fg)
+{
+    (void)fg;
+    return false;
+}
+
+bool
+BaselineCompileFunction(IonCompileTask* task)
+{
+    (void)task;
+    MOZ_CRASH("WebAssembly baseline compilation is not supported on PPC OS X");
+}
+
+} // namespace wasm
+} // namespace js
+
+#else
+
 struct BaseCompilePolicy : OpIterPolicy
 {
     static const bool Output = true;
@@ -7501,3 +7522,5 @@ js::wasm::BaselineCompileFunction(IonCompileTask* task)
 #undef INT_DIV_I64_CALLOUT
 #undef I64_TO_FLOAT_CALLOUT
 #undef FLOAT_TO_I64_CALLOUT
+
+#endif // JS_CODEGEN_PPC_OSX
