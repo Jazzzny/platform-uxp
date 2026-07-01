@@ -9,6 +9,17 @@
 #ifndef COMPILER_PREPROCESSOR_NUMERICLEX_H_
 #define COMPILER_PREPROCESSOR_NUMERICLEX_H_
 
+#if defined(XP_MACOSX)
+#include <AvailabilityMacros.h>
+#endif
+
+#if defined(XP_MACOSX) && \
+    (!defined(MAC_OS_X_VERSION_10_6) || \
+     (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6))
+#include <cerrno>
+#include <cstdlib>
+#endif
+
 #include <sstream>
 
 namespace pp {
@@ -48,12 +59,25 @@ bool numeric_lex_int(const std::string &str, IntType *value)
 template<typename FloatType>
 bool numeric_lex_float(const std::string &str, FloatType *value)
 {
+#if defined(XP_MACOSX) && \
+    (!defined(MAC_OS_X_VERSION_10_6) || \
+     (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6))
+    // On Mac OS X 10.5, istringstream is broken in libstdc++
+    errno = 0;
+    char *end = nullptr;
+    const double parsed = strtod(str.c_str(), &end);
+    if (end == str.c_str())
+    {
+        return false;
+    }
+    *value = static_cast<FloatType>(parsed);
+    return errno != ERANGE;
 // On 64-bit Intel Android, istringstream is broken.  Until this is fixed in
 // a newer NDK, don't use it.  Android doesn't have locale support, so this
 // doesn't have to force the C locale.
 // TODO(thakis): Remove this once this bug has been fixed in the NDK and
 // that NDK has been rolled into chromium.
-#if defined(ANGLE_PLATFORM_ANDROID) && __x86_64__
+#elif defined(ANGLE_PLATFORM_ANDROID) && __x86_64__
     *value = strtod(str.c_str(), nullptr);
     return errno != ERANGE;
 #else

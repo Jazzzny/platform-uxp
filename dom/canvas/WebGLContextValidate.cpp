@@ -30,6 +30,10 @@
 #include "WebGLVertexArray.h"
 #include "WebGLVertexAttribData.h"
 
+#if defined(XP_MACOSX)
+#include <AvailabilityMacros.h>
+#endif
+
 #if defined(MOZ_WIDGET_COCOA)
 #include "nsCocoaFeatures.h"
 #endif
@@ -787,6 +791,19 @@ WebGLContext::InitAndValidateGL(FailureReason* const out_failReason)
     static const float kDefaultGenericVertexAttribData[4] = { 0, 0, 0, 1 };
     memcpy(mGenericVertexAttrib0Data, kDefaultGenericVertexAttribData,
            sizeof(mGenericVertexAttrib0Data));
+
+#if defined(XP_MACOSX) && \
+    (!defined(MAC_OS_X_VERSION_10_6) || \
+     (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6))
+    // Mac OS X 10.5's OpenGL stack can start WebGL contexts with stale
+    // native generic-attribute values. WebGL requires (0, 0, 0, 1).
+    for (uint32_t i = 1; i < mGLMaxVertexAttribs; ++i) {
+        gl->fVertexAttrib4f(i, kDefaultGenericVertexAttribData[0],
+                            kDefaultGenericVertexAttribData[1],
+                            kDefaultGenericVertexAttribData[2],
+                            kDefaultGenericVertexAttribData[3]);
+    }
+#endif
 
     mFakeVertexAttrib0BufferObject = 0;
 

@@ -22,6 +22,13 @@
 #include "WebGLVertexAttribData.h"
 
 #include <algorithm>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+
+#if defined(XP_MACOSX)
+#include <AvailabilityMacros.h>
+#endif
 
 namespace mozilla {
 
@@ -882,7 +889,15 @@ WebGLContext::DrawElements(GLenum mode, GLsizei vertCount, GLenum type,
     if (!DrawElements_check(funcName, mode, vertCount, type, byteOffset, instanceCount))
         return;
 
-    const ScopedDrawHelper scopedHelper(this, funcName, 0, mMaxFetchedVertices, instanceCount,
+    uint32_t requiredVerts = mMaxFetchedVertices;
+#if defined(XP_MACOSX) && \
+    (!defined(MAC_OS_X_VERSION_10_6) || \
+     (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6))
+    if (requiredVerts == UINT32_MAX) {
+        requiredVerts = uint32_t(vertCount);
+    }
+#endif
+    const ScopedDrawHelper scopedHelper(this, funcName, 0, requiredVerts, instanceCount,
                                         &error);
     if (error)
         return;
@@ -935,7 +950,15 @@ WebGLContext::DrawElementsInstanced(GLenum mode, GLsizei vertCount, GLenum type,
     if (!DrawInstanced_check(funcName))
         return;
 
-    const ScopedDrawHelper scopedHelper(this, funcName, 0, mMaxFetchedVertices, instanceCount,
+    uint32_t requiredVerts = mMaxFetchedVertices;
+#if defined(XP_MACOSX) && \
+    (!defined(MAC_OS_X_VERSION_10_6) || \
+     (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6))
+    if (requiredVerts == UINT32_MAX) {
+        requiredVerts = uint32_t(vertCount);
+    }
+#endif
+    const ScopedDrawHelper scopedHelper(this, funcName, 0, requiredVerts, instanceCount,
                                         &error);
     if (error)
         return;
