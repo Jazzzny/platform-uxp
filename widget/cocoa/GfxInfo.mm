@@ -385,6 +385,8 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
       }
     }
 
+#endif
+
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
     // 10.4 PPC OpenGL is too old for OMTC!
 #if defined(__ppc__)
