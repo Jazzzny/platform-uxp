@@ -595,10 +595,14 @@ class GradientStopsCG : public GradientStops
       }
 
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
-      mGradient = CGGradientCreateWithColorComponents(aColorSpace,
+      CGColorSpaceRef gradientColorSpace =
+        aColorSpace ? CGColorSpaceRetain(aColorSpace)
+                    : CGColorSpaceCreateDeviceRGB();
+      mGradient = CGGradientCreateWithColorComponents(gradientColorSpace,
                                                       &colors.front(),
                                                       &offsets.front(),
                                                       offsets.size());
+      CGColorSpaceRelease(gradientColorSpace);
 #else
       // 10.4 does not have the CGGradient convenience functions, so we use a
       // modified version of the very convenient CTGradient by Chad Weider
@@ -737,6 +741,15 @@ CalculateRepeatingGradientParams(CGPoint *aStart, CGPoint *aEnd,
 }
 
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+static CGColorSpaceRef
+CreateGradientColorSpace(CGColorSpaceRef aColorSpace)
+{
+  // A8 draw targets have no CGContext color space. On 10.5, passing null to
+  // CGGradientCreateWithColorComponents fails, so create the gradient in RGB.
+  return aColorSpace ? CGColorSpaceRetain(aColorSpace)
+                     : CGColorSpaceCreateDeviceRGB();
+}
+
 static CGGradientRef
 #else
 static CTGradientCPP *
@@ -773,10 +786,12 @@ CreateRepeatingGradient(CGColorSpaceRef aColorSpace,
   }
 
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
-  CGGradientRef gradient = CGGradientCreateWithColorComponents(aColorSpace,
+  CGColorSpaceRef gradientColorSpace = CreateGradientColorSpace(aColorSpace);
+  CGGradientRef gradient = CGGradientCreateWithColorComponents(gradientColorSpace,
                                                                &colors.front(),
                                                                &offsets.front(),
                                                                repeatCount*stopCount);
+  CGColorSpaceRelease(gradientColorSpace);
   return gradient;
 #else
   return new CTGradientCPP(aColorSpace, &colors.front(), &offsets.front(), repeatCount*stopCount);
