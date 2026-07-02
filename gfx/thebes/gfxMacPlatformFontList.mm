@@ -1129,9 +1129,19 @@ gfxMacPlatformFontList::InitFontListForPlatform()
 
     CFArrayRef familyNames = CTFontManagerCopyAvailableFontFamilyNames();
 
+#if defined(__clang__)
     for (NSString* familyName in (NSArray*)familyNames) {
         AddFamily((CFStringRef)familyName);
     }
+#else
+    NSArray* familyNamesArray = (NSArray*)familyNames;
+    NSUInteger count = [familyNamesArray count];
+
+    for (NSUInteger i = 0; i < count; i++) {
+        NSString* familyName = [familyNamesArray objectAtIndex:i];
+        AddFamily((CFStringRef)familyName);
+    }
+#endif
 
     CFRelease(familyNames);
 #else

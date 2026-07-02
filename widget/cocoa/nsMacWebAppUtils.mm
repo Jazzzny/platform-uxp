@@ -25,7 +25,7 @@ NS_IMETHODIMP nsMacWebAppUtils::PathForAppWithIdentifier(const nsAString& bundle
 
   nsAutoreleasePool localPool;
 
-  //note that the result of this expression might be nil, meaning no matching app was found. 
+  //note that the result of this expression might be nil, meaning no matching app was found.
   NSString* temp = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier:
                         [NSString stringWithCharacters:reinterpret_cast<const unichar*>(((nsString)bundleIdentifier).get())
                                                 length:((nsString)bundleIdentifier).Length()]];
@@ -45,7 +45,7 @@ NS_IMETHODIMP nsMacWebAppUtils::LaunchAppWithIdentifier(const nsAString& bundleI
 
   nsAutoreleasePool localPool;
 
-  // Note this might return false, meaning the app wasnt launched for some reason. 
+  // Note this might return false, meaning the app wasnt launched for some reason.
   BOOL success = [[NSWorkspace sharedWorkspace] launchAppWithBundleIdentifier:
                         [NSString stringWithCharacters:reinterpret_cast<const unichar*>(((nsString)bundleIdentifier).get())
                                                 length:((nsString)bundleIdentifier).Length()]
@@ -70,7 +70,7 @@ NS_IMETHODIMP nsMacWebAppUtils::TrashApp(const nsAString& path, nsITrashAppCallb
   NSString* tempString = [NSString stringWithCharacters:reinterpret_cast<const unichar*>(((nsString)path).get())
                                    length:path.Length()];
 
-#if defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+#if defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6 && defined(__clang__)
   [[NSWorkspace sharedWorkspace] recycleURLs: [NSArray arrayWithObject:[NSURL fileURLWithPath:tempString]]
     completionHandler: ^(NSDictionary *newURLs, NSError *error) {
       nsresult rv = (error == nil) ? NS_OK : NS_ERROR_FAILURE;

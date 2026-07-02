@@ -177,7 +177,7 @@ NSView* nsFilePicker::GetAccessoryView()
 
   float textFieldOriginY = ((greatestHeight - [textField frame].size.height) / 2 + 1) + kAccessoryViewPadding;
   [textField setFrameOrigin:NSMakePoint(kAccessoryViewPadding, textFieldOriginY)];
-  
+
   float popupOriginX = [textField frame].size.width + kAccessoryViewPadding * 2;
   float popupOriginY = ((greatestHeight - [popupButton frame].size.height) / 2) + kAccessoryViewPadding;
   [popupButton setFrameOrigin:NSMakePoint(popupOriginX, popupOriginY)];
@@ -205,8 +205,8 @@ NS_IMETHODIMP nsFilePicker::Show(int16_t *retval)
 // as it is right now.
 //
 // I think we could easily combine GetLocalFile and GetLocalFolder together, just
-// setting panel pick options based on mMode.  I didn't do it here b/c I wanted to 
-// make this look as much like Carbon nsFilePicker as possible.  
+// setting panel pick options based on mMode.  I didn't do it here b/c I wanted to
+// make this look as much like Carbon nsFilePicker as possible.
 
   mFiles.Clear();
   nsCOMPtr<nsIFile> theFile;
@@ -216,19 +216,19 @@ NS_IMETHODIMP nsFilePicker::Show(int16_t *retval)
     case modeOpen:
       userClicksOK = GetLocalFiles(mTitle, false, mFiles);
       break;
-    
+
     case modeOpenMultiple:
       userClicksOK = GetLocalFiles(mTitle, true, mFiles);
       break;
-      
+
     case modeSave:
       userClicksOK = PutLocalFile(mTitle, mDefault, getter_AddRefs(theFile));
       break;
-      
+
     case modeGetFolder:
       userClicksOK = GetLocalFolder(mTitle, getter_AddRefs(theFile));
       break;
-    
+
     default:
       NS_ERROR("Unknown file picker mode");
       break;
@@ -236,7 +236,7 @@ NS_IMETHODIMP nsFilePicker::Show(int16_t *retval)
 
   if (theFile)
     mFiles.AppendObject(theFile);
-  
+
   *retval = userClicksOK;
   return NS_OK;
 }
@@ -281,7 +281,7 @@ void UpdatePanelFileTypes(NSOpenPanel* aPanel, NSArray* aFilters)
 }
 @end
 
-// Use OpenPanel to do a GetFile. Returns |returnOK| if the user presses OK in the dialog. 
+// Use OpenPanel to do a GetFile. Returns |returnOK| if the user presses OK in the dialog.
 int16_t
 nsFilePicker::GetLocalFiles(const nsString& inTitle, bool inAllowMultiple, nsCOMArray<nsIFile>& outFiles)
 {
@@ -299,14 +299,14 @@ nsFilePicker::GetLocalFiles(const nsString& inTitle, bool inAllowMultiple, nsCOM
   [thePanel setCanChooseDirectories:NO];
   [thePanel setCanChooseFiles:YES];
   [thePanel setResolvesAliases:YES]; //this is default - probably doesn't need to be set
-  
+
   // Get filters
   // filters may be null, if we should allow all file types.
   NSArray *filters = GetFilterList();
 
   // set up default directory
   NSString *theDir = PanelDefaultDirectory();
-  
+
   // if this is the "Choose application..." dialog, and no other start
   // dir has been set, then use the Applications folder.
   if (!theDir) {
@@ -362,7 +362,7 @@ nsFilePicker::GetLocalFiles(const nsString& inTitle, bool inAllowMultiple, nsCOM
 #endif
   }
   nsCocoaUtils::CleanUpAfterNativeAppModalDialog();
-  
+
   if (result == NSFileHandlingPanelCancelButton)
     return retVal;
 
@@ -399,7 +399,7 @@ nsFilePicker::GetLocalFolder(const nsString& inTitle, nsIFile** outFile)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
   NS_ASSERTION(outFile, "this protected member function expects a null initialized out pointer");
-  
+
   int16_t retVal = (int16_t)returnCancel;
   NSOpenPanel *thePanel = [NSOpenPanel openPanel];
 
@@ -413,7 +413,7 @@ nsFilePicker::GetLocalFolder(const nsString& inTitle, nsIFile** outFile)
   [thePanel setCanChooseFiles:NO];
   [thePanel setResolvesAliases:YES];          //this is default - probably doesn't need to be set
   [thePanel setCanCreateDirectories:YES];
-  
+
   // packages != folders
   [thePanel setTreatsFilePackagesAsDirectories:NO];
 
@@ -482,11 +482,19 @@ nsFilePicker::PutLocalFile(const nsString& inTitle, const nsString& inDefaultNam
     CFStringRef type = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, (CFStringRef)extension, NULL);
 
     if (type) {
+#if defined(__clang__)
       thePanel.allowedFileTypes = @[(NSString*)type];
+#else
+      thePanel.allowedFileTypes = [NSArray arrayWithObject:(NSString*)type];
+#endif
       CFRelease(type);
     } else {
       // if there's no UTI for the file extension, use the extension itself.
+#if defined(__clang__)
       thePanel.allowedFileTypes = @[extension];
+#else
+      thePanel.allowedFileTypes = [NSArray arrayWithObject:extension];
+#endif
     }
   }
   // Allow users to change the extension.
@@ -530,7 +538,7 @@ nsFilePicker::PutLocalFile(const nsString& inTitle, const nsString& inDefaultNam
   }
 
   NSURL* fileURL = [thePanel URL];
-  if (fileURL) { 
+  if (fileURL) {
     nsCOMPtr<nsIFile> localFile;
     NS_NewLocalFile(EmptyString(), true, getter_AddRefs(localFile));
     nsCOMPtr<nsILocalFileMac> macLocalFile = do_QueryInterface(localFile);
@@ -606,7 +614,7 @@ nsFilePicker::SetDialogTitle(const nsString& inTitle, id aPanel)
   }
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
-} 
+}
 
 // Converts path from an nsIFile into a NSString path
 // If it fails, returns an empty string.
@@ -631,7 +639,7 @@ NS_IMETHODIMP nsFilePicker::GetFile(nsIFile **aFile)
 {
   NS_ENSURE_ARG_POINTER(aFile);
   *aFile = nullptr;
-  
+
   // just return the first file
   if (mFiles.Count() > 0) {
     *aFile = mFiles.ObjectAt(0);
@@ -691,7 +699,7 @@ nsFilePicker::AppendFilter(const nsAString& aTitle, const nsAString& aFilter)
     mFilters.AppendElement(aFilter);
   }
   mTitles.AppendElement(aTitle);
-  
+
   return NS_OK;
 }
 

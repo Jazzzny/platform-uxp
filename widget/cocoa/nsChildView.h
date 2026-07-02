@@ -146,10 +146,12 @@ typedef NSInteger NSEventGestureAxis;
 - (CGFloat)scrollingDeltaX;
 - (CGFloat)scrollingDeltaY;
 - (NSEventPhase)phase;
+#if defined(__clang__)
 - (void)trackSwipeEventWithOptions:(NSEventSwipeTrackingOptions)options
           dampenAmountThresholdMin:(CGFloat)minDampenThreshold
                                max:(CGFloat)maxDampenThreshold
                       usingHandler:(void (^)(CGFloat gestureAmount, NSEventPhase phase, BOOL isComplete, BOOL *stop))trackingHandler;
+#endif // #if defined(__clang__)
 @end
 #endif // #if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
 #endif // #if !defined(MAC_OS_X_VERSION_10_7) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7)
