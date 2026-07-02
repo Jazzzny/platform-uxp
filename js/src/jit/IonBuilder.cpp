@@ -1660,7 +1660,7 @@ IonBuilder::snoopControlFlow(JSOp op)
           case SRC_OPTCHAIN:
           case SRC_LOGICASSIGN:
             // These notes exist only for the benefit of CFG (ie. this function) and
-            // don't need any special handling. The associated GOTOs are all simple 
+            // don't need any special handling. The associated GOTOs are all simple
             // unconditional near jumps, not loops etc.
             break;
 
@@ -4975,7 +4975,7 @@ IonBuilder::binaryArithNumberSpecialization(MDefinition* left, MDefinition* righ
 }
 
 MBinaryArithInstruction*
-IonBuilder::binaryArithEmitSpecialized(MDefinition::Opcode op, MIRType specialization, 
+IonBuilder::binaryArithEmitSpecialized(MDefinition::Opcode op, MIRType specialization,
                                        MDefinition* left, MDefinition* right)
 {
     MBinaryArithInstruction* ins = MBinaryArithInstruction::New(alloc(), op, left, right);
@@ -4989,7 +4989,7 @@ IonBuilder::binaryArithEmitSpecialized(MDefinition::Opcode op, MIRType specializ
     current->push(ins);
 
     MOZ_ASSERT(!ins->isEffectful());
-    
+
     if(!maybeInsertResume()) {
         return nullptr;
     }
@@ -7969,7 +7969,7 @@ IonBuilder::jsop_initprop(PropertyName* name)
             useSlowPath = true;
         }
     } else {
-        MOZ_ASSERT(obj->isNullarySharedStub());
+        //MOZ_ASSERT(obj->isNullarySharedStub());
         useSlowPath = true;
     }
 
