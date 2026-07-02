@@ -769,7 +769,7 @@ pref("gfx.canvas.azure.backends", "direct2d1.1,skia,cairo");
 pref("gfx.content.azure.backends", "direct2d1.1,cairo");
 #else
 #ifdef XP_MACOSX
-pref("gfx.content.azure.backends", "cg");
+pref("gfx.content.azure.backends", "skia,cg");
 pref("gfx.canvas.azure.backends", "skia,cg");
 // Accelerated cg canvas where available (10.7+)
 pref("gfx.canvas.azure.accelerated", true);

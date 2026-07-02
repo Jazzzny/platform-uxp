@@ -123,7 +123,7 @@ pref("security.ssl.enable_tls13_compat_mode", false);
 // this way (which is a bad thing!). To allow users to connect anyway this
 // check can be disabled here. Default is for the sentinel to be enabled, preventing
 // bad downgrades of the protocol version.
-pref("security.tls.hello_downgrade_check", true);
+pref("security.tls.hello_downgrade_check", false);
 
 // If a request is mixed-content, send an HSTS priming request to attempt to
 // see if it is available over HTTPS.
