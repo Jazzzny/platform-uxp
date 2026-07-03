@@ -29,6 +29,10 @@ uint64_t nsSandboxViolationSink::mLastMsgReceived = 0;
 #define ASL_KEY_MSG_ID "ASLMessageID"
 #endif
 
+#if !defined(DISPATCH_QUEUE_SERIAL)
+#define DISPATCH_QUEUE_SERIAL NULL
+#endif
+
 void
 nsSandboxViolationSink::Start()
 {
