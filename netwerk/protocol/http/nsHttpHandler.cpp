@@ -326,7 +326,7 @@ nsHttpHandler::Init()
         mAppName.StripChars(R"( ()<>@,;:\"/[]?={})");
     }
 
-    BuildAppVersion();    
+    BuildAppVersion();
 
     mSessionStartTime = NowInSeconds();
     mHandlerActive = true;
@@ -742,7 +742,7 @@ nsHttpHandler::BuildUserAgent()
     }
     mUserAgent += mMisc;
     mUserAgent += ')';
-    
+
     if(mCompatGeckoEnabled) {
       // Provide frozen Gecko/20100101 slice
       mUserAgent += ' ';
@@ -760,6 +760,11 @@ nsHttpHandler::BuildUserAgent()
         // Provide "Firefox/x.y" (compatibility) app token
         mUserAgent += ' ';
         mUserAgent += mCompatFirefox;
+    }
+    if (mAppName.EqualsLiteral("PowerFox")) {
+        // Cloudflare needs this as we are not whitelisted by them
+        mUserAgent.AppendLiteral(" Basilisk/");
+        mUserAgent += mAppVersion;
     }
     if (!isFirefox) {
         // App portion
@@ -910,7 +915,7 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
     if (PREF_CHANGED(GUA_PREF("appVersionIsBuildID"))) {
         rv = prefs->GetBoolPref(GUA_PREF("appVersionIsBuildID"), &cVar);
         mAppVersionIsBuildID = (NS_SUCCEEDED(rv) && cVar);
-        
+
         // Rebuild application version string.
         BuildAppVersion();
 
@@ -920,7 +925,7 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
     if (PREF_CHANGED(GUA_PREF("compatMode.gecko"))) {
         rv = prefs->GetBoolPref(GUA_PREF("compatMode.gecko"), &cVar);
         mCompatGeckoEnabled = (NS_SUCCEEDED(rv) && cVar);
-        
+
         // Rebuild rv: and Goanna slice version
         mMisc.AssignLiteral("rv:");
         if (mCompatGeckoEnabled) {
@@ -928,7 +933,7 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
         } else {
           mMisc += MOZILLA_UAVERSION;
         }
-        
+
         if (mCompatGeckoEnabled) {
           mProductSub.AssignLiteral(MOZILLA_UAVERSION);
         } else {
@@ -953,7 +958,7 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
     if (PREF_CHANGED(GUA_PREF("compatMode.version"))) {
         prefs->GetCharPref(GUA_PREF("compatMode.version"),
                            getter_Copies(mCompatFirefoxVersion));
-        
+
         // rebuild mMisc and compatMode slice
         mMisc.AssignLiteral("rv:");
         if (mCompatGeckoEnabled) {
@@ -963,7 +968,7 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
         }
         mCompatFirefox.AssignLiteral("Firefox/");
         mCompatFirefox += mCompatFirefoxVersion;
-        
+
         mUserAgentIsDirty = true;
     }
 
