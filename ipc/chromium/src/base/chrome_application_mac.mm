@@ -51,6 +51,10 @@
   return self;
 }
 
+#if !defined(__clang__) && defined(__LP64__)
+#pragma GCC push_optimize
+#pragma GCC optimize ("-O1")
+#endif
 - (void)sendEvent:(NSEvent*)event {
   chrome_application_mac::ScopedSendingEvent sendingEventScoper;
   NSArray *array = eventHooks_.get();
@@ -60,6 +64,9 @@
   }
   [super sendEvent:event];
 }
+#if !defined(__clang__) && defined(__LP64__)
+#pragma GCC pop_optimize
+#endif
 
 - (void)addEventHook:(id<CrApplicationEventHookProtocol>)handler {
   [eventHooks_ addObject:handler];
