@@ -263,8 +263,12 @@ TEST(CSPParser, Keywords)
       "script-src 'unsafe-inline'" },
     { "script-src 'unsafe-eval'",
       "script-src 'unsafe-eval'" },
+    { "script-src 'wasm-unsafe-eval'",
+      "script-src 'wasm-unsafe-eval'" },
     { "script-src 'unsafe-inline' 'unsafe-eval'",
       "script-src 'unsafe-inline' 'unsafe-eval'" },
+    { "script-src 'unsafe-inline' 'wasm-unsafe-eval'",
+      "script-src 'unsafe-inline' 'wasm-unsafe-eval'" },
     { "script-src 'none'",
       "script-src 'none'" },
     { "img-src 'none'; script-src 'unsafe-eval' 'unsafe-inline'; default-src 'self'",
@@ -1160,4 +1164,3 @@ TEST(CSPParser, FuzzyPoliciesIncDirLimASCII)
   }
 }
 #endif
-

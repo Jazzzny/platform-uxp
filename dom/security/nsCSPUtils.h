@@ -201,6 +201,7 @@ enum CSPKeyword {
   CSP_SELF = 0,
   CSP_UNSAFE_INLINE,
   CSP_UNSAFE_EVAL,
+  CSP_WASM_UNSAFE_EVAL,
   CSP_NONE,
   CSP_NONCE,
   CSP_REQUIRE_SRI_FOR,
@@ -218,6 +219,7 @@ static const char* CSPStrKeywords[] = {
   "'self'",          // CSP_SELF = 0
   "'unsafe-inline'", // CSP_UNSAFE_INLINE
   "'unsafe-eval'",   // CSP_UNSAFE_EVAL
+  "'wasm-unsafe-eval'", // CSP_WASM_UNSAFE_EVAL
   "'none'",          // CSP_NONE
   "'nonce-",         // CSP_NONCE
   "require-sri-for", // CSP_REQUIRE_SRI_FOR

@@ -540,6 +540,11 @@ nsCSPParser::keywordSource()
     mHasAnyUnsafeEval = true;
     return new nsCSPKeywordSrc(CSP_KeywordToEnum(mCurToken));
   }
+
+  if (CSP_IsKeyword(mCurToken, CSP_WASM_UNSAFE_EVAL)) {
+    mHasAnyUnsafeEval = true;
+    return new nsCSPKeywordSrc(CSP_KeywordToEnum(mCurToken));
+  }
   return nullptr;
 }
 
@@ -1204,6 +1209,7 @@ nsCSPParser::directive()
       // (3) nonces, and (4) hashes
       if (!srcStr.EqualsASCII(CSP_EnumToKeyword(CSP_STRICT_DYNAMIC)) &&
           !srcStr.EqualsASCII(CSP_EnumToKeyword(CSP_UNSAFE_EVAL)) &&
+          !srcStr.EqualsASCII(CSP_EnumToKeyword(CSP_WASM_UNSAFE_EVAL)) &&
           !StringBeginsWith(NS_ConvertUTF16toUTF8(srcStr), NS_LITERAL_CSTRING("'nonce-")) &&
           !StringBeginsWith(NS_ConvertUTF16toUTF8(srcStr), NS_LITERAL_CSTRING("'sha")))
       {
