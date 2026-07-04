@@ -8,9 +8,23 @@
 #include <crt_externs.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include <spawn.h>
+#endif
 #include <SystemConfiguration/SystemConfiguration.h>
 #include "readstrings.h"
+
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
+typedef int NSInteger;
+typedef unsigned int NSUInteger;
+
+#define NSIntegerMax    LONG_MAX
+#define NSIntegerMin    LONG_MIN
+#define NSUIntegerMax   ULONG_MAX
+
+#define NSINTEGER_DEFINED 1
+#endif
 
 class MacAutoreleasePool {
 public:
@@ -314,8 +328,13 @@ bool IsOwnedByGroupAdmin(const char* aAppBundle)
   NSString* appDir = [NSString stringWithUTF8String:aAppBundle];
   NSFileManager* fileManager = [NSFileManager defaultManager];
 
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
   NSDictionary* attributes = [fileManager attributesOfItemAtPath:appDir
                                                            error:nil];
+#else
+  NSDictionary* attributes = [fileManager fileAttributesAtPath:appDir
+                                                  traverseLink:NO];
+#endif
   bool isOwnedByAdmin = false;
   if (attributes &&
       [[attributes valueForKey:NSFileGroupOwnerAccountID] intValue] == 80) {
@@ -332,34 +351,68 @@ void SetGroupOwnershipAndPermissions(const char* aAppBundle)
   NSFileManager* fileManager = [NSFileManager defaultManager];
   NSError* error = nil;
   NSArray* paths =
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     [fileManager subpathsOfDirectoryAtPath:appDir
                                      error:&error];
   if (error) {
     return;
   }
+#else
+    [fileManager subpathsAtPath:appDir];
+  if (!paths) {
+    return;
+  }
+#endif
 
   // Set group ownership of Firefox.app to 80 ("admin") and permissions to
   // 0775.
-  if (![fileManager setAttributes:@{ NSFileGroupOwnerAccountID: @(80),
-                                     NSFilePosixPermissions: @(0775) }
+  NSArray* rootAttributeKeys =
+    [NSArray arrayWithObjects:NSFileGroupOwnerAccountID,
+                              NSFilePosixPermissions,
+                              nil];
+  NSArray* rootAttributeObjects =
+    [NSArray arrayWithObjects:[NSNumber numberWithUnsignedLong:80],
+                              [NSNumber numberWithUnsignedLong:0775],
+                              nil];
+  NSDictionary* rootAttributes =
+    [NSDictionary dictionaryWithObjects:rootAttributeObjects
+                                forKeys:rootAttributeKeys];
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
+  if (![fileManager setAttributes:rootAttributes
                      ofItemAtPath:appDir
                             error:&error] || error) {
     return;
   }
+#else
+  if (![fileManager changeFileAttributes:rootAttributes
+                                  atPath:appDir]) {
+    return;
+  }
+#endif
 
   NSArray* permKeys = [NSArray arrayWithObjects:NSFileGroupOwnerAccountID,
                                                 NSFilePosixPermissions,
                                                 nil];
   // For all descendants of Firefox.app, set group ownership to 80 ("admin") and
   // ensure write permission for the group.
-  for (NSString* currPath in paths) {
+  unsigned int pathCount = [paths count];
+  for (unsigned int i = 0; i < pathCount; i++) {
+    NSString* currPath = [paths objectAtIndex:i];
     NSString* child = [appDir stringByAppendingPathComponent:currPath];
     NSDictionary* oldAttributes =
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
       [fileManager attributesOfItemAtPath:child
                                     error:&error];
     if (error) {
       return;
     }
+#else
+      [fileManager fileAttributesAtPath:child
+                           traverseLink:NO];
+    if (!oldAttributes) {
+      return;
+    }
+#endif
     // Skip symlinks, since they could be pointing to files outside of the .app
     // bundle.
     if ([oldAttributes fileType] == NSFileTypeSymbolicLink) {
@@ -374,10 +427,17 @@ void SetGroupOwnershipAndPermissions(const char* aAppBundle)
         nil];
     NSDictionary* attributes = [NSDictionary dictionaryWithObjects:permObjects
                                                            forKeys:permKeys];
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     if (![fileManager setAttributes:attributes
                        ofItemAtPath:child
                               error:&error] || error) {
       return;
     }
+#else
+    if (![fileManager changeFileAttributes:attributes
+                                    atPath:child]) {
+      return;
+    }
+#endif
   }
 }

@@ -7,6 +7,17 @@
 
 #include <Cocoa/Cocoa.h>
 
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
+typedef int NSInteger;
+typedef unsigned int NSUInteger;
+
+#define NSIntegerMax    LONG_MAX
+#define NSIntegerMin    LONG_MIN
+#define NSUIntegerMax   ULONG_MAX
+
+#define NSINTEGER_DEFINED 1
+#endif
+
 bool IsRecursivelyWritable(const char* aPath)
 {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
