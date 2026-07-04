@@ -119,7 +119,7 @@
 
     # Use AVFoundation (default). Enable to use the AVFoundation framework on
     # OS X. Otherwise, QTKit will be used
-    'use_avfoundation%': 1,
+    'use_avfoundation%': 0,
 
     'conditions': [
       ['build_with_chromium==1', {
