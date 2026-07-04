@@ -86,7 +86,7 @@ interface nsIUpdatePatch : nsISupports
  * that the front end and other application services can use to learn more
  * about what is going on.
  */
-[scriptable, uuid(e094c045-f4ff-41fd-92da-cd2effd2c7c9)]
+[scriptable, uuid(5d4f7be0-7f0e-4ef5-a237-1d99a8e4a778)]
 interface nsIUpdate : nsISupports
 {
   /**
@@ -161,6 +161,12 @@ interface nsIUpdate : nsISupports
    * Whether the update is no longer supported on this system.
    */
   attribute boolean unsupported;
+
+  /**
+   * Whether the update must be installed manually from a download page instead
+   * of through a MAR patch.
+   */
+  attribute boolean manualUpdate;
   
   /**
    * Allows overriding the default amount of time in seconds before prompting the

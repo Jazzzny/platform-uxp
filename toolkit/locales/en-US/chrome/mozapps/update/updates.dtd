@@ -20,6 +20,11 @@
 <!ENTITY  manualUpdate.space.desc         "A recommended security and stability update is available, but you do
                                            not have enough space to install it.">
 <!ENTITY  manualUpdateGetMsg.label        "You can always get the latest version of &brandShortName; at:">
+<!ENTITY  manualUpdateAvailable.title     "A new version of &brandShortName; is available">
+<!ENTITY  manualUpdateAvailable.desc      "A new version is available.">
+<!ENTITY  manualUpdateAvailable.loading   "Loading release notes…">
+<!ENTITY  manualUpdateAvailable.failed    "Release notes could not be loaded.">
+<!ENTITY  manualUpdateAvailableGetMsg.label "Download the latest version from:">
 
 <!ENTITY  unsupported.title               "System Unsupported">
 <!ENTITY  unsupported.label               "Your &brandShortName; is out of date, but the latest version is not

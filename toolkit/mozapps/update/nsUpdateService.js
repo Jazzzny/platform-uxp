@@ -1095,6 +1095,7 @@ function Update(update) {
   this.showPrompt = false;
   this.showNeverForVersion = false;
   this.unsupported = false;
+  this.manualUpdate = false;
   this.channel = "default";
   this.promptWaitTime = Services.prefs.getIntPref(PREF_APP_UPDATE_PROMPTWAITTIME, 43200);
   this.backgroundInterval = Services.prefs.getIntPref(PREF_APP_UPDATE_BACKGROUNDINTERVAL,
@@ -1124,7 +1125,10 @@ function Update(update) {
     this._patches.push(patch);
   }
 
-  if (this._patches.length == 0 && !update.hasAttribute("unsupported")) {
+  let isManualUpdate = update.getAttribute("manualUpdate") == "true";
+  if (this._patches.length == 0 &&
+      !update.hasAttribute("unsupported") &&
+      !isManualUpdate) {
     if (update.hasAttribute("detailsURL")) {
       this.unsupported = true;
     } else {
@@ -1169,6 +1173,8 @@ function Update(update) {
       }
     } else if (attr.name == "unsupported") {
       this.unsupported = attr.value == "true";
+    } else if (attr.name == "manualUpdate") {
+      this.manualUpdate = attr.value == "true";
     } else {
       this[attr.name] = attr.value;
 
@@ -1317,6 +1323,9 @@ Update.prototype = {
     }
     if (this.unsupported) {
       update.setAttribute("unsupported", this.unsupported);
+    }
+    if (this.manualUpdate) {
+      update.setAttribute("manualUpdate", this.manualUpdate);
     }
     updates.documentElement.appendChild(update);
 
@@ -1945,6 +1954,12 @@ UpdateService.prototype = {
             "update is not supported for this system");
         this._showPrompt(update);
       }
+      return;
+    }
+
+    if (update.manualUpdate) {
+      LOG("UpdateService:_selectAndInstallUpdate - manual update available");
+      this._showPrompt(update);
       return;
     }
 

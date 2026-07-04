@@ -228,10 +228,13 @@ var gUpdates = {
    * the function call to the selected page.
    */
   onWizardFinish: function() {
-    this._runUnload = false;
     var pageid = document.documentElement.currentPage.pageid;
+    var rv = true;
     if ("onWizardFinish" in this._pages[pageid])
-      this._pages[pageid].onWizardFinish();
+      rv = this._pages[pageid].onWizardFinish();
+    if (rv !== false)
+      this._runUnload = false;
+    return rv;
   },
 
   /**
@@ -252,10 +255,11 @@ var gUpdates = {
   onWizardNext: function() {
     var cp = document.documentElement.currentPage;
     if (!cp)
-      return;
+      return true;
     var pageid = cp.pageid;
     if ("onWizardNext" in this._pages[pageid])
-      this._pages[pageid].onWizardNext();
+      return this._pages[pageid].onWizardNext();
+    return true;
   },
 
   /**
@@ -356,6 +360,11 @@ var gUpdates = {
 
         if (this.update.unsupported) {
           aCallback("unsupported");
+          return;
+        }
+
+        if (this.update.manualUpdate) {
+          aCallback("manualUpdate");
           return;
         }
 
@@ -519,6 +528,11 @@ var gCheckingPage = {
           return;
         }
 
+        if (gUpdates.update.manualUpdate) {
+          gUpdates.wiz.goTo("manualUpdate");
+          return;
+        }
+
         if (!aus.canApplyUpdates || gUpdates.update.elevationFailure) {
           // Prevent multiple notifications for the same update when the user is
           // unable to apply updates.
@@ -588,8 +602,129 @@ var gManualUpdatePage = {
     manualUpdateLinkLabel.value = manualURL;
     manualUpdateLinkLabel.setAttribute("url", manualURL);
 
+    if (gUpdates.update && gUpdates.update.manualUpdate) {
+      if (gUpdates.update.detailsURL) {
+        manualURL = gUpdates.update.detailsURL;
+        manualUpdateLinkLabel.value = manualURL;
+        manualUpdateLinkLabel.setAttribute("url", manualURL);
+      }
+
+      document.getElementById("manualUpdateHeader")
+              .setAttribute("label",
+                            document.getElementById("manualUpdateHeader")
+                                    .getAttribute("manualUpdateAvailableTitle"));
+      let currentVersion = this._displayVersion(Services.appinfo.version);
+      document.getElementById("manualUpdateAvailableDesc").textContent =
+        gUpdates.brandName + " " + gUpdates.update.displayVersion +
+        " is now available - you have " + currentVersion + ".";
+
+      let changelog = document.getElementById("manualUpdateChangelog");
+      changelog.value = changelog.getAttribute("loadingText");
+      changelog.hidden = false;
+
+      document.getElementById("manualUpdateDesc").hidden = true;
+      document.getElementById("manualUpdateAvailableDesc").hidden = false;
+      document.getElementById("manualUpdateGetMsg").hidden = true;
+      document.getElementById("manualUpdateAvailableGetMsg").hidden = true;
+      document.getElementById("manualUpdateLinkBox").hidden = true;
+      this._loadChangelog(changelog);
+      gUpdates.setButtons("askLaterButton", null, "downloadButton", true);
+      gUpdates.wiz.getButton(gUpdates.wiz.onLastPage ? "finish" : "next").focus();
+      return;
+    }
+
     gUpdates.setButtons(null, null, "okButton", true);
     gUpdates.wiz.getButton("finish").focus();
+  },
+
+  onWizardNext: function() {
+    if (gUpdates.update && gUpdates.update.manualUpdate) {
+      this._openManualUpdateURL();
+      return false;
+    }
+    return true;
+  },
+
+  onWizardFinish: function() {
+    if (gUpdates.update && gUpdates.update.manualUpdate) {
+      this._openManualUpdateURL();
+      return false;
+    }
+    return true;
+  },
+
+  onExtra1: function() {
+    gUpdates.wiz.cancel();
+  },
+
+  _openManualUpdateURL: function() {
+    var manualUpdateLinkLabel = document.getElementById("manualUpdateLinkLabel");
+    var url = manualUpdateLinkLabel.getAttribute("url");
+    if (url) {
+      openURL(url);
+    }
+  },
+
+  _displayVersion: function(version) {
+    if (version.indexOf("52.9.") == 0) {
+      return version.substr(5);
+    }
+    return version;
+  },
+
+  _getChangelogURL: function() {
+    let url = gUpdates.update.getProperty("changelogURL");
+    if (url) {
+      return url;
+    }
+    if (gUpdates.update.detailsURL) {
+      return gUpdates.update.detailsURL.replace("/releases/", "/api/releases/");
+    }
+    return null;
+  },
+
+  _loadChangelog: function(changelog) {
+    let url = this._getChangelogURL();
+    if (!url) {
+      changelog.value = changelog.getAttribute("failedText");
+      return;
+    }
+
+    let request = new XMLHttpRequest();
+    request.open("GET", url, true);
+    request.overrideMimeType("application/json");
+    request.onload = function() {
+      try {
+        let release = JSON.parse(request.responseText);
+        let summary = release.summary || "";
+        let changes = release.changes || release.notes || [];
+        if (!Array.isArray(changes)) {
+          changes = [];
+        }
+        if (summary || changes.length) {
+          let changelogLines = [];
+          if (summary) {
+            changelogLines.push(summary);
+          }
+          if (changes.length) {
+            if (changelogLines.length) {
+              changelogLines.push("");
+            }
+            changelogLines = changelogLines.concat(changes.map(function(change) {
+              return "\u2022 " + change;
+            }));
+          }
+          changelog.value = changelogLines.join("\n");
+          return;
+        }
+      } catch (e) {
+      }
+      changelog.value = changelog.getAttribute("failedText");
+    };
+    request.onerror = function() {
+      changelog.value = changelog.getAttribute("failedText");
+    };
+    request.send(null);
   }
 };
 

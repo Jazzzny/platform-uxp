@@ -20,9 +20,9 @@
         title="&updateWizard.title;"
         windowtype="Update:Wizard"
         style="width: auto; height: auto"
-        onwizardfinish="gUpdates.onWizardFinish();"
+        onwizardfinish="return gUpdates.onWizardFinish();"
         onwizardcancel="gUpdates.onWizardCancel();"
-        onwizardnext="gUpdates.onWizardNext();"
+        onwizardnext="return gUpdates.onWizardNext();"
         onload="gUpdates.onLoad();"
         onunload="gUpdates.onUnload();">
 
@@ -56,15 +56,26 @@
   </wizardpage>
 
   <wizardpage id="manualUpdate" pageid="manualUpdate" object="gManualUpdatePage"
-              onpageshow="gManualUpdatePage.onPageShow();">
-    <updateheader label="&manualUpdate.title;"/>
+              onpageshow="gManualUpdatePage.onPageShow();"
+              onextra1="gManualUpdatePage.onExtra1();">
+    <updateheader id="manualUpdateHeader" label="&manualUpdate.title;"
+                  manualUpdateAvailableTitle="&manualUpdateAvailable.title;"/>
     <vbox class="update-content" flex="1">
       <label id="manualUpdateDesc">&manualUpdate.desc;</label>
+      <label id="manualUpdateAvailableDesc"
+             hidden="true">&manualUpdateAvailable.desc;</label>
+      <textbox id="manualUpdateChangelog"
+               readonly="true" multiline="true" rows="10" flex="1"
+               hidden="true"
+               loadingText="&manualUpdateAvailable.loading;"
+               failedText="&manualUpdateAvailable.failed;"/>
       <label id="manualUpdateSpaceDesc"
              hidden="true">&manualUpdate.space.desc;</label>
       <separator class="thin"/>
-      <label>&manualUpdateGetMsg.label;</label>
-      <hbox>
+      <label id="manualUpdateGetMsg">&manualUpdateGetMsg.label;</label>
+      <label id="manualUpdateAvailableGetMsg"
+             hidden="true">&manualUpdateAvailableGetMsg.label;</label>
+      <hbox id="manualUpdateLinkBox">
         <label class="text-link" id="manualUpdateLinkLabel" value=""
                onclick="openUpdateURL(event);"/>
       </hbox>
