@@ -306,7 +306,11 @@ static inline SkPMColor premultiply_argb_as_bgra(U8CPU a, U8CPU r, U8CPU g, U8CP
         b = SkMulDiv255Round(b, a);
     }
 
+#ifdef SK_PMCOLOR_IS_ARGB
+    return SkPackARGB_as_PMColor(a, r, g, b);
+#else
     return SkPackARGB_as_BGRA(a, r, g, b);
+#endif
 }
 
 static inline bool is_rgba(SkColorType colorType) {

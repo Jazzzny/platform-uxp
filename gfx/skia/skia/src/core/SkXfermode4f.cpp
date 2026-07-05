@@ -44,6 +44,25 @@ static Sk4x4f load_4_srgb(const void* vptr) {
 
     Sk4x4f rgba;
 
+#ifdef SK_PMCOLOR_IS_ARGB
+    rgba.r = { sk_linear_from_srgb[SkGetPackedR32(ptr[0])],
+               sk_linear_from_srgb[SkGetPackedR32(ptr[1])],
+               sk_linear_from_srgb[SkGetPackedR32(ptr[2])],
+               sk_linear_from_srgb[SkGetPackedR32(ptr[3])] };
+
+    rgba.g = { sk_linear_from_srgb[SkGetPackedG32(ptr[0])],
+               sk_linear_from_srgb[SkGetPackedG32(ptr[1])],
+               sk_linear_from_srgb[SkGetPackedG32(ptr[2])],
+               sk_linear_from_srgb[SkGetPackedG32(ptr[3])] };
+
+    rgba.b = { sk_linear_from_srgb[SkGetPackedB32(ptr[0])],
+               sk_linear_from_srgb[SkGetPackedB32(ptr[1])],
+               sk_linear_from_srgb[SkGetPackedB32(ptr[2])],
+               sk_linear_from_srgb[SkGetPackedB32(ptr[3])] };
+
+    rgba.a = SkNx_cast<float>(Sk4i(SkGetPackedA32(ptr[0]), SkGetPackedA32(ptr[1]),
+                                   SkGetPackedA32(ptr[2]), SkGetPackedA32(ptr[3]))) * (1/255.0f);
+#else
     rgba.r = { sk_linear_from_srgb[(ptr[0] >>  0) & 0xff],
                sk_linear_from_srgb[(ptr[1] >>  0) & 0xff],
                sk_linear_from_srgb[(ptr[2] >>  0) & 0xff],
@@ -60,15 +79,28 @@ static Sk4x4f load_4_srgb(const void* vptr) {
                sk_linear_from_srgb[(ptr[3] >> 16) & 0xff] };
 
     rgba.a = SkNx_cast<float>((Sk4i::Load(ptr) >> 24) & 0xff) * (1/255.0f);
+#endif
 
     return rgba;
 }
 
 static void store_4_srgb(void* ptr, const Sk4x4f& p) {
+#ifdef SK_PMCOLOR_IS_ARGB
+    uint32_t* dst = (uint32_t*)ptr;
+    Sk4i r = sk_linear_to_srgb(p.r);
+    Sk4i g = sk_linear_to_srgb(p.g);
+    Sk4i b = sk_linear_to_srgb(p.b);
+    Sk4i a = Sk4f_round(255.0f*p.a);
+    dst[0] = SkPackARGB_as_PMColor(a[0], r[0], g[0], b[0]);
+    dst[1] = SkPackARGB_as_PMColor(a[1], r[1], g[1], b[1]);
+    dst[2] = SkPackARGB_as_PMColor(a[2], r[2], g[2], b[2]);
+    dst[3] = SkPackARGB_as_PMColor(a[3], r[3], g[3], b[3]);
+#else
     ( sk_linear_to_srgb(p.r) <<  0
     | sk_linear_to_srgb(p.g) <<  8
     | sk_linear_to_srgb(p.b) << 16
     | Sk4f_round(255.0f*p.a) << 24).store(ptr);
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -391,7 +423,7 @@ SkXfermode::D32Proc SkXfermode::GetD32Proc(SkXfermode* xfer, uint32_t flags) {
 #include "SkColorPriv.h"
 
 static Sk4f lcd16_to_unit_4f(uint16_t rgb) {
-#ifdef SK_PMCOLOR_IS_RGBA
+#if defined(SK_PMCOLOR_IS_RGBA) || defined(SK_PMCOLOR_IS_ARGB)
     Sk4i rgbi = Sk4i(SkGetPackedR16(rgb), SkGetPackedG16(rgb), SkGetPackedB16(rgb), 0);
 #else
     Sk4i rgbi = Sk4i(SkGetPackedB16(rgb), SkGetPackedG16(rgb), SkGetPackedR16(rgb), 0);

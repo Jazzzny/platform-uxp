@@ -51,10 +51,16 @@ struct SkPM4f {
     Sk4f to4f_pmorder() const { return swizzle_rb_if_bgra(this->to4f()); }
 
     SkPMColor toPMColor() const {
+#ifdef SK_PMCOLOR_IS_ARGB
+        Sk4f value = this->to4f();
+        Sk4b bytes = SkNx_cast<uint8_t>(value * Sk4f(255) + Sk4f(0.5f));
+        return SkPackARGB_as_PMColor(bytes[3], bytes[0], bytes[1], bytes[2]);
+#else
         Sk4f value = swizzle_rb_if_bgra(this->to4f());
         SkPMColor result;
         SkNx_cast<uint8_t>(value * Sk4f(255) + Sk4f(0.5f)).store(&result);
         return result;
+#endif
     }
 
     void toF16(uint16_t[4]) const;

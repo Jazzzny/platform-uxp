@@ -82,8 +82,13 @@ enum SkColorType {
     kN32_SkColorType = kBGRA_8888_SkColorType,
 #elif SK_PMCOLOR_BYTE_ORDER(R,G,B,A)
     kN32_SkColorType = kRGBA_8888_SkColorType,
+#elif defined(MOZ_SKIA) && SK_PMCOLOR_BYTE_ORDER(A,R,G,B)
+    // Big-endian PowerPC Mozilla surfaces use native uint32 ARGB memory.
+    // Moz2D's legacy A8R8G8B8_UINT32 format aliases to B8G8R8A8, so keep
+    // kN32 on Skia's BGRA path while the channel shifts above describe ARGB.
+    kN32_SkColorType = kBGRA_8888_SkColorType,
 #else
-    #error "SK_*32_SHFIT values must correspond to BGRA or RGBA byte order"
+    #error "SK_*32_SHIFT values must correspond to BGRA, RGBA, or Mozilla ARGB byte order"
 #endif
 };
 

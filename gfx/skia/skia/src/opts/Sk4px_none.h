@@ -69,11 +69,18 @@ inline Sk4px Sk4px::Wide::div255() const {
 }
 
 inline Sk4px Sk4px::alphas() const {
+#ifdef SK_PMCOLOR_IS_ARGB
+    return Sk16b((*this)[ 0], (*this)[ 0], (*this)[ 0], (*this)[ 0],
+                 (*this)[ 4], (*this)[ 4], (*this)[ 4], (*this)[ 4],
+                 (*this)[ 8], (*this)[ 8], (*this)[ 8], (*this)[ 8],
+                 (*this)[12], (*this)[12], (*this)[12], (*this)[12]);
+#else
     static_assert(SK_A32_SHIFT == 24, "This method assumes little-endian.");
     return Sk16b((*this)[ 3], (*this)[ 3], (*this)[ 3], (*this)[ 3],
                  (*this)[ 7], (*this)[ 7], (*this)[ 7], (*this)[ 7],
                  (*this)[11], (*this)[11], (*this)[11], (*this)[11],
                  (*this)[15], (*this)[15], (*this)[15], (*this)[15]);
+#endif
 }
 
 inline Sk4px Sk4px::Load4Alphas(const SkAlpha a[4]) {
@@ -91,19 +98,33 @@ inline Sk4px Sk4px::Load2Alphas(const SkAlpha a[2]) {
 }
 
 inline Sk4px Sk4px::zeroAlphas() const {
+#ifdef SK_PMCOLOR_IS_ARGB
+    return Sk16b(0, (*this)[ 1], (*this)[ 2], (*this)[ 3],
+                 0, (*this)[ 5], (*this)[ 6], (*this)[ 7],
+                 0, (*this)[ 9], (*this)[10], (*this)[11],
+                 0, (*this)[13], (*this)[14], (*this)[15]);
+#else
     static_assert(SK_A32_SHIFT == 24, "This method assumes little-endian.");
     return Sk16b((*this)[ 0], (*this)[ 1], (*this)[ 2], 0,
                  (*this)[ 4], (*this)[ 5], (*this)[ 6], 0,
                  (*this)[ 8], (*this)[ 9], (*this)[10], 0,
                  (*this)[12], (*this)[13], (*this)[14], 0);
+#endif
 }
 
 inline Sk4px Sk4px::zeroColors() const {
+#ifdef SK_PMCOLOR_IS_ARGB
+    return Sk16b((*this)[ 0], 0,0,0,
+                 (*this)[ 4], 0,0,0,
+                 (*this)[ 8], 0,0,0,
+                 (*this)[12], 0,0,0);
+#else
     static_assert(SK_A32_SHIFT == 24, "This method assumes little-endian.");
     return Sk16b(0,0,0, (*this)[ 3],
                  0,0,0, (*this)[ 7],
                  0,0,0, (*this)[11],
                  0,0,0, (*this)[15]);
+#endif
 }
 
 }  // namespace
