@@ -1154,7 +1154,8 @@ CompositorOGL::DrawGeometry(const Geometry& aGeometry,
   if (aOpacity != 1.f)
     program->SetLayerOpacity(aOpacity);
 
-  if (config.mFeatures & ENABLE_TEXTURE_RECT) {
+  if ((config.mFeatures & ENABLE_TEXTURE_RECT) &&
+      aEffectChain.mPrimaryEffect->mType != EffectTypes::RENDER_TARGET) {
     TextureSourceOGL* source = nullptr;
     if (aEffectChain.mPrimaryEffect->mType == EffectTypes::COMPONENT_ALPHA) {
       EffectComponentAlpha* effectComponentAlpha =
