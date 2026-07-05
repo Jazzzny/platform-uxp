@@ -37,6 +37,13 @@ static off_t skip_forward_proc(void* info, off_t bytes) {
     return ((SkStream*)info)->skip((size_t) bytes);
 }
 
+#if defined(SK_BUILD_FOR_MAC) && \
+    (!defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5))
+static void skip_bytes_proc(void* info, size_t bytes) {
+    ((SkStream*)info)->skip(bytes);
+}
+#endif
+
 static void rewind_proc(void* info) {
     SkASSERT(info);
     ((SkStream*)info)->rewind();
@@ -58,6 +65,16 @@ CGDataProviderRef SkCreateDataProviderFromStream(std::unique_ptr<SkStreamRewinda
         return CGDataProviderCreateWithData(stream.release(), addr, size, delete_stream_proc);
     }
 
+#if defined(SK_BUILD_FOR_MAC) && \
+    (!defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5))
+    CGDataProviderCallbacks rec;
+    sk_bzero(&rec, sizeof(rec));
+    rec.getBytes = get_bytes_proc;
+    rec.skipBytes = skip_bytes_proc;
+    rec.rewind = rewind_proc;
+    rec.releaseProvider = release_info_proc;
+    return CGDataProviderCreate(stream.release(), &rec);
+#else
     CGDataProviderSequentialCallbacks rec;
     sk_bzero(&rec, sizeof(rec));
     rec.version = 0;
@@ -66,6 +83,7 @@ CGDataProviderRef SkCreateDataProviderFromStream(std::unique_ptr<SkStreamRewinda
     rec.rewind = rewind_proc;
     rec.releaseInfo = release_info_proc;
     return CGDataProviderCreateSequential(stream.release(), &rec);
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -38,8 +38,10 @@ Cameron Kaiser */
 #endif
 
 #include <CoreFoundation/CFArray.h>
+#include <CoreFoundation/CFCharacterSet.h>
 #include <CoreFoundation/CFData.h>
 #include <CoreFoundation/CFDictionary.h>
+#include <CoreFoundation/CFSet.h>
 
 __CKEXTERNBEGIN
 
@@ -49,6 +51,9 @@ __CKEXTERNBEGIN
 /* typedef float CGFloat; */ /* uncomment if needed */
 __CKEXTERN int CGFontGetUnitsPerEm(CGFontRef font);
 __CKEXTERN bool CGFontGetGlyphAdvances(CGFontRef font, const CGGlyph glyphs[], size_t count, int advances[]);
+__CKEXTERN bool CGFontGetGlyphBoundingBoxes(CGFontRef font, const CGGlyph glyphs[], size_t count, CGRect bboxes[]);
+__CKEXTERN CGPathRef CGFontGetGlyphPath(CGFontRef fontRef, CGAffineTransform *textTransform, int unknown, CGGlyph glyph);
+__CKEXTERN CGFontRef CGFontCreateWithDataProvider(CGDataProviderRef provider);
 
 /* CoreText private framework */
 /* Approximately in order as they appear in gfxCoreTextShaper */
@@ -56,20 +61,88 @@ __CKEXTERN bool CGFontGetGlyphAdvances(CGFontRef font, const CGGlyph glyphs[], s
 /* Descriptors */
 
 typedef const struct __CTFontDescriptor *CTFontDescriptorRef; /* opaque */
+typedef uint32_t CTFontSymbolicTraits;
+typedef uint32_t CTFontStylisticClass;
+typedef uint32_t CTFontTableTag;
+typedef uint32_t CTFontTableOptions;
+typedef int CTFontOrientation;
+
+enum {
+  kCTFontDefaultOrientation = 0,
+  kCTFontHorizontalOrientation = 0,
+  kCTFontVerticalOrientation = 1
+};
+
+enum {
+  kCTFontItalicTrait = (1 << 0),
+  kCTFontBoldTrait = (1 << 1),
+  kCTFontMonoSpaceTrait = (1 << 10),
+  kCTFontColorGlyphsTrait = (1 << 13),
+  kCTFontClassMaskTrait = 0xF0000000,
+  kCTFontOldStyleSerifsClass = 0x10000000,
+  kCTFontSlabSerifsClass = 0x50000000,
+  kCTFontScriptsClass = 0x80000000
+};
+
+enum {
+  kCTFontTableOptionNoOptions = 0
+};
+
 __CKEXTERN const CFStringRef kCTFontFeatureTypeIdentifierKey;
 __CKEXTERN const CFStringRef kCTFontFeatureSelectorIdentifierKey;
 __CKEXTERN const CFStringRef kCTFontFeatureSettingsAttribute;
+__CKEXTERN const CFStringRef kCTFontFamilyNameAttribute;
+__CKEXTERN const CFStringRef kCTFontTraitsAttribute;
+__CKEXTERN const CFStringRef kCTFontSymbolicTrait;
+__CKEXTERN const CFStringRef kCTFontWeightTrait;
+__CKEXTERN const CFStringRef kCTFontWidthTrait;
+__CKEXTERN const CFStringRef kCTFontSlantTrait;
+__CKEXTERN const CFStringRef kCTFontStyleNameAttribute;
+__CKEXTERN const CFStringRef kCTFontVariationAttribute;
+__CKEXTERN const CFStringRef kCTFontVariationAxisNameKey;
+__CKEXTERN const CFStringRef kCTFontVariationAxisIdentifierKey;
 __CKEXTERN CTFontDescriptorRef CTFontDescriptorCreateWithAttributes(CFDictionaryRef attribs);
+__CKEXTERN CTFontDescriptorRef CTFontDescriptorCreateWithNameAndSize(CFStringRef name, float size);
+__CKEXTERN CFTypeRef CTFontDescriptorCopyAttribute(CTFontDescriptorRef descriptor, CFStringRef attribute);
+__CKEXTERN CFArrayRef CTFontDescriptorCopyMatchingFontDescriptors(CTFontDescriptorRef descriptor, CFSetRef mandatoryAttributes);
+#define CTFontDescriptorCreateMatchingFontDescriptors CTFontDescriptorCopyMatchingFontDescriptors
 /* we do not have CTFontDescriptorCreateCopyWithAttributes, but we can't
    do ligatures anyway, see Runs */
 
 /* Fonts */
 
 typedef const struct __CTFont *CTFontRef; /* opaque */
-__CKEXTERN CTFontRef CTFontCreateWithPlatformFont(ATSFontRef atsfont, float size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
-__CKEXTERN CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgfont, float size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
+__CKEXTERN CTFontRef CTFontCreateWithPlatformFont(ATSFontRef atsfont, double size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
+__CKEXTERN CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgfont, double size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
+__CKEXTERN CTFontRef CTFontCreateWithFontDescriptor(CTFontDescriptorRef descriptor, double size, const CGAffineTransform *matrix);
+__CKEXTERN CTFontRef CTFontCreateWithName(CFStringRef name, double size, const CGAffineTransform *matrix);
+__CKEXTERN CTFontRef CTFontCreateForString(CTFontRef currentFont, CFStringRef string, CFRange range);
 __CKEXTERN const CFStringRef kCTFontAttributeName;
 __CKEXTERN float CTFontGetSize(CTFontRef font);
+__CKEXTERN CFIndex CTFontGetNumberOfGlyphs(CTFontRef font);
+#define CTFontGetGlyphCount CTFontGetNumberOfGlyphs
+__CKEXTERN CGFontRef CTFontGetGraphicsFont(CTFontRef font);
+__CKEXTERN CFStringRef CTFontCopyFamilyName(CTFontRef font);
+__CKEXTERN CFStringRef CTFontCopyDisplayName(CTFontRef font);
+__CKEXTERN CFStringRef CTFontCopyPostScriptName(CTFontRef font);
+__CKEXTERN CTFontDescriptorRef CTFontCopyFontDescriptor(CTFontRef font);
+__CKEXTERN CTFontSymbolicTraits CTFontGetSymbolicTraits(CTFontRef font);
+__CKEXTERN bool CTFontGetGlyphsForCharacters(CTFontRef font, const UniChar characters[], CGGlyph glyphs[], CFIndex count);
+__CKEXTERN double CTFontGetAdvancesForGlyphs(CTFontRef font, CTFontOrientation orientation, const CGGlyph glyphs[], CGSize advances[], CFIndex count);
+__CKEXTERN CGRect CTFontGetBoundingRectsForGlyphs(CTFontRef font, CTFontOrientation orientation, const CGGlyph glyphs[], CGRect boundingRects[], CFIndex count);
+__CKEXTERN CGRect CTFontGetBoundingBox(CTFontRef font);
+__CKEXTERN float CTFontGetAscent(CTFontRef font);
+__CKEXTERN float CTFontGetDescent(CTFontRef font);
+__CKEXTERN float CTFontGetLeading(CTFontRef font);
+__CKEXTERN float CTFontGetXHeight(CTFontRef font);
+__CKEXTERN float CTFontGetCapHeight(CTFontRef font);
+__CKEXTERN float CTFontGetUnderlinePosition(CTFontRef font);
+__CKEXTERN float CTFontGetUnderlineThickness(CTFontRef font);
+__CKEXTERN float CTFontGetSlantAngle(CTFontRef font);
+__CKEXTERN unsigned CTFontGetUnitsPerEm(CTFontRef font);
+__CKEXTERN CFDataRef CTFontCopyTable(CTFontRef font, CTFontTableTag table, CTFontTableOptions options);
+__CKEXTERN CFCharacterSetRef CTFontCopyCharacterSet(CTFontRef font);
+__CKEXTERN CFArrayRef CTFontCopyVariationAxes(CTFontRef font);
 
 /* Lines */
 
@@ -95,4 +168,3 @@ __CKEXTERN double CTRunGetTypographicBounds(CTRunRef run, CFRange range, float *
 
 __CKEXTERNEND
 #endif /* __PHONYCORETEXT_H */
-
