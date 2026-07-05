@@ -155,7 +155,7 @@ public:
     }
 
     GlyphPositioning positioning() const {
-        return static_cast<GlyphPositioning>(fPositioning);
+        return fPositioning;
     }
 
     uint16_t* glyphBuffer() const {
@@ -213,7 +213,7 @@ public:
         SkASSERT((uint8_t*)Next(this) <= storageTop);
 
         SkASSERT(glyphBuffer() + fCount <= (uint16_t*)posBuffer());
-        SkASSERT(posBuffer() + fCount * ScalarsPerGlyph(this->positioning()) <= (SkScalar*)Next(this));
+        SkASSERT(posBuffer() + fCount * ScalarsPerGlyph(fPositioning) <= (SkScalar*)Next(this));
         if (fExtended) {
             SkASSERT(textSize() > 0);
             SkASSERT(textSizePtr() < (uint32_t*)Next(this));
@@ -235,7 +235,7 @@ private:
     uint32_t* textSizePtr() const {
         // textSize follows the position buffer.
         SkASSERT(fExtended);
-        return (uint32_t*)(&this->posBuffer()[PosCount(fCount, this->positioning())]);
+        return (uint32_t*)(&this->posBuffer()[PosCount(fCount, fPositioning)]);
     }
 
     void grow(uint32_t count) {
@@ -244,7 +244,7 @@ private:
         fCount += count;
 
         // Move the initial pos scalars to their new location.
-        size_t copySize = initialCount * sizeof(SkScalar) * ScalarsPerGlyph(this->positioning());
+        size_t copySize = initialCount * sizeof(SkScalar) * ScalarsPerGlyph(fPositioning);
         SkASSERT((uint8_t*)posBuffer() + copySize <= (uint8_t*)Next(this));
 
         // memmove, as the buffers may overlap
@@ -254,14 +254,8 @@ private:
     RunFont          fFont;
     uint32_t         fCount;
     SkPoint          fOffset;
-#if defined(__ppc__) || defined(__ppc64__)
-    static_assert(kFull_Positioning < 4, "insufficient_positioning_bits");
-    uint32_t         fPositioning : 2;
-    uint32_t         fExtended : 1;
-#else
     GlyphPositioning fPositioning;
     bool             fExtended;
-#endif
 
     SkDEBUGCODE(unsigned fMagic;)
 };
@@ -768,7 +762,7 @@ sk_sp<SkTextBlob> SkTextBlobBuilder::make() {
         const SkTextBlob::RunRecord* run = SkTextBlob::RunRecord::First(blob);
         for (int i = 0; i < fRunCount; ++i) {
             validateSize += SkTextBlob::RunRecord::StorageSize(
-                    run->fCount, run->textSize(), run->positioning());
+                    run->fCount, run->textSize(), run->fPositioning);
             run->validate(reinterpret_cast<const uint8_t*>(blob) + fStorageUsed);
             run = SkTextBlob::RunRecord::Next(run);
         }
