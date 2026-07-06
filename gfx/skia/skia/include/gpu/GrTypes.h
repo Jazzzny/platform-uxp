@@ -275,17 +275,19 @@ enum GrPixelConfig {
 static const int kGrPixelConfigCnt = kLast_GrPixelConfig + 1;
 
 // Aliases for pixel configs that match skia's byte order.
-#ifndef SK_CPU_LENDIAN
-    #error "Skia gpu currently assumes little endian"
-#endif
 #if SK_PMCOLOR_BYTE_ORDER(B,G,R,A)
     static const GrPixelConfig kSkia8888_GrPixelConfig = kBGRA_8888_GrPixelConfig;
     static const GrPixelConfig kSkiaGamma8888_GrPixelConfig = kSBGRA_8888_GrPixelConfig;
 #elif SK_PMCOLOR_BYTE_ORDER(R,G,B,A)
     static const GrPixelConfig kSkia8888_GrPixelConfig = kRGBA_8888_GrPixelConfig;
     static const GrPixelConfig kSkiaGamma8888_GrPixelConfig = kSRGBA_8888_GrPixelConfig;
+#elif defined(MOZ_SKIA) && SK_PMCOLOR_BYTE_ORDER(A,R,G,B)
+    // Mozilla's big-endian PowerPC path stores native 32-bit pixels as ARGB,
+    // while Moz2D routes those surfaces through Skia's BGRA color type.
+    static const GrPixelConfig kSkia8888_GrPixelConfig = kBGRA_8888_GrPixelConfig;
+    static const GrPixelConfig kSkiaGamma8888_GrPixelConfig = kSBGRA_8888_GrPixelConfig;
 #else
-    #error "SK_*32_SHIFT values must correspond to GL_BGRA or GL_RGBA format."
+    #error "SK_*32_SHIFT values must correspond to GL_BGRA, GL_RGBA, or Mozilla ARGB format."
 #endif
 
 // Returns true if the pixel config is a GPU-specific compressed format

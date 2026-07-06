@@ -837,7 +837,8 @@ nsSVGIntegrationUtils::PaintMaskAndClipPath(const PaintFramesParams& aParams)
                                   maskFrames, offsetToUserSpace);
 
       if (paintResult.transparentBlackMask) {
-        MOZ_ASSERT(paintResult.result != DrawResult::SUCCESS);
+        // A transparent black mask can be a valid empty-mask result, for
+        // example when the computed mask surface bounds are empty.
         return paintResult.result;
       }
 

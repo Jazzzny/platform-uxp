@@ -12,6 +12,11 @@
 #include "SkBitmap.h"
 #include "SkColorPriv.h"
 
+#if defined(SK_BUILD_FOR_MAC) && \
+    (!defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5))
+extern "C" void CGContextSetCompositeOperation(CGContextRef, int);
+#endif
+
 static CGBitmapInfo ComputeCGAlphaInfo_RGBA(SkAlphaType at) {
     CGBitmapInfo info = kCGBitmapByteOrder32Big;
     switch (at) {
@@ -205,7 +210,12 @@ SK_API bool SkCopyPixelsFromCGImage(const SkImageInfo& info, size_t rowBytes, vo
 
     // use this blend mode, to avoid having to erase the pixels first, and to avoid CG performing
     // any blending (which could introduce errors and be slower).
+#if defined(SK_BUILD_FOR_MAC) && \
+    (!defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5))
+    CGContextSetCompositeOperation(cg, 1); // kPrivateCGCompositeCopy
+#else
     CGContextSetBlendMode(cg, kCGBlendModeCopy);
+#endif
 
     CGContextDrawImage(cg, CGRectMake(0, 0, info.width(), info.height()), image);
     CGContextRelease(cg);

@@ -22,29 +22,50 @@ static inline float get_alpha(const Sk4f& px) {
 
 
 static inline Sk4f Sk4f_fromL32(uint32_t px) {
+#ifdef SK_PMCOLOR_IS_ARGB
+    return Sk4f(SkGetPackedR32(px), SkGetPackedG32(px),
+                SkGetPackedB32(px), SkGetPackedA32(px)) * (1/255.0f);
+#else
     return SkNx_cast<float>(Sk4b::Load(&px)) * (1/255.0f);
+#endif
 }
 
 static inline Sk4f Sk4f_fromS32(uint32_t px) {
+#ifdef SK_PMCOLOR_IS_ARGB
+    return { sk_linear_from_srgb[SkGetPackedR32(px)],
+             sk_linear_from_srgb[SkGetPackedG32(px)],
+             sk_linear_from_srgb[SkGetPackedB32(px)],
+                    (1/255.0f) * SkGetPackedA32(px) };
+#else
     return { sk_linear_from_srgb[(px >>  0) & 0xff],
              sk_linear_from_srgb[(px >>  8) & 0xff],
              sk_linear_from_srgb[(px >> 16) & 0xff],
                     (1/255.0f) * (px >> 24)          };
+#endif
 }
 
 static inline uint32_t Sk4f_toL32(const Sk4f& px) {
+#ifdef SK_PMCOLOR_IS_ARGB
+    Sk4b bytes = SkNx_cast<uint8_t>(Sk4f_round(px * 255.0f));
+    return SkPackARGB_as_PMColor(bytes[3], bytes[0], bytes[1], bytes[2]);
+#else
     uint32_t l32;
     SkNx_cast<uint8_t>(Sk4f_round(px * 255.0f)).store(&l32);
     return l32;
+#endif
 }
 
 static inline uint32_t Sk4f_toS32(const Sk4f& px) {
     Sk4i  rgb = sk_linear_to_srgb(px),
          srgb = { rgb[0], rgb[1], rgb[2], (int)(255.0f * px[3] + 0.5f) };
 
+#ifdef SK_PMCOLOR_IS_ARGB
+    return SkPackARGB_as_PMColor(srgb[3], srgb[0], srgb[1], srgb[2]);
+#else
     uint32_t s32;
     SkNx_cast<uint8_t>(srgb).store(&s32);
     return s32;
+#endif
 }
 
 

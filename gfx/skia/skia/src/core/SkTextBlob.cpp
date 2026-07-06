@@ -121,9 +121,10 @@ SkDEBUGCODE(static const unsigned kRunRecordMagic = 0xb10bcafe;)
 namespace {
 struct RunRecordStorageEquivalent {
     RunFont  fFont;
-    SkPoint  fOffset;
     uint32_t fCount;
-    uint32_t fFlags;
+    SkPoint  fOffset;
+    SkTextBlob::GlyphPositioning fPositioning;
+    bool     fExtended;
     SkDEBUGCODE(unsigned fMagic;)
 };
 }

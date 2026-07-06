@@ -1214,6 +1214,29 @@ SetFontColor(CGContextRef aCGContext, CGColorSpaceRef aColorSpace, const Pattern
   CGColorRelease(textColor);
 }
 
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
+typedef bool (*CGFontGetGlyphBBoxesFunc)(CGFontRef, const CGGlyph[], size_t, CGRect[]);
+
+static bool
+GetCGFontGlyphBBoxes(CGFontRef aFont, const CGGlyph aGlyphs[],
+                     size_t aCount, CGRect aBBoxes[])
+{
+  static CGFontGetGlyphBBoxesFunc glyphBBoxesFunc = nullptr;
+  static bool lookedUpFunc = false;
+  if (!lookedUpFunc) {
+    glyphBBoxesFunc = reinterpret_cast<CGFontGetGlyphBBoxesFunc>(
+      dlsym(RTLD_DEFAULT, "CGFontGetGlyphBBoxes"));
+    if (!glyphBBoxesFunc) {
+      glyphBBoxesFunc = reinterpret_cast<CGFontGetGlyphBBoxesFunc>(
+        dlsym(RTLD_DEFAULT, "CGFontGetGlyphBoundingBoxes"));
+    }
+    lookedUpFunc = true;
+  }
+
+  return glyphBBoxesFunc && glyphBBoxesFunc(aFont, aGlyphs, aCount, aBBoxes);
+}
+#endif
+
 /***
  * We need this to support subpixel AA text on OS X in two cases:
  * text in DrawTargets that are not opaque and text over vibrant backgrounds.
@@ -1248,10 +1271,12 @@ DrawTargetSkia::FillGlyphsWithCG(ScaledFont *aFont,
     return false;
   }
 
-  SetFontSmoothingBackgroundColor(cgContext, mColorSpace, aRenderingOptions);
+  bool needsPremultipliedDataFixup =
+    SetFontSmoothingBackgroundColor(cgContext, mColorSpace, aRenderingOptions);
   SetFontColor(cgContext, mColorSpace, aPattern);
 
   ScaledFontMac* macFont = static_cast<ScaledFontMac*>(aFont);
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   if (ScaledFontMac::CTFontDrawGlyphsPtr != nullptr) {
     ScaledFontMac::CTFontDrawGlyphsPtr(macFont->mCTFont, glyphs.begin(),
                                        positions.begin(),
@@ -1263,12 +1288,51 @@ DrawTargetSkia::FillGlyphsWithCG(ScaledFont *aFont,
                                    aBuffer.mNumGlyphs);
   }
 
+  if (!needsPremultipliedDataFixup) {
+    ReturnCGContext(cgContext);
+    return true;
+  }
+
   // Calculate the area of the text we just drew
   CGRect *bboxes = new CGRect[aBuffer.mNumGlyphs];
-  CTFontGetBoundingRectsForGlyphs(macFont->mCTFont, kCTFontDefaultOrientation,
-                                  glyphs.begin(), bboxes, aBuffer.mNumGlyphs);
-  CGRect extents = ComputeGlyphsExtents(bboxes, positions.begin(), aBuffer.mNumGlyphs, 1.0f);
+  CGRect extents;
+  if (ScaledFontMac::CTFontDrawGlyphsPtr != nullptr) {
+    CTFontGetBoundingRectsForGlyphs(macFont->mCTFont, kCTFontDefaultOrientation,
+                                    glyphs.begin(), bboxes, aBuffer.mNumGlyphs);
+    extents = ComputeGlyphsExtents(bboxes, positions.begin(), aBuffer.mNumGlyphs, 1.0f);
+  } else {
+    CGFontGetGlyphBBoxes(macFont->mFont, glyphs.begin(), aBuffer.mNumGlyphs, bboxes);
+    extents = ComputeGlyphsExtents(bboxes, positions.begin(), aBuffer.mNumGlyphs,
+                                   macFont->mSize);
+  }
   delete[] bboxes;
+#else
+  CGContextSetFont(cgContext, macFont->mFont);
+  CGContextSetFontSize(cgContext, macFont->mSize);
+  for (unsigned int i = 0; i < aBuffer.mNumGlyphs; i++) {
+    CGGlyph glyph = glyphs[i];
+    CGContextShowGlyphsAtPoint(cgContext, positions[i].x, positions[i].y,
+                               &glyph, 1);
+  }
+
+  if (!needsPremultipliedDataFixup) {
+    ReturnCGContext(cgContext);
+    return true;
+  }
+
+  // Calculate the area of the text we just drew. On 10.4, use the older
+  // CGFont bounding-box entry point that DrawTargetCG uses.
+  CGRect *bboxes = new CGRect[aBuffer.mNumGlyphs];
+  if (!GetCGFontGlyphBBoxes(macFont->mFont, glyphs.begin(),
+                            aBuffer.mNumGlyphs, bboxes)) {
+    delete[] bboxes;
+    ReturnCGContext(cgContext);
+    return false;
+  }
+  CGRect extents = ComputeGlyphsExtents(bboxes, positions.begin(),
+                                        aBuffer.mNumGlyphs, macFont->mSize);
+  delete[] bboxes;
+#endif
 
   CGAffineTransform cgTransform = CGContextGetCTM(cgContext);
   extents = CGRectApplyAffineTransform(extents, cgTransform);
@@ -1298,7 +1362,8 @@ HasFontSmoothingBackgroundColor(const GlyphRenderingOptions* aRenderingOptions)
 }
 
 static bool
-ShouldUseCGToFillGlyphs(const GlyphRenderingOptions* aOptions, const Pattern& aPattern)
+ShouldUseCGToFillGlyphs(ScaledFont* aFont, const GlyphRenderingOptions* aOptions,
+                        const Pattern& aPattern)
 {
   return HasFontSmoothingBackgroundColor(aOptions) &&
           aPattern.GetType() == PatternType::COLOR;
@@ -1336,7 +1401,7 @@ DrawTargetSkia::FillGlyphs(ScaledFont *aFont,
   MarkChanged();
 
 #ifdef MOZ_WIDGET_COCOA
-  if (ShouldUseCGToFillGlyphs(aRenderingOptions, aPattern)) {
+  if (ShouldUseCGToFillGlyphs(aFont, aRenderingOptions, aPattern)) {
     if (FillGlyphsWithCG(aFont, aBuffer, aPattern, aOptions, aRenderingOptions)) {
       return;
     }
@@ -1346,6 +1411,17 @@ DrawTargetSkia::FillGlyphs(ScaledFont *aFont,
   ScaledFontBase* skiaFont = static_cast<ScaledFontBase*>(aFont);
   SkTypeface* typeface = skiaFont->GetSkTypeface();
   if (!typeface) {
+#if defined(MOZ_WIDGET_COCOA) && \
+    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+    if (aFont->GetType() == FontType::MAC &&
+        aPattern.GetType() == PatternType::COLOR) {
+      NS_WARNING("GetSkTypeface failed; falling back to CG glyph drawing");
+      if (FillGlyphsWithCG(aFont, aBuffer, aPattern, aOptions, aRenderingOptions)) {
+        return;
+      }
+      NS_WARNING("CG glyph fallback failed");
+    }
+#endif
     return;
   }
 

@@ -445,8 +445,6 @@ option('--disable-skia', help='Disable use of Skia')
 
 @depends('--disable-skia', target)
 def skia(value, target):
-    if value.origin == 'default' and target.endianness == 'big':
-        return None
     if value:
         return True
 
