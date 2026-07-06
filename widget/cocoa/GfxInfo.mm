@@ -396,8 +396,8 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
       aFailureId = "FEATURE_FAILURE_LAYERS_OSX_VERSION";
       return NS_OK;
     }
-#endif
-    // no 10.4!
+#else
+    // No 10.4 intel webgl
     if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL &&
         !nsCocoaFeatures::OnLeopardOrLater()) {
       *aStatus = nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION;
@@ -412,6 +412,7 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
 
     // We will enable it on Intel 10.5 however, but PPC is fundamentally incompatible
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+// No WebGL at all for PPC
 #if defined(__ppc__)
     if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL) {
       *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DEVICE;
