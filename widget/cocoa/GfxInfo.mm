@@ -397,6 +397,13 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
       return NS_OK;
     }
 #endif
+    // no 10.4!
+    if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL &&
+        !nsCocoaFeatures::OnLeopardOrLater()) {
+      *aStatus = nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION;
+      aFailureId = "FEATURE_FAILURE_WEBGL_OSX_VERSION";
+      return NS_OK;
+    }
 #endif
 
     // TODO: Many WebGL issues on 10.5, especially:
@@ -409,14 +416,6 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
     if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL) {
       *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DEVICE;
       aFailureId = "FEATURE_FAILURE_WEBGL_PPC";
-      return NS_OK;
-    }
-#else
-    // no 10.4!
-    if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL &&
-        !nsCocoaFeatures::OnLeopardOrLater()) {
-      *aStatus = nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION;
-      aFailureId = "FEATURE_FAILURE_WEBGL_OSX_VERSION";
       return NS_OK;
     }
 #endif
