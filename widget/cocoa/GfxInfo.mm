@@ -397,12 +397,14 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
       return NS_OK;
     }
 #endif
+#endif
 
     // TODO: Many WebGL issues on 10.5, especially:
     //   * bug 631258: WebGL shader paints using textures belonging to other processes on Mac OS 10.5
     //   * bug 618848: Post process shaders and texture mapping crash OS X 10.5
 
     // We will enable it on Intel 10.5 however, but PPC is fundamentally incompatible
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
 #if defined(__ppc__)
     if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL) {
       *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DEVICE;
