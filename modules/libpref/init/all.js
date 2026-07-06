@@ -572,7 +572,9 @@ pref("media.mediasource.webm.audio.enabled", true);
 // libAOM is not performant, so disbale by default.
 pref("media.av1.enabled", false);
 #else
-pref("media.av1.enabled", true);
+// pref("media.av1.enabled", true);
+// Our fastest target is realistically a Westmere CPU, so no point in AV1 at all, as long as the web still serves H264 and VP9
+pref("media.av1.enabled", false);
 #endif
 #endif
 
