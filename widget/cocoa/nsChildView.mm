@@ -4493,7 +4493,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
 
   NSSize viewSize = [self bounds].size;
   gfx::IntSize backingSize = gfx::IntSize::Truncate(viewSize.width * scale, viewSize.height * scale);
-#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
+#ifdef USE_SKIA
   LayoutDeviceIntRegion region = [self nativeDirtyRegionWithBoundingRect:aRect];
 
   bool painted = mGeckoChild->PaintWindowInContext(cgContext, region, backingSize);
