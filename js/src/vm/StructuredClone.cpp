@@ -2035,6 +2035,12 @@ JSStructuredCloneReader::readV1ArrayBuffer(uint32_t arrayType, uint32_t nelems,
     ArrayBufferObject& buffer = obj->as<ArrayBufferObject>();
     MOZ_ASSERT(buffer.byteLength() == nbytes);
 
+#ifdef JS_CODEGEN_PPC_OSX
+    // Version 1 stored typed-array elements in little-endian byte order.
+    // The PPC backend also keeps typed-array storage little-endian, so retain
+    // the serialized representation instead of converting it to host order.
+    return in.readArray(buffer.dataPointer(), nbytes.value());
+#else
     switch (arrayType) {
       case Scalar::Int8:
       case Scalar::Uint8:
@@ -2054,6 +2060,7 @@ JSStructuredCloneReader::readV1ArrayBuffer(uint32_t arrayType, uint32_t nelems,
       default:
         MOZ_CRASH("Can't happen: arrayType range checked by caller");
     }
+#endif
 }
 
 static bool

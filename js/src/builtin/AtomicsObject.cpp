@@ -179,12 +179,24 @@ WaitValueMatches(Handle<TypedArrayObject*> view, uint32_t offset, uint64_t expec
 {
     SharedMem<void*> viewData = view->viewDataShared();
     if (view->type() == Scalar::BigInt64) {
+#ifdef JS_CODEGEN_PPC_OSX
+        uint64_t value = jit::AtomicOperations::loadSafeWhenRacy(
+            viewData.cast<uint64_t*>() + offset);
+        return __builtin_bswap64(value) == expected;
+#else
         return jit::AtomicOperations::loadSafeWhenRacy(viewData.cast<uint64_t*>() + offset) ==
                expected;
+#endif
     }
 
+#ifdef JS_CODEGEN_PPC_OSX
+    uint32_t value = uint32_t(jit::AtomicOperations::loadSafeWhenRacy(
+        viewData.cast<int32_t*>() + offset));
+    return __builtin_bswap32(value) == uint32_t(expected);
+#else
     return uint32_t(jit::AtomicOperations::loadSafeWhenRacy(viewData.cast<int32_t*>() + offset)) ==
            uint32_t(expected);
+#endif
 }
 
 static int32_t
