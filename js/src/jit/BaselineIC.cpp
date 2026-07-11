@@ -2199,7 +2199,15 @@ ICGetElem_TypedArray::Compiler::generateStubCode(MacroAssembler& masm)
 
     // Load the value.
     BaseIndex source(scratchReg, key, ScaleFromElemWidth(Scalar::byteSize(type_)));
+#if defined(JS_CODEGEN_PPC_OSX)
+    if (layout_ == Layout_TypedArray ||
+        (type_ != Scalar::Float32 && type_ != Scalar::Float64))
+        masm.loadFromTypedArray(type_, source, R0, false, scratchReg, &failure);
+    else
+        masm.loadFromTypedArrayNative(type_, source, R0, false, scratchReg, &failure);
+#else
     masm.loadFromTypedArray(type_, source, R0, false, scratchReg, &failure);
+#endif
 
     // Todo: Allow loading doubles from uint32 arrays, but this requires monitoring.
     EmitReturnFromIC(masm);
@@ -3150,7 +3158,11 @@ ICSetElemDenseOrUnboxedArrayAddCompiler::generateStubCode(MacroAssembler& masm)
 template <typename T>
 static void
 StoreToTypedArray(JSContext* cx, MacroAssembler& masm, Scalar::Type type, Address value, T dest,
-                  Register scratch, Label* failure, Label* failureModifiedScratch)
+                  Register scratch, Label* failure, Label* failureModifiedScratch
+#if defined(JS_CODEGEN_PPC_OSX)
+                  , bool nativeFloats = false
+#endif
+                  )
 {
     Label done;
 
@@ -3158,8 +3170,18 @@ StoreToTypedArray(JSContext* cx, MacroAssembler& masm, Scalar::Type type, Addres
         masm.ensureDouble(value, FloatReg0, failure);
         if (type == Scalar::Float32) {
             masm.convertDoubleToFloat32(FloatReg0, ScratchFloat32Reg);
+#if defined(JS_CODEGEN_PPC_OSX)
+            if (nativeFloats)
+                masm.storeFloat32(ScratchFloat32Reg, dest);
+            else
+#endif
             masm.storeToTypedFloatArray(type, ScratchFloat32Reg, dest);
         } else {
+#if defined(JS_CODEGEN_PPC_OSX)
+            if (nativeFloats)
+                masm.storeDouble(FloatReg0, dest);
+            else
+#endif
             masm.storeToTypedFloatArray(type, FloatReg0, dest);
         }
     } else if (type == Scalar::Uint8Clamped) {
@@ -5101,7 +5123,11 @@ ICSetProp_TypedObject::Compiler::generateStubCode(MacroAssembler& masm)
     if (fieldDescr_->is<ScalarTypeDescr>()) {
         Scalar::Type type = fieldDescr_->as<ScalarTypeDescr>().type();
         StoreToTypedArray(cx, masm, type, value, dest,
-                          secondScratch, &failurePopRHS, &failurePopRHS);
+                          secondScratch, &failurePopRHS, &failurePopRHS
+#if defined(JS_CODEGEN_PPC_OSX)
+                          , /* nativeFloats = */ true
+#endif
+                          );
         masm.popValue(R1);
     } else {
         ReferenceTypeDescr::Type type = fieldDescr_->as<ReferenceTypeDescr>().type();

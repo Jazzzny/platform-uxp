@@ -930,8 +930,17 @@ BaselineCacheIRCompiler::emitLoadTypedObjectResult()
         Scalar::Type type = ScalarTypeFromSimpleTypeDescrKey(typeDescr);
         monitorLoad = type == Scalar::Uint32;
 
+#if defined(JS_CODEGEN_PPC_OSX)
+        if (type == Scalar::Float32 || type == Scalar::Float64)
+            masm.loadFromTypedArrayNative(type, Address(scratch1, 0), R0,
+                                          /* allowDouble = */ true, scratch2, nullptr);
+        else
+            masm.loadFromTypedArray(type, Address(scratch1, 0), R0,
+                                    /* allowDouble = */ true, scratch2, nullptr);
+#else
         masm.loadFromTypedArray(type, Address(scratch1, 0), R0, /* allowDouble = */ true,
                                 scratch2, nullptr);
+#endif
     } else {
         ReferenceTypeDescr::Type type = ReferenceTypeFromSimpleTypeDescrKey(typeDescr);
         monitorLoad = type != ReferenceTypeDescr::TYPE_STRING;

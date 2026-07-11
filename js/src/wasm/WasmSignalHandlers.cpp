@@ -1299,6 +1299,12 @@ ProcessHasSignalHandlers()
         return sHaveSignalHandlers;
     sTriedInstallSignalHandlers = true;
 
+#if defined(JS_CODEGEN_PPC_OSX)
+    // PPC OS X has neither the Mach exception handler nor the Unix interrupt
+    // signal path. Report this accurately so Ion emits explicit loop polls.
+    return false;
+#endif
+
     // Developers might want to forcibly disable signals to avoid seeing
     // spurious SIGSEGVs in the debugger.
     if (getenv("JS_DISABLE_SLOW_SCRIPT_SIGNALS") || getenv("JS_NO_SIGNALS"))

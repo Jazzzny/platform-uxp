@@ -8934,7 +8934,8 @@ class MLoadUnboxedScalar
   public:
     enum TargetKind {
         ScalarTarget = 0,
-        TypedArrayTarget
+        TypedArrayTarget,
+        TypedObjectTarget
     };
 
   private:
@@ -9206,7 +9207,8 @@ class MStoreUnboxedScalar
 #if defined(JS_CODEGEN_PPC_OSX)
     enum TargetKind {
         ScalarTarget = 0,
-        TypedArrayTarget
+        TypedArrayTarget,
+        TypedObjectTarget
     };
 #endif
 

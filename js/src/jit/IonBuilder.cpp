@@ -9483,7 +9483,7 @@ IonBuilder::pushScalarLoadFromTypedObject(MDefinition* obj,
                                                        DoesNotRequireMemoryBarrier,
                                                        adjustment);
 #if defined(JS_CODEGEN_PPC_OSX)
-    load->setTarget(MLoadUnboxedScalar::TypedArrayTarget);
+    load->setTarget(MLoadUnboxedScalar::TypedObjectTarget);
 #endif
     current->add(load);
     current->push(load);
@@ -14839,7 +14839,7 @@ IonBuilder::storeScalarTypedObjectValue(MDefinition* typedObj,
                                  type, MStoreUnboxedScalar::TruncateInput,
                                  DoesNotRequireMemoryBarrier, adjustment);
 #if defined(JS_CODEGEN_PPC_OSX)
-    store->setTarget(MStoreUnboxedScalar::TypedArrayTarget);
+    store->setTarget(MStoreUnboxedScalar::TypedObjectTarget);
 #endif
     current->add(store);
 

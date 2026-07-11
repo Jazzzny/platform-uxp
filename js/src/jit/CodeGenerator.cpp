@@ -10821,7 +10821,9 @@ CodeGenerator::visitLoadUnboxedScalar(LLoadUnboxedScalar* lir)
     if (lir->index()->isConstant()) {
         Address source(elements, ToInt32(lir->index()) * width + mir->offsetAdjustment());
 #if defined(JS_CODEGEN_PPC_OSX)
-        if (mir->target() == MLoadUnboxedScalar::TypedArrayTarget)
+        if (mir->target() == MLoadUnboxedScalar::TypedArrayTarget ||
+            (mir->target() == MLoadUnboxedScalar::TypedObjectTarget &&
+             readType != Scalar::Float32 && readType != Scalar::Float64))
             masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble);
         else
             masm.loadFromTypedArrayNative(readType, source, out, temp, &fail, canonicalizeDouble);
@@ -10832,7 +10834,9 @@ CodeGenerator::visitLoadUnboxedScalar(LLoadUnboxedScalar* lir)
         BaseIndex source(elements, ToRegister(lir->index()), ScaleFromElemWidth(width),
                          mir->offsetAdjustment());
 #if defined(JS_CODEGEN_PPC_OSX)
-        if (mir->target() == MLoadUnboxedScalar::TypedArrayTarget)
+        if (mir->target() == MLoadUnboxedScalar::TypedArrayTarget ||
+            (mir->target() == MLoadUnboxedScalar::TypedObjectTarget &&
+             readType != Scalar::Float32 && readType != Scalar::Float64))
             masm.loadFromTypedArray(readType, source, out, temp, &fail, canonicalizeDouble);
         else
             masm.loadFromTypedArrayNative(readType, source, out, temp, &fail, canonicalizeDouble);
@@ -10909,10 +10913,10 @@ static inline void
 StoreToTypedArrayNative(MacroAssembler& masm, Scalar::Type writeType, const LAllocation* value,
                         const T& dest)
 {
-    if (writeType == Scalar::Float32 ||
-        writeType == Scalar::Float64)
-    {
-        masm.storeToTypedFloatArray(writeType, ToFloatRegister(value), dest);
+    if (writeType == Scalar::Float32) {
+        masm.storeFloat32(ToFloatRegister(value), dest);
+    } else if (writeType == Scalar::Float64) {
+        masm.storeDouble(ToFloatRegister(value), dest);
     } else {
         if (value->isConstant())
             masm.storeToTypedIntArrayNative(writeType, Imm32(ToInt32(value)), dest);
@@ -10937,7 +10941,9 @@ CodeGenerator::visitStoreUnboxedScalar(LStoreUnboxedScalar* lir)
     if (lir->index()->isConstant()) {
         Address dest(elements, ToInt32(lir->index()) * width + mir->offsetAdjustment());
 #if defined(JS_CODEGEN_PPC_OSX)
-        if (mir->target() == MStoreUnboxedScalar::TypedArrayTarget)
+        if (mir->target() == MStoreUnboxedScalar::TypedArrayTarget ||
+            (mir->target() == MStoreUnboxedScalar::TypedObjectTarget &&
+             writeType != Scalar::Float32 && writeType != Scalar::Float64))
             StoreToTypedArray(masm, writeType, value, dest);
         else
             StoreToTypedArrayNative(masm, writeType, value, dest);
@@ -10948,7 +10954,9 @@ CodeGenerator::visitStoreUnboxedScalar(LStoreUnboxedScalar* lir)
         BaseIndex dest(elements, ToRegister(lir->index()), ScaleFromElemWidth(width),
                        mir->offsetAdjustment());
 #if defined(JS_CODEGEN_PPC_OSX)
-        if (mir->target() == MStoreUnboxedScalar::TypedArrayTarget)
+        if (mir->target() == MStoreUnboxedScalar::TypedArrayTarget ||
+            (mir->target() == MStoreUnboxedScalar::TypedObjectTarget &&
+             writeType != Scalar::Float32 && writeType != Scalar::Float64))
             StoreToTypedArray(masm, writeType, value, dest);
         else
             StoreToTypedArrayNative(masm, writeType, value, dest);

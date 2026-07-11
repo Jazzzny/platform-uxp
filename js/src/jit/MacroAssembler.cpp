@@ -520,6 +520,66 @@ template void MacroAssembler::loadFromTypedArrayNative(Scalar::Type arrayType, c
 template void MacroAssembler::loadFromTypedArrayNative(Scalar::Type arrayType, const BaseIndex& src,
                                                        AnyRegister dest, Register temp, Label* fail,
                                                        bool canonicalizeDoubles);
+
+template<typename T>
+void
+MacroAssembler::loadFromTypedArrayNative(Scalar::Type arrayType, const T& src,
+                                         const ValueOperand& dest, bool allowDouble,
+                                         Register temp, Label* fail)
+{
+    switch (arrayType) {
+      case Scalar::Int8:
+      case Scalar::Uint8:
+      case Scalar::Uint8Clamped:
+      case Scalar::Int16:
+      case Scalar::Uint16:
+      case Scalar::Int32:
+        loadFromTypedArrayNative(arrayType, src, AnyRegister(dest.scratchReg()), InvalidReg,
+                                 nullptr);
+        tagValue(JSVAL_TYPE_INT32, dest.scratchReg(), dest);
+        break;
+      case Scalar::Uint32:
+        load32(src, temp);
+        if (allowDouble) {
+            Label done, isDouble;
+            branchTest32(Assembler::Signed, temp, temp, &isDouble);
+            tagValue(JSVAL_TYPE_INT32, temp, dest);
+            jump(&done);
+            bind(&isDouble);
+            convertUInt32ToDouble(temp, ScratchDoubleReg);
+            boxDouble(ScratchDoubleReg, dest);
+            bind(&done);
+        } else {
+            branchTest32(Assembler::Signed, temp, temp, fail);
+            tagValue(JSVAL_TYPE_INT32, temp, dest);
+        }
+        break;
+      case Scalar::Float32:
+        loadFromTypedArrayNative(arrayType, src, AnyRegister(ScratchFloat32Reg),
+                                 dest.scratchReg(), nullptr);
+        convertFloat32ToDouble(ScratchFloat32Reg, ScratchDoubleReg);
+        boxDouble(ScratchDoubleReg, dest);
+        break;
+      case Scalar::Float64:
+        loadFromTypedArrayNative(arrayType, src, AnyRegister(ScratchDoubleReg),
+                                 dest.scratchReg(), nullptr);
+        boxDouble(ScratchDoubleReg, dest);
+        break;
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+        jump(fail);
+        break;
+      default:
+        MOZ_CRASH("Invalid typed array type");
+    }
+}
+
+template void MacroAssembler::loadFromTypedArrayNative(Scalar::Type arrayType, const Address& src,
+                                                       const ValueOperand& dest, bool allowDouble,
+                                                       Register temp, Label* fail);
+template void MacroAssembler::loadFromTypedArrayNative(Scalar::Type arrayType, const BaseIndex& src,
+                                                       const ValueOperand& dest, bool allowDouble,
+                                                       Register temp, Label* fail);
 #endif
 
 template<typename T>

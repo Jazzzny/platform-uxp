@@ -1643,6 +1643,10 @@ class MacroAssembler : public MacroAssemblerSpecific
     template<typename T>
     void loadFromTypedArrayNative(Scalar::Type arrayType, const T& src, AnyRegister dest, Register temp,
                                   Label* fail, bool canonicalizeDoubles = true);
+
+    template<typename T>
+    void loadFromTypedArrayNative(Scalar::Type arrayType, const T& src, const ValueOperand& dest,
+                                  bool allowDouble, Register temp, Label* fail);
 #endif
 
     template<typename T>
