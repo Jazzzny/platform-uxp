@@ -334,7 +334,10 @@ LoadTypedFloat32(MacroAssembler& masm, const BaseIndex& src, FloatRegister dest,
 static void
 LoadTypedFloat64(MacroAssembler& masm, const Address& src, FloatRegister dest, Register temp)
 {
-    Register scratch = temp == InvalidReg ? tempRegister : temp;
+    // The LIR temp may alias src.base.  A two-word load must preserve the
+    // base after loading the first half, so use PPC's reserved scratch.
+    (void) temp;
+    Register scratch = tempRegister;
     masm.reserveStack(sizeof(double));
     masm.load32ByteSwapped(src, scratch);
     masm.store32(scratch, Address(masm.getStackPointer(), sizeof(uint32_t)));
@@ -347,7 +350,10 @@ LoadTypedFloat64(MacroAssembler& masm, const Address& src, FloatRegister dest, R
 static void
 LoadTypedFloat64(MacroAssembler& masm, const BaseIndex& src, FloatRegister dest, Register temp)
 {
-    Register scratch = temp == InvalidReg ? tempRegister : temp;
+    // computeScaledAddress leaves the effective address in
+    // addressTempRegister; tempRegister is free once that computation ends.
+    (void) temp;
+    Register scratch = tempRegister;
     masm.reserveStack(sizeof(double));
     masm.computeScaledAddress(src, addressTempRegister);
     masm.load32ByteSwapped(Address(addressTempRegister, src.offset), scratch);

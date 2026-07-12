@@ -402,6 +402,9 @@ class IonBuilder
     MInstruction* addGroupGuard(MDefinition* obj, ObjectGroup* group, BailoutKind bailoutKind);
     MInstruction* addUnboxedExpandoGuard(MDefinition* obj, bool hasExpando, BailoutKind bailoutKind);
     MInstruction* addSharedTypedArrayGuard(MDefinition* obj);
+#if defined(JS_CODEGEN_PPC_OSX)
+    MInstruction* addFixedLengthTypedArrayGuard(MDefinition* obj);
+#endif
 
     MInstruction*
     addGuardReceiverPolymorphic(MDefinition* obj, const BaselineInspector::ReceiverVector& receivers);

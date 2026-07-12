@@ -9764,6 +9764,13 @@ IonBuilder::getStaticTypedArrayObject(MDefinition* obj, MDefinition* index)
         return nullptr;
     }
 
+#if defined(JS_CODEGEN_PPC_OSX)
+    if (tarrObj->as<TypedArrayObject>().hasResizableOrGrowableBuffer()) {
+        trackOptimizationOutcome(TrackedOutcome::AccessNotTypedArray);
+        return nullptr;
+    }
+#endif
+
     TypeSet::ObjectKey* tarrKey = TypeSet::ObjectKey::get(tarrObj);
     if (tarrKey->unknownProperties()) {
         trackOptimizationOutcome(TrackedOutcome::UnknownProperties);
@@ -10299,6 +10306,10 @@ bool
 IonBuilder::jsop_getelem_typed(MDefinition* obj, MDefinition* index,
                                Scalar::Type arrayType)
 {
+#if defined(JS_CODEGEN_PPC_OSX)
+    addFixedLengthTypedArrayGuard(obj);
+#endif
+
     TemporaryTypeSet* types = bytecodeTypes(pc);
 
     bool maybeUndefined = types->hasType(TypeSet::UndefinedType());
@@ -10878,6 +10889,10 @@ bool
 IonBuilder::jsop_setelem_typed(Scalar::Type arrayType,
                                MDefinition* obj, MDefinition* id, MDefinition* value)
 {
+#if defined(JS_CODEGEN_PPC_OSX)
+    addFixedLengthTypedArrayGuard(obj);
+#endif
+
     SetElemICInspector icInspect(inspector->setElemICInspector(pc));
     bool expectOOB = icInspect.sawOOBTypedArrayWrite();
 
@@ -14589,6 +14604,16 @@ IonBuilder::addSharedTypedArrayGuard(MDefinition* obj)
     current->add(guard);
     return guard;
 }
+
+#if defined(JS_CODEGEN_PPC_OSX)
+MInstruction*
+IonBuilder::addFixedLengthTypedArrayGuard(MDefinition* obj)
+{
+    MGuardSharedTypedArray* guard = MGuardSharedTypedArray::New(alloc(), obj, true);
+    current->add(guard);
+    return guard;
+}
+#endif
 
 TemporaryTypeSet*
 IonBuilder::bytecodeTypes(jsbytecode* pc)

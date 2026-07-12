@@ -11040,6 +11040,17 @@ CodeGenerator::visitGuardSharedTypedArray(LGuardSharedTypedArray* guard)
     Register obj = ToRegister(guard->input());
     Register tmp = ToRegister(guard->tempInt());
 
+#if defined(JS_CODEGEN_PPC_OSX)
+    if (guard->mir()->rejectsResizableOrGrowable()) {
+        masm.loadPtr(Address(obj, TypedArrayObject::offsetOfElements()), tmp);
+        masm.load32(Address(tmp, ObjectElements::offsetOfFlags()), tmp);
+        bailoutTest32(Assembler::NonZero, tmp,
+                      Imm32(ObjectElements::RESIZABLE_OR_GROWABLE_BUFFER),
+                      guard->snapshot());
+        return;
+    }
+#endif
+
     // The shared-memory flag is a bit in the ObjectElements header
     // that is set if the TypedArray is mapping a SharedArrayBuffer.
     // The flag is set at construction and does not change subsequently.
@@ -11964,7 +11975,11 @@ CodeGenerator::visitInterruptCheck(LInterruptCheck* lir)
     OutOfLineCode* ool = oolCallVM(InterruptCheckInfo, lir, ArgList(), StoreNothing());
 
     AbsoluteAddress interruptAddr(GetJitContext()->runtime->addressOfInterruptUint32());
+#if defined(JS_CODEGEN_PPC_OSX)
+    masm.branch32NonZeroFast(interruptAddr, ool->entry());
+#else
     masm.branch32(Assembler::NotEqual, interruptAddr, Imm32(0), ool->entry());
+#endif
     masm.bind(ool->rejoin());
 }
 

@@ -5513,6 +5513,27 @@ jit::ElementAccessIsTypedArray(CompilerConstraintList* constraints,
                                MDefinition* obj, MDefinition* id,
                                Scalar::Type* arrayType)
 {
+#if defined(JS_CODEGEN_PPC_OSX)
+    if (obj->mightBeType(MIRType::String))
+        return false;
+
+    if (id->type() != MIRType::Int32 && id->type() != MIRType::Double)
+        return false;
+
+    TemporaryTypeSet* types = obj->resultTypeSet();
+    if (!types)
+        return false;
+
+    *arrayType = types->getTypedArrayType(constraints);
+
+    if (*arrayType == Scalar::MaxTypedArrayViewType ||
+        Scalar::isBigIntType(*arrayType))
+    {
+        return false;
+    }
+
+    return true;
+#else
     (void) constraints;
     (void) obj;
     (void) id;
@@ -5522,6 +5543,7 @@ jit::ElementAccessIsTypedArray(CompilerConstraintList* constraints,
     // length/out-of-bounds handling. This older MIR path assumes stable
     // typed-array length/data slots, so keep element accesses on IC/VM paths.
     return false;
+#endif
 }
 
 bool
