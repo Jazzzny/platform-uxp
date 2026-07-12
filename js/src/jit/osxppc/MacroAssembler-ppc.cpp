@@ -1326,6 +1326,19 @@ MacroAssemblerPPC::ma_sd(FloatRegister ft, Address address)
 void
 MacroAssemblerPPC::ma_sd(FloatRegister ft, BaseIndex address)
 {
+    if (address.offset == 0) {
+        int32_t shift = Imm32::ShiftOf(address.scale).value;
+        if (shift) {
+            MOZ_ASSERT(address.index != tempRegister);
+            MOZ_ASSERT(address.base != tempRegister);
+            x_slwi(tempRegister, address.index, shift);
+            stfdx(ft, address.base, tempRegister);
+        } else {
+            stfdx(ft, address.base, address.index);
+        }
+        return;
+    }
+
     computeScaledAddress(address, addressTempRegister);
     ma_sd(ft, Address(addressTempRegister, address.offset));
 }
@@ -3835,7 +3848,7 @@ MacroAssemblerPPCCompat::retn(Imm32 n)
 {
 	ispew("retn");
 	// The return address is on top of the stack, not LR.
-	
+
     lwz(tempRegister, stackPointerRegister, 0);
     x_mtctr(tempRegister); // LR is now restored, new dispatch group
     addi(stackPointerRegister, stackPointerRegister, n.value);
