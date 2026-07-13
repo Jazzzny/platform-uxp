@@ -311,12 +311,18 @@ DeallocateProcessExecutableMemory(void* addr, size_t bytes)
 static unsigned
 ProtectionSettingToFlags(ProtectionSetting protection)
 {
+#if defined(JS_CODEGEN_PPC_OSX)
+    // Darwin/PowerPC takes a very expensive kernel path for mprotect. Keep JIT
+    // pages writable and executable, as the tenfourfox did.
+    return PROT_READ | PROT_WRITE | PROT_EXEC;
+#else
     switch (protection) {
       case ProtectionSetting::Protected:  return PROT_NONE;
       case ProtectionSetting::Writable:   return PROT_READ | PROT_WRITE;
       case ProtectionSetting::Executable: return PROT_READ | PROT_EXEC;
     }
     MOZ_CRASH();
+#endif
 }
 
 static void
@@ -652,6 +658,11 @@ js::jit::CanLikelyAllocateMoreExecutableMemory()
 bool
 js::jit::ReprotectRegion(void* start, size_t size, ProtectionSetting protection)
 {
+#if defined(JS_CODEGEN_PPC_OSX)
+    // PPC JIT mappings are permanently RWX; avoid a syscall for every link,
+    // inline-cache patch, and barrier toggle.
+    return true;
+#else
     // Calculate the start of the page containing this region,
     // and account for this extra memory within size.
     size_t pageSize = gc::SystemPageSize();
@@ -681,4 +692,5 @@ js::jit::ReprotectRegion(void* start, size_t size, ProtectionSetting protection)
 
     execMemory.assertValidAddress(pageStart, size);
     return true;
+#endif
 }
