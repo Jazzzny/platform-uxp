@@ -2239,7 +2239,8 @@ CodeGeneratorPPC::generateInvalidateEpilogue()
     // Ensure that there is enough space in the buffer for the OsiPoint
     // patching to occur. Otherwise, we could overwrite the invalidation
     // epilogue.
-    for (size_t i = 0; i < sizeof(void *); i += Assembler::NopSize())
+    for (size_t i = 0; i < Assembler::PatchWrite_NearCallSize();
+         i += Assembler::NopSize())
         masm.x_nop();
 
     masm.bind(&invalidate_);

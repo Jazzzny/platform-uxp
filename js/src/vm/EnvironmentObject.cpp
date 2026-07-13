@@ -2548,7 +2548,11 @@ DebugEnvironments::takeFrameSnapshot(JSContext* cx, Handle<DebugEnvironmentProxy
             cx->recoverFromOutOfMemory();
             return;
         }
+#if defined(JS_CODEGEN_PPC_OSX)
+        for (uint32_t slot = frameSlotStart; slot < frameSlotEnd; slot++)
+#else
         for (uint32_t slot = frameSlotStart; slot < frameSlotCount; slot++)
+#endif
             vec[slot - frameSlotStart].set(frame.unaliasedLocal(slot));
     }
 
@@ -2638,7 +2642,15 @@ DebugEnvironments::onPopGeneric(JSContext* cx, const EnvironmentIter& ei)
     MOZ_ASSERT(ei.scope().is<Scope>());
 
     Rooted<Environment*> env(cx);
+#if defined(JS_CODEGEN_PPC_OSX)
+    Rooted<DebugEnvironmentProxy*> missingDebugEnv(cx);
+#endif
     if (MissingEnvironmentMap::Ptr p = envs->missingEnvs.lookup(MissingEnvironmentKey(ei))) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        // Synthesized environments are not entered in proxiedEnvs. Keep the
+        // proxy alive after removing its missingEnvs entry so it can snapshot.
+        missingDebugEnv = p->value();
+#endif
         env = &p->value()->environment().as<Environment>();
         envs->missingEnvs.remove(p);
     } else if (ei.hasSyntacticEnvironment()) {
@@ -2648,10 +2660,20 @@ DebugEnvironments::onPopGeneric(JSContext* cx, const EnvironmentIter& ei)
     if (env) {
         envs->liveEnvs.remove(env);
 
+#if defined(JS_CODEGEN_PPC_OSX)
+        Rooted<DebugEnvironmentProxy*> debugEnv(cx, missingDebugEnv);
+        if (!debugEnv) {
+            if (JSObject* obj = envs->proxiedEnvs.lookup(env))
+                debugEnv = &obj->as<DebugEnvironmentProxy>();
+        }
+        if (debugEnv)
+            DebugEnvironments::takeFrameSnapshot(cx, debugEnv, ei.initialFrame());
+#else
         if (JSObject* obj = envs->proxiedEnvs.lookup(env)) {
             Rooted<DebugEnvironmentProxy*> debugEnv(cx, &obj->as<DebugEnvironmentProxy>());
             DebugEnvironments::takeFrameSnapshot(cx, debugEnv, ei.initialFrame());
         }
+#endif
     }
 }
 
