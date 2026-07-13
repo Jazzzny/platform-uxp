@@ -148,6 +148,10 @@ class BumpChunk
 
 } // namespace detail
 
+#if defined(JS_CODEGEN_PPC_OSX)
+void PurgePPC32KChunkCache();
+#endif
+
 // LIFO bump allocator: used for phase-oriented and fast LIFO allocations.
 //
 // Note: |latest| is not necessary "last". We leave BumpChunks latent in the

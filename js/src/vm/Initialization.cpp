@@ -14,6 +14,9 @@
 #include "jstypes.h"
 
 #include "builtin/AtomicsObject.h"
+#if defined(JS_CODEGEN_PPC_OSX)
+#  include "ds/LifoAlloc.h"
+#endif
 #include "ds/MemoryProtectionExceptionHandler.h"
 #include "gc/Statistics.h"
 #include "jit/ExecutableAllocator.h"
@@ -145,6 +148,10 @@ JS_ShutDown(void)
     FutexRuntime::destroy();
 
     js::DestroyHelperThreadsState();
+
+#if defined(JS_CODEGEN_PPC_OSX)
+    js::PurgePPC32KChunkCache();
+#endif
 
 #ifdef JS_TRACE_LOGGING
     js::DestroyTraceLoggerThreadState();

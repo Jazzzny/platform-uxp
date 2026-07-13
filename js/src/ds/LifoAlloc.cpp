@@ -13,13 +13,82 @@ using mozilla::RoundUpPow2;
 using mozilla::tl::BitSize;
 
 namespace js {
+
+#if defined(JS_CODEGEN_PPC_OSX)
+static const size_t PPCChunkCacheChunkSize = 32 * 1024;
+static const size_t PPCChunkCacheCapacity = 64;
+static void* ppcChunkCache[PPCChunkCacheCapacity];
+static size_t ppcChunkCacheCount;
+static volatile int ppcChunkCacheLock;
+
+class AutoPPCChunkCacheLock
+{
+  public:
+    AutoPPCChunkCacheLock() {
+        while (__sync_lock_test_and_set(&ppcChunkCacheLock, 1)) {}
+    }
+
+    ~AutoPPCChunkCacheLock() {
+        __sync_lock_release(&ppcChunkCacheLock);
+    }
+};
+
+static void*
+TakeCachedPPCChunk(size_t chunkSize)
+{
+    if (chunkSize != PPCChunkCacheChunkSize)
+        return nullptr;
+
+    AutoPPCChunkCacheLock lock;
+    if (!ppcChunkCacheCount)
+        return nullptr;
+    return ppcChunkCache[--ppcChunkCacheCount];
+}
+
+static bool
+CachePPCChunk(void* chunk, size_t chunkSize)
+{
+    if (chunkSize != PPCChunkCacheChunkSize)
+        return false;
+
+    AutoPPCChunkCacheLock lock;
+    if (ppcChunkCacheCount == PPCChunkCacheCapacity)
+        return false;
+    ppcChunkCache[ppcChunkCacheCount++] = chunk;
+    return true;
+}
+
+void
+PurgePPC32KChunkCache()
+{
+    void* chunks[PPCChunkCacheCapacity];
+    size_t count;
+    {
+        AutoPPCChunkCacheLock lock;
+        count = ppcChunkCacheCount;
+        for (size_t i = 0; i < count; i++)
+            chunks[i] = ppcChunkCache[i];
+        ppcChunkCacheCount = 0;
+    }
+
+    for (size_t i = 0; i < count; i++)
+        js_free(chunks[i]);
+}
+#endif
+
 namespace detail {
 
 BumpChunk*
 BumpChunk::new_(size_t chunkSize)
 {
     MOZ_ASSERT(RoundUpPow2(chunkSize) == chunkSize);
+#if defined(JS_CODEGEN_PPC_OSX)
+    void* mem = TakeCachedPPCChunk(chunkSize);
+    if (!mem)
+        mem = js_malloc(chunkSize);
+#else
     void* mem = js_malloc(chunkSize);
+#endif
     if (!mem)
         return nullptr;
     BumpChunk* result = new (mem) BumpChunk(chunkSize - sizeof(BumpChunk));
@@ -34,12 +103,18 @@ BumpChunk::new_(size_t chunkSize)
 void
 BumpChunk::delete_(BumpChunk* chunk)
 {
+#if defined(DEBUG) || defined(JS_CODEGEN_PPC_OSX)
+    size_t size = sizeof(*chunk) + chunk->bumpSpaceSize;
+#endif
 #ifdef DEBUG
     // Part of the chunk may have been marked as poisoned/noaccess.  Undo that
     // before writing the 0xcd bytes.
-    size_t size = sizeof(*chunk) + chunk->bumpSpaceSize;
     MOZ_MAKE_MEM_UNDEFINED(chunk, size);
     memset(chunk, 0xcd, size);
+#endif
+#if defined(JS_CODEGEN_PPC_OSX)
+    if (CachePPCChunk(chunk, size))
+        return;
 #endif
     js_free(chunk);
 }
