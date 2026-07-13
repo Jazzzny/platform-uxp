@@ -365,9 +365,20 @@ IonBuilder::inlineNativeGetter(CallInfo& callInfo, JSFunction* target)
 
     // Try to optimize typed array lengths.
     if (TypedArrayObject::isOriginalLengthGetter(native)) {
+#if defined(JS_CODEGEN_PPC_OSX)
+        Scalar::Type type = thisTypes->getTypedArrayType(constraints());
+        if (type == Scalar::MaxTypedArrayViewType)
+            return InliningStatus_NotInlined;
+
+        addFixedLengthTypedArrayGuard(thisArg);
+        MInstruction* length = addTypedArrayLength(thisArg);
+        current->push(length);
+        return InliningStatus_Inlined;
+#else
         // RAB/GSAB views can have dynamic length or temporarily become
         // out-of-bounds. Let the property IC/VM path handle the getter.
         return InliningStatus_NotInlined;
+#endif
     }
 
     // Try to optimize RegExp getters.
@@ -2476,10 +2487,29 @@ IsTypedArrayObject(CompilerConstraintList* constraints, MDefinition* def)
 IonBuilder::InliningStatus
 IonBuilder::inlinePossiblyWrappedTypedArrayLength(CallInfo& callInfo)
 {
+#if defined(JS_CODEGEN_PPC_OSX)
+    MOZ_ASSERT(!callInfo.constructing());
+    MOZ_ASSERT(callInfo.argc() == 1);
+    if (callInfo.getArg(0)->type() != MIRType::Object)
+        return InliningStatus_NotInlined;
+    if (getInlineReturnType() != MIRType::Int32)
+        return InliningStatus_NotInlined;
+
+    if (!IsTypedArrayObject(constraints(), callInfo.getArg(0)))
+        return InliningStatus_NotInlined;
+
+    addFixedLengthTypedArrayGuard(callInfo.getArg(0));
+    MInstruction* length = addTypedArrayLength(callInfo.getArg(0));
+    current->push(length);
+
+    callInfo.setImplicitlyUsedUnchecked();
+    return InliningStatus_Inlined;
+#else
     (void) callInfo;
 
     // RAB/GSAB views require dynamic length semantics.
     return InliningStatus_NotInlined;
+#endif
 }
 
 IonBuilder::InliningStatus

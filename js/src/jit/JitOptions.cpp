@@ -147,11 +147,7 @@ DefaultJitOptions::DefaultJitOptions()
 
     // How many invocations or loop iterations are needed before functions
     // are compiled with the baseline compiler.
-#ifdef JS_CODEGEN_PPC_OSX
-    SET_DEFAULT(baselineWarmUpThreshold, 2);
-#else
     SET_DEFAULT(baselineWarmUpThreshold, 10);
-#endif
 
     // Number of exception bailouts (resuming into catch/finally block) before
     // we invalidate and forbid Ion compilation.

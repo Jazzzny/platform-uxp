@@ -165,11 +165,17 @@ class TypedArrayObject : public NativeObject
         return getFixedSlot(LENGTH_SLOT).toInt32() == LENGTH_TRACKING;
     }
     bool hasResizableOrGrowableBuffer() const {
+#if defined(JS_CODEGEN_PPC_OSX)
+        // Typed arrays do not use dense elements, so this immutable header bit
+        // is the cheapest way to distinguish dynamic-length views.
+        return getElementsHeader()->hasResizableOrGrowableBuffer();
+#else
         if (!hasBuffer())
             return false;
         if (isSharedMemory())
             return bufferShared()->isGrowable();
         return bufferUnshared()->isResizable();
+#endif
     }
     uint32_t byteOffsetMaybeOutOfBounds() const {
         Value v = getFixedSlot(BYTEOFFSET_SLOT);
@@ -205,6 +211,11 @@ class TypedArrayObject : public NativeObject
         return byteLength > bufferByteLength - offset;
     }
     uint32_t byteOffset() const {
+#if defined(JS_CODEGEN_PPC_OSX)
+        // Detaching a fixed buffer zeros this slot in notifyBufferDetached.
+        if (!hasResizableOrGrowableBuffer())
+            return byteOffsetMaybeOutOfBounds();
+#endif
         if (isOutOfBounds())
             return 0;
         return byteOffsetMaybeOutOfBounds();
@@ -213,6 +224,12 @@ class TypedArrayObject : public NativeObject
         return length() * bytesPerElement();
     }
     uint32_t length() const {
+#if defined(JS_CODEGEN_PPC_OSX)
+        // Fixed views retain the pre-RAB representation. Detach explicitly
+        // zeros LENGTH_SLOT, so no buffer walk is needed here.
+        if (!hasResizableOrGrowableBuffer())
+            return fixedLengthMaybeOutOfBounds();
+#endif
         if (!isLengthTracking()) {
             if (isOutOfBounds())
                 return 0;
