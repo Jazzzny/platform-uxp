@@ -106,5 +106,8 @@ av_cold void ff_vp9dsp_init(VP9DSPContext *dsp, int bpp, int bitexact)
     ff_vp9dsp_init_mips(dsp, bpp);
 #elif ARCH_LOONGARCH == 1
     ff_vp9dsp_init_loongarch(dsp, bpp);
+// Readd if ffvpx is upgraded
+#elif ARCH_PPC == 1
+    ff_vp9dsp_init_ppc(dsp, bpp);
 #endif
 }

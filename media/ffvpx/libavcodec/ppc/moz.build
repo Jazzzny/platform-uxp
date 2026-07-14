@@ -6,7 +6,8 @@
 SOURCES += [
     'hpeldsp_altivec.c',
     'videodsp.c',
-    'vp8dsp_altivec.c'
+    'vp8dsp_altivec.c',
+    'vp9dsp_altivec.c'
 ]
 
 FINAL_LIBRARY = 'mozavcodec'
