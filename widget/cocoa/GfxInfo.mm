@@ -34,6 +34,8 @@ OSXVersionToOperatingSystem(uint32_t aOSXVersion) {
   switch (nsCocoaFeatures::ExtractMajorVersion(aOSXVersion)) {
     case 10:
       switch (nsCocoaFeatures::ExtractMinorVersion(aOSXVersion)) {
+        case 4:
+          return OperatingSystem::OSX10_4;
         case 5:
           return OperatingSystem::OSX10_5;
         case 6:
@@ -435,6 +437,7 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
     } else if (aFeature == nsIGfxInfo::FEATURE_CANVAS2D_ACCELERATION) {
       // See bug 1249659
       switch(os) {
+        case OperatingSystem::OSX10_4:
         case OperatingSystem::OSX10_5:
         case OperatingSystem::OSX10_6:
         case OperatingSystem::OSX10_7:

@@ -50,6 +50,7 @@ enum class OperatingSystem {
   Windows10,
   Linux,
   OSX,
+  OSX10_4,
   OSX10_5,
   OSX10_6,
   OSX10_7,

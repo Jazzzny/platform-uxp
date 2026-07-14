@@ -257,6 +257,8 @@ BlacklistOSToOperatingSystem(const nsAString& os)
     return OperatingSystem::Windows10;
   else if (os.EqualsLiteral("Linux"))
     return OperatingSystem::Linux;
+  else if (os.EqualsLiteral("Darwin 8"))
+    return OperatingSystem::OSX10_4;
   else if (os.EqualsLiteral("Darwin 9"))
     return OperatingSystem::OSX10_5;
   else if (os.EqualsLiteral("Darwin 10"))
