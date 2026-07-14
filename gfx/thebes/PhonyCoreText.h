@@ -42,6 +42,8 @@ Cameron Kaiser */
 #include <CoreFoundation/CFData.h>
 #include <CoreFoundation/CFDictionary.h>
 #include <CoreFoundation/CFSet.h>
+#include <CoreServices/CoreServices.h>
+#include <dlfcn.h>
 
 __CKEXTERNBEGIN
 
@@ -112,10 +114,6 @@ __CKEXTERN CFArrayRef CTFontDescriptorCopyMatchingFontDescriptors(CTFontDescript
 /* Fonts */
 
 typedef const struct __CTFont *CTFontRef; /* opaque */
-__CKEXTERN CTFontRef CTFontCreateWithPlatformFont(ATSFontRef atsfont, double size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
-__CKEXTERN CTFontRef CTFontCreateWithGraphicsFont(CGFontRef cgfont, double size, const CGAffineTransform *atrans, CTFontDescriptorRef attribs);
-__CKEXTERN CTFontRef CTFontCreateWithFontDescriptor(CTFontDescriptorRef descriptor, double size, const CGAffineTransform *matrix);
-__CKEXTERN CTFontRef CTFontCreateWithName(CFStringRef name, double size, const CGAffineTransform *matrix);
 __CKEXTERN CTFontRef CTFontCreateForString(CTFontRef currentFont, CFStringRef string, CFRange range);
 __CKEXTERN const CFStringRef kCTFontAttributeName;
 __CKEXTERN float CTFontGetSize(CTFontRef font);
@@ -167,4 +165,123 @@ __CKEXTERN void CTRunGetStringIndices(CTRunRef run, CFRange range, CFIndex si[])
 __CKEXTERN double CTRunGetTypographicBounds(CTRunRef run, CFRange range, float *x, float *y, float *z); /* I suspect ascent/descent/leading */
 
 __CKEXTERNEND
+
+/*
+ * Tiger's private CoreText uses double for CTFont sizes, but Leopard's public
+ * ABI uses CGFloat. On 32-bit Leopard CGFloat is float, so a 10.4-built binary
+ * that directly calls the Tiger signature will pass the wrong argument layout
+ * and crash inside CoreText. Route size-taking CTFont constructors through
+ * dlsym wrappers so the same binary can call the Tiger private ABI on 10.4 and
+ * the public CGFloat ABI on 10.5+.
+ */
+
+static inline int
+PhonyCoreTextUseLeopardABI()
+{
+  static int sUseLeopardABI = -1;
+  if (sUseLeopardABI < 0) {
+    SInt32 systemVersion = 0;
+    sUseLeopardABI =
+      (Gestalt(gestaltSystemVersion, &systemVersion) == noErr &&
+       systemVersion >= 0x1050);
+  }
+  return sUseLeopardABI;
+}
+
+static inline void*
+PhonyCoreTextLookup(const char* aName, void** aCachedSymbol)
+{
+  if (!*aCachedSymbol) {
+    *aCachedSymbol = dlsym(RTLD_DEFAULT, aName);
+  }
+  return *aCachedSymbol;
+}
+
+static inline CTFontRef
+PhonyCTFontCreateWithPlatformFont(ATSFontRef aFont, double aSize,
+                                  const CGAffineTransform* aMatrix,
+                                  CTFontDescriptorRef aAttributes)
+{
+  static void* sFunc = NULL;
+  void* fn = PhonyCoreTextLookup("CTFontCreateWithPlatformFont", &sFunc);
+  if (!fn) {
+    return NULL;
+  }
+  if (PhonyCoreTextUseLeopardABI()) {
+    typedef CTFontRef (*LeopardFunc)(ATSFontRef, float,
+                                     const CGAffineTransform*,
+                                     CTFontDescriptorRef);
+    return ((LeopardFunc)fn)(aFont, (float)aSize, aMatrix, aAttributes);
+  }
+  typedef CTFontRef (*TigerFunc)(ATSFontRef, double,
+                                 const CGAffineTransform*,
+                                 CTFontDescriptorRef);
+  return ((TigerFunc)fn)(aFont, aSize, aMatrix, aAttributes);
+}
+
+static inline CTFontRef
+PhonyCTFontCreateWithGraphicsFont(CGFontRef aFont, double aSize,
+                                  const CGAffineTransform* aMatrix,
+                                  CTFontDescriptorRef aAttributes)
+{
+  static void* sFunc = NULL;
+  void* fn = PhonyCoreTextLookup("CTFontCreateWithGraphicsFont", &sFunc);
+  if (!fn) {
+    return NULL;
+  }
+  if (PhonyCoreTextUseLeopardABI()) {
+    typedef CTFontRef (*LeopardFunc)(CGFontRef, float,
+                                     const CGAffineTransform*,
+                                     CTFontDescriptorRef);
+    return ((LeopardFunc)fn)(aFont, (float)aSize, aMatrix, aAttributes);
+  }
+  typedef CTFontRef (*TigerFunc)(CGFontRef, double,
+                                 const CGAffineTransform*,
+                                 CTFontDescriptorRef);
+  return ((TigerFunc)fn)(aFont, aSize, aMatrix, aAttributes);
+}
+
+static inline CTFontRef
+PhonyCTFontCreateWithFontDescriptor(CTFontDescriptorRef aDescriptor,
+                                    double aSize,
+                                    const CGAffineTransform* aMatrix)
+{
+  static void* sFunc = NULL;
+  void* fn = PhonyCoreTextLookup("CTFontCreateWithFontDescriptor", &sFunc);
+  if (!fn) {
+    return NULL;
+  }
+  if (PhonyCoreTextUseLeopardABI()) {
+    typedef CTFontRef (*LeopardFunc)(CTFontDescriptorRef, float,
+                                     const CGAffineTransform*);
+    return ((LeopardFunc)fn)(aDescriptor, (float)aSize, aMatrix);
+  }
+  typedef CTFontRef (*TigerFunc)(CTFontDescriptorRef, double,
+                                 const CGAffineTransform*);
+  return ((TigerFunc)fn)(aDescriptor, aSize, aMatrix);
+}
+
+static inline CTFontRef
+PhonyCTFontCreateWithName(CFStringRef aName, double aSize,
+                          const CGAffineTransform* aMatrix)
+{
+  static void* sFunc = NULL;
+  void* fn = PhonyCoreTextLookup("CTFontCreateWithName", &sFunc);
+  if (!fn) {
+    return NULL;
+  }
+  if (PhonyCoreTextUseLeopardABI()) {
+    typedef CTFontRef (*LeopardFunc)(CFStringRef, float,
+                                     const CGAffineTransform*);
+    return ((LeopardFunc)fn)(aName, (float)aSize, aMatrix);
+  }
+  typedef CTFontRef (*TigerFunc)(CFStringRef, double,
+                                 const CGAffineTransform*);
+  return ((TigerFunc)fn)(aName, aSize, aMatrix);
+}
+
+#define CTFontCreateWithPlatformFont PhonyCTFontCreateWithPlatformFont
+#define CTFontCreateWithGraphicsFont PhonyCTFontCreateWithGraphicsFont
+#define CTFontCreateWithFontDescriptor PhonyCTFontCreateWithFontDescriptor
+#define CTFontCreateWithName PhonyCTFontCreateWithName
 #endif /* __PHONYCORETEXT_H */
