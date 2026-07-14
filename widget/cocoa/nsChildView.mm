@@ -7749,12 +7749,14 @@ static const char* ToEscapedString(NSString* aString, nsAutoCString& aBuf)
   }
 
   // Let Cocoa interpret the key events, caching IsIMEComposing first.
-  // We don't do it if this came from performKeyEquivalent because
-  // interpretKeyEvents isn't set up to handle those key combinations.
-  // XXX?
+  // Command key equivalents are dispatched to Gecko by performKeyEquivalent:.
+  // Tiger's interpretKeyEvents: treats some of them as text-system commands,
+  // which can consume the shortcut or make NSResponder beep.
   bool wasComposing = nsTSMManager::IsComposing();
   bool interpretKeyEventsCalled = false;
-  if (//!isKeyEquiv && // XXX? Cameron
+  bool isKeyEquivalent =
+    (nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NSCommandKeyMask) != 0;
+  if (!isKeyEquivalent &&
       (nsTSMManager::IsIMEEnabled() || nsTSMManager::IsRomanKeyboardsOnly())) {
     [super interpretKeyEvents:[NSArray arrayWithObject:theEvent]];
     interpretKeyEventsCalled = true;

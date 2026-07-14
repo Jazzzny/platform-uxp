@@ -156,15 +156,17 @@ typedef NSInteger NSEventGestureAxis;
 #endif // #if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
 #endif // #if !defined(MAC_OS_X_VERSION_10_7) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7)
 
-#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
-@protocol NSTextInputClient @end
-#endif
-
 @interface ChildView : NSView<
 #ifdef ACCESSIBILITY
                               mozAccessible,
 #endif
-                              mozView, NSTextInputClient>
+                              mozView,
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+                              NSTextInputClient
+#else
+                              NSTextInput
+#endif
+                              >
 {
 @private
   // the nsChildView that created the view. It retains this NSView, so
