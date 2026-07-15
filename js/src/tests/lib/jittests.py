@@ -8,17 +8,27 @@
 
 from __future__ import print_function
 import os, posixpath, sys, tempfile, traceback, time
+import platform
 import subprocess
 from collections import namedtuple
 import io
 
-if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
-    from .tasks_unix import run_all_tests
-else:
-    from .tasks_win import run_all_tests
+try:
+    if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
+        from .tasks_unix import run_all_tests
+    else:
+        from .tasks_win import run_all_tests
 
-from .progressbar import ProgressBar, NullProgressBar
-from .results import TestOutput
+    from .progressbar import ProgressBar, NullProgressBar
+    from .results import TestOutput
+except (ImportError, ValueError):
+    if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
+        from tasks_unix import run_all_tests
+    else:
+        from tasks_win import run_all_tests
+
+    from progressbar import ProgressBar, NullProgressBar
+    from results import TestOutput
 
 TESTS_LIB_DIR = os.path.dirname(os.path.abspath(__file__))
 JS_DIR = os.path.dirname(os.path.dirname(TESTS_LIB_DIR))
@@ -403,6 +413,12 @@ def check_output(out, err, rc, timed_out, test, options):
             return True
 
         if sys.platform != 'win32' and rc == -11:
+            return True
+
+        # MOZ_RELEASE_ASSERT traps as SIGBUS on Darwin PowerPC.
+        if (sys.platform == 'darwin' and
+            platform.machine().lower() in ('power macintosh', 'powerpc', 'ppc') and
+            rc == -10):
             return True
 
         # When building with ASan enabled, ASan will convert the -11 returned

@@ -37,6 +37,11 @@ def changedir(dirname):
     finally:
         os.chdir(pwd)
 
+def ensure_parent_dir(path):
+    parent = dirname(path)
+    if parent and not os.path.isdir(parent):
+        os.makedirs(parent)
+
 
 def parse_args():
     """
@@ -230,9 +235,13 @@ def parse_args():
         if not options.show_cmd:
             options.show_output = True
         try:
+            ensure_parent_dir(options.output_file)
             options.output_fp = open(options.output_file, 'w')
         except IOError as ex:
             raise SystemExit("Failed to open output file: " + str(ex))
+
+    if options.failure_file:
+        options.failure_file = abspath(options.failure_file)
 
     # Hide the progress bar if it will get in the way of other output.
     options.hide_progress = (options.format == 'automation' or
@@ -257,7 +266,7 @@ def load_tests(options, requested_paths, excluded_paths):
             xul_info = manifest.XULInfo.create(options.js_shell)
         else:
             xul_abi, xul_os, xul_debug = options.xul_info_src.split(r':')
-            xul_debug = xul_debug.lower() is 'true'
+            xul_debug = xul_debug.lower() == 'true'
             xul_info = manifest.XULInfo(xul_abi, xul_os, xul_debug)
         xul_tester = manifest.XULInfoTester(xul_info, options.js_shell)
 

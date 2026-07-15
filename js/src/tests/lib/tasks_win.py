@@ -6,10 +6,17 @@ from __future__ import print_function, unicode_literals, division
 import subprocess
 import sys
 from datetime import datetime, timedelta
-from .progressbar import ProgressBar
-from .results import NullTestOutput, TestOutput, escape_cmdline
+try:
+    from .progressbar import ProgressBar
+    from .results import NullTestOutput, TestOutput, escape_cmdline
+except (ImportError, ValueError):
+    from progressbar import ProgressBar
+    from results import NullTestOutput, TestOutput, escape_cmdline
 from threading import Thread
-from queue import Queue, Empty
+try:
+    from queue import Queue, Empty
+except ImportError:
+    from Queue import Queue, Empty
 
 
 class EndMarker:

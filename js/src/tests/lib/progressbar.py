@@ -5,9 +5,15 @@ import math
 import sys
 
 if sys.platform.startswith('win'):
-    from .terminal_win import Terminal
+    try:
+        from .terminal_win import Terminal
+    except (ImportError, ValueError):
+        from terminal_win import Terminal
 else:
-    from .terminal_unix import Terminal
+    try:
+        from .terminal_unix import Terminal
+    except (ImportError, ValueError):
+        from terminal_unix import Terminal
 
 class NullProgressBar(object):
     def update(self, current, data): pass

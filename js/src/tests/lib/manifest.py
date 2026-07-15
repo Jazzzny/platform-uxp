@@ -7,7 +7,10 @@ from __future__ import print_function
 import os, re, sys
 from subprocess import Popen, PIPE
 
-from .tests import RefTestCase
+try:
+    from .tests import RefTestCase
+except (ImportError, ValueError):
+    from tests import RefTestCase
 
 
 def split_path_into_dirs(path):
@@ -121,6 +124,10 @@ def _parse_one(testcase, xul_tester):
     parts = testcase.terms.split()
     while pos < len(parts):
         if parts[pos] == 'fails':
+            testcase.expect = False
+            pos += 1
+        elif parts[pos].startswith('error:'):
+            # Imported Test262 negative tests use error:<type> metadata.
             testcase.expect = False
             pos += 1
         elif parts[pos] == 'skip':

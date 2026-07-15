@@ -7,6 +7,7 @@
 Reflect.Loader = new class {
     constructor() {
         this.registry = new Map();
+        this.modulePaths = new Map();
         this.loadPath = getModuleLoadPath();
     }
 
@@ -30,7 +31,14 @@ Reflect.Loader = new class {
         let source = this.fetch(path);
         let module = parseModule(source, path);
         this.registry.set(path, module);
+        this.modulePaths.set(module, path);
         return module;
+    }
+
+    loadAndExecute(name) {
+        let module = this.loadAndParse(name);
+        module.declarationInstantiation();
+        return module.evaluation();
     }
 
     ["import"](name, referencingInfo) {
@@ -53,18 +61,18 @@ Reflect.Loader = new class {
 };
 
 setModuleResolveHook((referencingInfo, requestName) => {
-    let path = ReflectLoader.resolve(requestName, referencingInfo);
-    return ReflectLoader.loadAndParse(path);
+    let path = Reflect.Loader.resolve(requestName, referencingInfo);
+    return Reflect.Loader.loadAndParse(path);
 });
  
 setModuleMetadataHook((module, metaObject) => {
-    ReflectLoader.populateImportMeta(module, metaObject);
+    Reflect.Loader.populateImportMeta(module, metaObject);
 });
  
 setModuleDynamicImportHook((referencingInfo, specifier, promise) => {
     try {
-        let path = ReflectLoader.resolve(specifier, referencingInfo);
-        ReflectLoader.loadAndExecute(path);
+        let path = Reflect.Loader.resolve(specifier, referencingInfo);
+        Reflect.Loader.loadAndExecute(path);
         finishDynamicModuleImport(referencingInfo, specifier, promise);
     } catch (err) {
         abortDynamicModuleImport(referencingInfo, specifier, promise, err);

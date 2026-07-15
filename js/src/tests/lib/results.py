@@ -1,12 +1,24 @@
 from __future__ import print_function
 
+import os
 import re
-from .progressbar import NullProgressBar, ProgressBar
-import pipes
+try:
+    from .progressbar import NullProgressBar, ProgressBar
+except (ImportError, ValueError):
+    from progressbar import NullProgressBar, ProgressBar
+try:
+    from shlex import quote as shell_quote
+except ImportError:
+    from pipes import quote as shell_quote
 
 # subprocess.list2cmdline does not properly escape for sh-like shells
 def escape_cmdline(args):
-    return ' '.join([pipes.quote(a) for a in args])
+    return ' '.join([shell_quote(a) for a in args])
+
+def ensure_parent_dir(path):
+    parent = os.path.dirname(path)
+    if parent and not os.path.isdir(parent):
+        os.makedirs(parent)
 
 class TestOutput:
     """Output from a test run."""
@@ -207,7 +219,9 @@ class ResultsSink:
 
     def finish(self, completed):
         self.pb.finish(completed)
-        if not self.options.format == 'automation':
+        if self.options.format == 'automation':
+            self.write_failure_file()
+        else:
             self.list(completed)
 
     # Conceptually, this maps (test result x test expection) to text labels.
@@ -240,22 +254,28 @@ class ResultsSink:
                 print('    {}'.format(' '.join(result.test.jitflags +
                                                [result.test.path])))
 
-        if self.options.failure_file:
-            failure_file = open(self.options.failure_file, 'w')
-            if not self.all_passed():
-                if 'REGRESSIONS' in self.groups:
-                    for result in self.groups['REGRESSIONS']:
-                        print(result.test.path, file=failure_file)
-                if 'TIMEOUTS' in self.groups:
-                    for result in self.groups['TIMEOUTS']:
-                        print(result.test.path, file=failure_file)
-            failure_file.close()
+        self.write_failure_file()
 
         suffix = '' if completed else ' (partial run -- interrupted by user)'
         if self.all_passed():
             print('PASS' + suffix)
         else:
             print('FAIL' + suffix)
+
+    def write_failure_file(self):
+        if not self.options.failure_file:
+            return
+
+        ensure_parent_dir(self.options.failure_file)
+        failure_file = open(self.options.failure_file, 'w')
+        if not self.all_passed():
+            if 'REGRESSIONS' in self.groups:
+                for result in self.groups['REGRESSIONS']:
+                    print(result.test.path, file=failure_file)
+            if 'TIMEOUTS' in self.groups:
+                for result in self.groups['TIMEOUTS']:
+                    print(result.test.path, file=failure_file)
+        failure_file.close()
 
     def all_passed(self):
         return 'REGRESSIONS' not in self.groups and 'TIMEOUTS' not in self.groups

@@ -69,13 +69,13 @@ class Level(namedtuple("Level", ["MAJOR", "MINOR", "PATCH", "PRERELEASE", "PRERE
         if prerelease is None:
             prerelease_num = 0
 
-        return super().__new__(
+        return tuple.__new__(
             cls,
-            norm(major),
-            norm(minor),
-            norm(patch),
-            prerelease,
-            norm(prerelease_num)
+            (norm(major),
+             norm(minor),
+             norm(patch),
+             prerelease,
+             norm(prerelease_num))
         )
 
     # Provide structured views without changing the underlying storage.
@@ -142,7 +142,7 @@ class TokenLevel(tuple):
             else:
                 normalized.append(part)
 
-        return super().__new__(cls, normalized)
+        return tuple.__new__(cls, normalized)
 
 
     @property
@@ -253,7 +253,7 @@ class RichVersion(BaseVersion):
                 components.append(int(token))
             else:
                 components.append(token)
-            current.clear()
+            del current[:]
 
         for ch in version_string:
             if ch.isdigit():

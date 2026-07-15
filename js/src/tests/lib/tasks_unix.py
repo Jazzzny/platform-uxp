@@ -1,11 +1,17 @@
+from __future__ import print_function
+
 # A unix-oriented process dispatcher.  Uses a single thread with select and
 # waitpid to dispatch tasks.  This avoids several deadlocks that are possible
 # with fork/exec + threads + Python.
 
 import errno, os, select, sys
 from datetime import datetime, timedelta
-from .progressbar import ProgressBar
-from .results import NullTestOutput, TestOutput, escape_cmdline
+try:
+    from .progressbar import ProgressBar
+    from .results import NullTestOutput, TestOutput, escape_cmdline
+except (ImportError, ValueError):
+    from progressbar import ProgressBar
+    from results import NullTestOutput, TestOutput, escape_cmdline
 
 class Task(object):
     def __init__(self, test, prefix, pid, stdout, stderr):
@@ -220,4 +226,3 @@ def run_all_tests(tests, prefix, pb, options):
         # the test harness is at least not frozen.
         if len(finished) == 0:
             pb.poke()
-

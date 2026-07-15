@@ -8,7 +8,12 @@ from contextlib import contextmanager
 from subprocess import Popen, PIPE
 from threading import Thread
 
-from .results import TestOutput
+try:
+    from .results import TestOutput
+except (ImportError, ValueError):
+    from results import TestOutput
+
+TEST_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # When run on tbpl, we run each test multiple times with the following
 # arguments.
@@ -149,8 +154,11 @@ class RefTest(object):
         if path == '':
             return ['-f', 'shell.js']
         head, base = os.path.split(path)
-        return RefTest.prefix_command(head) \
-            + ['-f', os.path.join(path, 'shell.js')]
+        command = RefTest.prefix_command(head)
+        shell = os.path.join(path, 'shell.js')
+        if os.path.isfile(os.path.join(TEST_DIR, shell)):
+            command += ['-f', shell]
+        return command
 
     def get_command(self, prefix):
         dirname, filename = os.path.split(self.path)
