@@ -2767,7 +2767,7 @@ pref("editor.positioning.offset",            0);
 
 pref("dom.use_watchdog", true);
 pref("dom.max_chrome_script_run_time", 30);
-pref("dom.max_script_run_time", 15);
+pref("dom.max_script_run_time", 30);
 
 // Automatically terminate non-responsive scripts if script_run_time expires.
 pref("dom.always_stop_slow_scripts", false);
