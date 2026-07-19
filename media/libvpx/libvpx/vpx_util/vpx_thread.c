@@ -203,7 +203,7 @@ static void end(VPxWorker *const worker) {
 
 //------------------------------------------------------------------------------
 
-static VPxWorkerInterface g_worker_interface = { init,   reset,   sync,
+static VPxWorkerInterface g_worker_interface = { init,   reset,   worker_sync,
                                                  launch, execute, end };
 
 int vpx_set_worker_interface(const VPxWorkerInterface *const winterface) {
