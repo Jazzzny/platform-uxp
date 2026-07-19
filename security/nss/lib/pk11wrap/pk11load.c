@@ -378,6 +378,11 @@ softoken_LoadDSO(void)
         softokenLib = handle;
         return PR_SUCCESS;
     }
+    PRErrorCode error = PR_GetError();
+    const char *errorName = PR_ErrorToName(error);
+    fprintf(stderr,
+            "PowerFox NSS softoken: load failed error=%d(%s) osError=%d\n",
+            error, errorName ? errorName : "unknown", PR_GetOSError());
     return PR_FAILURE;
 }
 #else
@@ -422,8 +427,18 @@ secmod_LoadPKCS11Module(SECMODModule *mod, SECMODModule **oldModule)
          * even though the rest of NSS assumes this as the "internal" module.
          */
         if (!softokenLib &&
-            PR_SUCCESS != PR_CallOnce(&loadSoftokenOnce, &softoken_LoadDSO))
+            PR_SUCCESS != PR_CallOnce(&loadSoftokenOnce, &softoken_LoadDSO)) {
+            PRErrorCode error = PR_GetError();
+            const char *errorName = PR_ErrorToName(error);
+            fprintf(stderr,
+                    "PowerFox NSS softoken: PR_CallOnce load failed "
+                    "initialized=%d inProgress=%d status=%d "
+                    "error=%d(%s) osError=%d\n",
+                    loadSoftokenOnce.initialized, loadSoftokenOnce.inProgress,
+                    loadSoftokenOnce.status, error,
+                    errorName ? errorName : "unknown", PR_GetOSError());
             return SECFailure;
+        }
 
         PR_ATOMIC_INCREMENT(&softokenLoadCount);
 
@@ -438,11 +453,28 @@ secmod_LoadPKCS11Module(SECMODModule *mod, SECMODModule **oldModule)
         ientry = (CK_C_GetInterface)
             PR_FindSymbol(softokenLib, nss_interface);
         if (!ientry) {
+            PRErrorCode error = PR_GetError();
+            const char *errorName = PR_ErrorToName(error);
+            fprintf(stderr,
+                    "PowerFox NSS softoken: missing symbol '%s' handle=%p "
+                    "error=%d(%s) osError=%d\n",
+                    nss_interface, (void *)softokenLib, error,
+                    errorName ? errorName : "unknown", PR_GetOSError());
             fentry = (CK_C_GetFunctionList)
                 PR_FindSymbol(softokenLib, nss_function);
             if (!fentry) {
+                error = PR_GetError();
+                errorName = PR_ErrorToName(error);
+                fprintf(stderr,
+                        "PowerFox NSS softoken: missing fallback symbol '%s' "
+                        "handle=%p error=%d(%s) osError=%d\n",
+                        nss_function, (void *)softokenLib, error,
+                        errorName ? errorName : "unknown", PR_GetOSError());
                 return SECFailure;
             }
+            fprintf(stderr,
+                    "PowerFox NSS softoken: using fallback symbol '%s'\n",
+                    nss_function);
         }
 #endif
 
@@ -453,6 +485,15 @@ secmod_LoadPKCS11Module(SECMODModule *mod, SECMODModule **oldModule)
 #else
                 PR_FindSymbol(softokenLib, "NSC_ModuleDBFunc");
 #endif
+            if (!mod->moduleDBFunc) {
+                PRErrorCode error = PR_GetError();
+                const char *errorName = PR_ErrorToName(error);
+                fprintf(stderr,
+                        "PowerFox NSS softoken: missing NSC_ModuleDBFunc "
+                        "handle=%p error=%d(%s) osError=%d\n",
+                        (void *)softokenLib, error,
+                        errorName ? errorName : "unknown", PR_GetOSError());
+            }
         }
 
         if (mod->moduleDBOnly) {

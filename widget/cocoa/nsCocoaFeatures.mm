@@ -15,6 +15,7 @@
 #define MACOS_MINOR_VERSION_MASK 0x00FFFFFF
 #define MACOS_BUGFIX_VERSION_MASK 0x00FFFFFF
 #define MACOS_VERSION_10_0_HEX 0x000A0000
+#define MACOS_VERSION_10_3_HEX 0x000A0300
 #define MACOS_VERSION_10_4_HEX 0x000A0400
 #define MACOS_VERSION_10_5_HEX 0x000A0500
 #define MACOS_VERSION_10_6_HEX 0x000A0600
@@ -97,15 +98,10 @@ int32_t nsCocoaFeatures::GetVersion(int32_t aMajor, int32_t aMinor, int32_t aBug
   int32_t macOSVersion;
   if (aMajor < 10) {
     aMajor = 10;
-    aMinor = 4;
+    aMinor = 3;
     aBugFix = 0;
-    NS_ERROR("Couldn't determine macOS version, assuming 10.4");
-    macOSVersion = MACOS_VERSION_10_4_HEX;
-  } else if (aMajor == 10 && aMinor < 4) {
-    aMinor = 4;
-    aBugFix = 0;
-    NS_ERROR("macOS version too old, assuming 10.4");
-    macOSVersion = MACOS_VERSION_10_4_HEX;
+    NS_WARNING("Couldn't determine macOS version, assuming 10.3");
+    macOSVersion = MACOS_VERSION_10_3_HEX;
   } else {
     MOZ_ASSERT(aMajor >= 10);
     MOZ_ASSERT(aMajor < 256);
@@ -165,6 +161,12 @@ nsCocoaFeatures::macOSVersionMinor()
 nsCocoaFeatures::macOSVersionBugFix()
 {
   return ExtractBugFixVersion(macOSVersion());
+}
+
+/* static */ bool
+nsCocoaFeatures::OnTigerOrLater()
+{
+    return (macOSVersion() >= MACOS_VERSION_10_4_HEX);
 }
 
 /* static */ bool

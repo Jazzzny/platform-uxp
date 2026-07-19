@@ -31,7 +31,11 @@ void InitCocoaMultiThreading() {
     [NSThread detachNewThreadSelector:@selector(class)
                              toTarget:[NSObject class]
                            withObject:nil];
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     [hack drain];
+#else
+    [hack release];
+#endif
   }
 
   assert([NSThread isMultiThreaded]);

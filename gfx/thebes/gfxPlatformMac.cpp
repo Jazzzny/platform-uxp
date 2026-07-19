@@ -23,7 +23,10 @@
 #include "gfx2DGlue.h"
 
 #include <dlfcn.h>
+#include <sys/resource.h>
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
 #include <CoreVideo/CoreVideo.h>
+#endif
 
 #include "nsCocoaFeatures.h"
 #include "mozilla/layers/CompositorBridgeParent.h"
@@ -583,6 +586,7 @@ gfxPlatformMac::ReadAntiAliasingThreshold()
 }
 
 // This is the renderer output callback function, called on the vsync thread
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
 static CVReturn VsyncCallback(CVDisplayLinkRef aDisplayLink,
                               const CVTimeStamp* aNow,
                               const CVTimeStamp* aOutputTime,
@@ -788,6 +792,13 @@ gfxPlatformMac::CreateHardwareVsyncSource()
   primaryDisplay.DisableVsync();
   return osxVsyncSource.forget();
 }
+#else
+already_AddRefed<mozilla::gfx::VsyncSource>
+gfxPlatformMac::CreateHardwareVsyncSource()
+{
+  return gfxPlatform::CreateHardwareVsyncSource();
+}
+#endif
 
 void
 gfxPlatformMac::GetPlatformCMSOutputProfile(void* &mem, size_t &size)

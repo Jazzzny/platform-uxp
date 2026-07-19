@@ -29,6 +29,16 @@
 #define NSPrintJobSavingFileNameExtensionHidden @"NSJobSavingFileNameExtensionHidden"
 #endif
 
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+#define NSPrintPrinterName @"NSPrintPrinterName"
+#define NSPrintFaxNumber @"NSPrintFaxNumber"
+#define NSPrintTime @"NSPrintTime"
+#define NSPrintPagesAcross @"NSPrintPagesAcross"
+#define NSPrintPagesDown @"NSPrintPagesDown"
+#define NSPrintDetailedErrorReporting @"NSPrintDetailedErrorReporting"
+#define NSPrintHeaderAndFooter @"NSPrintHeaderAndFooter"
+#endif
+
 using namespace mozilla::embedding;
 
 nsPrintOptionsX::nsPrintOptionsX()

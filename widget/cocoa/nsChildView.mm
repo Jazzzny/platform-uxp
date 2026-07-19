@@ -88,6 +88,12 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 
+#if !defined(MAC_OS_X_VERSION_10_4) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+@interface NSEvent (PantherGestureEvents)
+- (float)rotation;
+@end
+#endif
+
 #include "GeckoProfiler.h"
 
 #include "nsIDOMWheelEvent.h"
@@ -1822,6 +1828,12 @@ nsChildView::ShouldUseOffMainThreadCompositing()
     }
   }
 
+#if !defined(MAC_OS_X_VERSION_10_4) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+  if (!nsCocoaFeatures::OnTigerOrLater()) {
+    return false;
+  }
+#endif
+
   if (sBadGPU == 1) {
     return false;
   }
@@ -2100,6 +2112,7 @@ bool nsChildView::DoHasPendingInputEvent()
 /* static */
 uint32_t nsChildView::GetCurrentInputEventCount()
 {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   // Can't use kCGAnyInputEventType because that updates too rarely for us (and
   // always in increments of 30+!) and because apparently it's sort of broken
   // on Tiger.  So just go ahead and query the counters we care about.
@@ -2127,6 +2140,9 @@ uint32_t nsChildView::GetCurrentInputEventCount()
                                        eventTypes[i]);
   }
   return eventCount;
+#else
+  return 0;
+#endif
 }
 
 /* static */
@@ -2979,7 +2995,8 @@ nsChildView::UpdateTitlebarCGContext()
     CGContextTranslateCTM(ctx, 0, [frameView bounds].size.height);
     CGContextScaleCTM(ctx, 1, -1);
   }
-  NSGraphicsContext* context = [NSGraphicsContext graphicsContextWithGraphicsPort:ctx flipped:[frameView isFlipped]];
+  NSGraphicsContext* context =
+    nsCocoaUtils::CreateNSGraphicsContext(ctx, [frameView isFlipped]);
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
   [context retain];
 #endif
@@ -3019,7 +3036,8 @@ nsChildView::UpdateTitlebarCGContext()
       CGContextScaleCTM(ctx, 1, -1);
     }
 
-    [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:ctx flipped:[view isFlipped]]];
+    [NSGraphicsContext setCurrentContext:
+      nsCocoaUtils::CreateNSGraphicsContext(ctx, [view isFlipped])];
 
 #if defined(MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)
     if ([window useBrightTitlebarForeground] && !nsCocoaFeatures::OnYosemiteOrLater() &&
@@ -4730,7 +4748,8 @@ extern "C" void CGContextSetCompositeOperation (CGContextRef,
     CGContextTranslateCTM(ctx, 0, [self bounds].size.height);
     CGContextScaleCTM(ctx, 1, -1);
   }
-  [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:ctx flipped:[frameView isFlipped]]];
+  [NSGraphicsContext setCurrentContext:
+    nsCocoaUtils::CreateNSGraphicsContext(ctx, [frameView isFlipped])];
   [frameView _drawTitleBar:[frameView bounds]];
   CGContextRestoreGState(ctx);
   [NSGraphicsContext setCurrentContext:oldContext];
@@ -5048,6 +5067,8 @@ extern "C" void CGContextSetCompositeOperation (CGContextRef,
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   if (!anEvent || !mGeckoChild)
+    return;
+  if (![anEvent respondsToSelector:@selector(rotation)])
     return;
 
   nsAutoRetainCocoaObject kungFuDeathGrip(self);
@@ -5675,6 +5696,22 @@ GetIntegerDeltaForEvent(NSEvent* aEvent)
     return;
   }
 
+#if !defined(MAC_OS_X_VERSION_10_4) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+  // We cover AppKit's real titlebar, but Panther needs the native traffic lights
+  // Refresh the native controls in our cached titlebar image whenever a
+  // wheel event is sent to Gecko, so scrolling cannot leave them stale or
+  // temporarily missing.
+  NSWindow* window = [self window];
+  [[window standardWindowButton:NSWindowCloseButton] setNeedsDisplay:YES];
+  [[window standardWindowButton:NSWindowMiniaturizeButton] setNeedsDisplay:YES];
+  [[window standardWindowButton:NSWindowZoomButton] setNeedsDisplay:YES];
+  NSButton* toolbarButton =
+    [window standardWindowButton:NSWindowToolbarButton];
+  if (![toolbarButton isHidden]) {
+    [toolbarButton setNeedsDisplay:YES];
+  }
+#endif
+
   NSEventPhase phase = nsCocoaUtils::EventPhase(theEvent);
   // Fire eWheelOperationStart/End events when 2 fingers touch/release the
   // touchpad.
@@ -5920,10 +5957,15 @@ GetIntegerDeltaForEvent(NSEvent* aEvent)
       else if (mouseButtons >= 4) // WRONG! but close enough
         mouseEvent->buttons |= WidgetMouseEvent::e5thButtonFlag;
 #endif
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+      // On Panther, subtype is only valid for AppKit-, system-, and
+      // application-defined events.  Asking a mouse event for its subtype
+      // raises NSInternalInconsistencyException.
       if ([aMouseEvent subtype] == NSTabletPointEventSubtype) {
         mouseEvent->pressure = [aMouseEvent pressure];
         MOZ_ASSERT(mouseEvent->pressure >= 0.0 && mouseEvent->pressure <= 1.0);
       }
+#endif
       break;
     }
 
@@ -8990,6 +9032,7 @@ nsTSMManager::InitTSMDocument(NSView<mozView>* aViewForCaret)
   if (!sDocumentID)
     return;
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   // We need to set the focused window level to TSMDocument. Then, the popup
   // windows of IME (E.g., a candidate list window) will be over the focused
   // view. See http://developer.apple.com/technotes/tn2005/tn2128.html#TNTAG1
@@ -9018,6 +9061,7 @@ nsTSMManager::InitTSMDocument(NSView<mozView>* aViewForCaret)
     ::DeactivateTSMDocument(sDocumentID);
     ::ActivateTSMDocument(sDocumentID);
   }
+#endif
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }

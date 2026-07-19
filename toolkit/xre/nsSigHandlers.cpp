@@ -161,11 +161,13 @@ static void fpehandler(int signum, siginfo_t *si, void *context)
 {
   /* Integer divide by zero or integer overflow. */
   /* Note: FPE_INTOVF is ignored on Intel, PowerPC and SPARC systems. */
+#if defined(FPE_INTDIV) && defined(FPE_INTOVF)
   if (si->si_code == FPE_INTDIV || si->si_code == FPE_INTOVF) {
     NS_DebugBreak(NS_DEBUG_ABORT, "Divide by zero", nullptr, __FILE__, __LINE__);
   }
+#endif
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && (defined(__i386__) || defined(__amd64__))
   ucontext_t *uc = (ucontext_t *)context;
 
 #if defined(__i386__) || defined(__amd64__)

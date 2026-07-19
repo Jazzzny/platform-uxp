@@ -6,6 +6,7 @@
 #include "NSSCertDBTrustDomain.h"
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "ExtendedValidation.h"
 #include "NSSErrorsService.h"
@@ -1094,7 +1095,18 @@ InitializeNSS(const nsACString& dir, bool readOnly, bool loadPKCS11Modules)
   dbTypeAndDirectory.Append("sql:");
 
   dbTypeAndDirectory.Append(dir);
-  return ::NSS_Initialize(dbTypeAndDirectory.get(), "", "", SECMOD_DB, flags);
+  SECStatus rv = ::NSS_Initialize(dbTypeAndDirectory.get(), "", "",
+                                  SECMOD_DB, flags);
+  if (rv != SECSuccess) {
+    PRErrorCode error = PORT_GetError();
+    const char* errorName = PR_ErrorToName(error);
+    fprintf(stderr,
+            "PowerFox NSS_Initialize failed: dir='%s' readOnly=%d "
+            "loadPKCS11Modules=%d flags=0x%x error=%d(%s) osError=%d\n",
+            dbTypeAndDirectory.get(), readOnly, loadPKCS11Modules, flags,
+            error, errorName ? errorName : "unknown", PR_GetOSError());
+  }
+  return rv;
 }
 
 void

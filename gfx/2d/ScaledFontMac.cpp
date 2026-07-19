@@ -8,7 +8,9 @@
 #include "PathSkia.h"
 #include "skia/include/core/SkPaint.h"
 #include "skia/include/core/SkPath.h"
+#if MOZ_MAC_USE_CORETEXT
 #include "skia/include/ports/SkTypeface_mac.h"
+#endif
 #endif
 #include "DrawTargetCG.h"
 #include <vector>
@@ -19,8 +21,11 @@
 
 #include <AvailabilityMacros.h>
 
-#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if MOZ_MAC_USE_PHONY_CORETEXT
 #include "../thebes/PhonyCoreText.h"
+#endif
+
+#if !MOZ_MAC_USE_PUBLIC_CORETEXT
 #include "nsTArray.h"
 #endif
 
@@ -46,6 +51,7 @@ CGPathRef CGFontGetGlyphPath(CGFontRef fontRef, CGAffineTransform *textTransform
 namespace mozilla {
 namespace gfx {
 
+#if MOZ_MAC_USE_CORETEXT
 ScaledFontMac::CTFontDrawGlyphsFuncT* ScaledFontMac::CTFontDrawGlyphsPtr = nullptr;
 bool ScaledFontMac::sSymbolLookupDone = false;
 
@@ -75,16 +81,26 @@ ScaledFontMac::ScaledFontMac(CGFontRef aFont, Float aSize)
   CTFontDrawGlyphsPtr = nullptr;
 #endif
 }
+#else
+ScaledFontMac::ScaledFontMac(CGFontRef aFont, Float aSize, ATSFontRef aATSFont)
+  : ScaledFontBase(aSize)
+  , mATSFont(aATSFont)
+{
+  mFont = CGFontRetain(aFont);
+}
+#endif
 
 ScaledFontMac::~ScaledFontMac()
 {
+#if MOZ_MAC_USE_CORETEXT
   if (mCTFont) {
     CFRelease(mCTFont);
   }
+#endif
   CGFontRelease(mFont);
 }
 
-#ifdef USE_SKIA
+#if defined(USE_SKIA) && MOZ_MAC_USE_CORETEXT
 SkTypeface* ScaledFontMac::GetSkTypeface()
 {
   if (!mTypeface) {
@@ -121,7 +137,7 @@ ScaledFontMac::GetPathForGlyphs(const GlyphBuffer &aBuffer, const DrawTarget *aT
           CGAffineTransform flip = CGAffineTransformMakeScale(1, -1);
 
           // CGFontGetGlyphPath is non-public and CoreText can do the same on 10.5 and later
-#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if !MOZ_MAC_USE_PUBLIC_CORETEXT
           CGPathRef glyphPath = ::CGFontGetGlyphPath(mFont, &flip, 0, aBuffer.mGlyphs[i].mIndex);
 #else
           CTFontRef ctFont = CTFontCreateWithGraphicsFont(mFont, 1.0, NULL, NULL);
@@ -235,7 +251,7 @@ struct writeBuf
 bool
 ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
 {
-#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+#if MOZ_MAC_USE_PUBLIC_CORETEXT
     // We'll reconstruct a TTF font from the tables we can get from the CGFont
     CFArrayRef tags = CGFontCopyTableTags(mFont);
     CFIndex count = CFArrayGetCount(tags);
@@ -264,18 +280,22 @@ ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
     CFRelease(tags);
 #else
 
-    // 10.4 doesn't make this easy the way Mozilla wants it, but we'll try.
-    // Since this is a raw CGFont, we have none of the work we already did.
+    // 10.3/10.4 don't make this easy the way Mozilla wants it, but ATS can
+    // still provide the raw sfnt table directory and table data.
     bool CFF = false;
     FallibleTArray<uint8_t> table;
     ByteCount sizer = 0;
-
-    // mFont is a CGFont, and ATSUI won't operate on that, so we need to make
-    // it an ATSFontRef first. If this fails, we're dead.
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     CFStringRef psName = ::CGFontCopyPostScriptName(mFont);
-    ATSFontRef fontRef = ::ATSFontFindFromPostScriptName(psName,
-	kATSOptionFlagsDefault);
-    CFRelease(psName);
+    ATSFontRef fontRef = psName
+      ? ::ATSFontFindFromPostScriptName(psName, kATSOptionFlagsDefault)
+      : kInvalidFont;
+    if (psName) {
+      CFRelease(psName);
+    }
+#else
+    ATSFontRef fontRef = mATSFont;
+#endif
     if (!fontRef || fontRef == kInvalidFont ||
 	fontRef == kATSFontRefUnspecified) {
 		NS_WARNING("Failed PostScript lookup");
@@ -297,15 +317,15 @@ ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
     uint32_t offset = (uint32_t)sizer;
     uint32_t *wtable = (reinterpret_cast<uint32_t *>(table.Elements()));
     TableRecord *records = new TableRecord[count];
-    for (uint32_t i=3; i<(sizer/4); i+=4) { // Skip header
+    for (uint32_t i=3, rec=0; i<(sizer/4) && rec<count; i+=4, rec++) { // Skip header
         uint32_t tag = wtable[i];
         if (tag == TAG_CFF)
             CFF = true;
         // We know the length from the directory, so we can simply import
         // the data. We assume the table exists, and OMG if it doesn't.
 	// This is the equivalent for CGFontCopyTableForTag().
-        records[i].tag = tag;
-        records[i].offset = offset;
+        records[rec].tag = tag;
+        records[rec].offset = offset;
 	ByteCount dataLength = (ByteCount)wtable[i+3];
 	CFMutableDataRef data = ::CFDataCreateMutable(kCFAllocatorDefault,
 		dataLength);
@@ -316,13 +336,13 @@ ScaledFontMac::GetFontFileData(FontFileDataOutput aDataCallback, void *aBaton)
 		CFRelease(data);
 		return false;
 	}
-        records[i].data = data;
-        records[i].length = (uint32_t)dataLength;
+        records[rec].data = data;
+        records[rec].length = (uint32_t)dataLength;
         bool skipChecksumAdjust = (tag == TAG_HEAD); // 'head'
-        records[i].checkSum = CalcTableChecksum(
+        records[rec].checkSum = CalcTableChecksum(
 		reinterpret_cast<const uint32_t*>(CFDataGetBytePtr(data)),
-                records[i].length, skipChecksumAdjust);
-        offset += records[i].length;
+                records[rec].length, skipChecksumAdjust);
+        offset += records[rec].length;
         // 32 bit align the tables
         offset = (offset + 3) & ~3;
     }

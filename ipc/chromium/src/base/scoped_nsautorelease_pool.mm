@@ -16,13 +16,21 @@ ScopedNSAutoreleasePool::ScopedNSAutoreleasePool()
 }
 
 ScopedNSAutoreleasePool::~ScopedNSAutoreleasePool() {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   [autorelease_pool_ drain];
+#else
+  [autorelease_pool_ release];
+#endif
 }
 
 // Cycle the internal pool, allowing everything there to get cleaned up and
 // start anew.
 void ScopedNSAutoreleasePool::Recycle() {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   [autorelease_pool_ drain];
+#else
+  [autorelease_pool_ release];
+#endif
   autorelease_pool_ = [[NSAutoreleasePool alloc] init];
   DCHECK(autorelease_pool_);
 }

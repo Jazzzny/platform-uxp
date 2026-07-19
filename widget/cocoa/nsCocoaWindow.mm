@@ -30,6 +30,7 @@
 #include "nsNativeThemeCocoa.h"
 #include "nsChildView.h"
 #include "nsCocoaFeatures.h"
+#include "nsCocoaUtils.h"
 #include "nsIScreenManager.h"
 #include "nsIWidgetListener.h"
 #include "nsIPresShell.h"
@@ -456,7 +457,11 @@ nsresult nsCocoaWindow::CreateNativeWindow(const NSRect &aRect,
     contentRect.origin.y -= (newWindowFrame.size.height - aRect.size.height);
 
     if (mWindowType != eWindowType_popup)
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
       contentRect.origin.y -= [[NSApp mainMenu] menuBarHeight];
+#else
+      contentRect.origin.y -= [NSMenuView menuBarHeight];
+#endif
   }
 
   // NSLog(@"Top-level window being created at Cocoa rect: %f, %f, %f, %f\n",
@@ -2235,7 +2240,7 @@ void nsCocoaWindow::SetShowsToolbarButton(bool aShow)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
-  if (mWindow)
+  if (mWindow && [mWindow respondsToSelector:@selector(setShowsToolbarButton:)])
     [mWindow setShowsToolbarButton:aShow];
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
@@ -2993,6 +2998,9 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
   mDrawTitle = NO;
   mBrightTitlebarForeground = NO;
   mUseMenuStyle = NO;
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  mShowsToolbarButton = NO;
+#endif
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   [self updateTrackingArea];
 #endif
@@ -3101,7 +3109,9 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   [self setDrawsContentsIntoWindowFrame:[[aState objectForKey:kStateDrawsContentsIntoWindowFrameKey] boolValue]];
   [self setTitlebarColor:[aState objectForKey:kStateActiveTitlebarColorKey] forActiveWindow:YES];
   [self setTitlebarColor:[aState objectForKey:kStateInactiveTitlebarColorKey] forActiveWindow:NO];
-  [self setShowsToolbarButton:[[aState objectForKey:kStateShowsToolbarButton] boolValue]];
+  if ([self respondsToSelector:@selector(setShowsToolbarButton:)]) {
+    [self setShowsToolbarButton:[[aState objectForKey:kStateShowsToolbarButton] boolValue]];
+  }
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   [self setCollectionBehavior:[[aState objectForKey:kStateCollectionBehavior] unsignedIntValue]];
 #endif
@@ -3121,8 +3131,10 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   if (inactiveTitlebarColor) {
     [state setObject:inactiveTitlebarColor forKey:kStateInactiveTitlebarColorKey];
   }
-  [state setObject:[NSNumber numberWithBool:[self showsToolbarButton]]
-            forKey:kStateShowsToolbarButton];
+  if ([self respondsToSelector:@selector(showsToolbarButton)]) {
+    [state setObject:[NSNumber numberWithBool:[self showsToolbarButton]]
+              forKey:kStateShowsToolbarButton];
+  }
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   [state setObject:[NSNumber numberWithUnsignedInt: [self collectionBehavior]]
             forKey:kStateCollectionBehavior];
@@ -3144,6 +3156,26 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 {
   return mDrawsIntoWindowFrame;
 }
+
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+- (void)setShowsToolbarButton:(BOOL)aShow
+{
+  if (mShowsToolbarButton == aShow) {
+    return;
+  }
+
+  mShowsToolbarButton = aShow;
+  [self reflowTitlebarElements];
+  NSButton* toolbarButton = [self standardWindowButton:NSWindowToolbarButton];
+  [toolbarButton setHidden:!aShow];
+  [toolbarButton setNeedsDisplay:YES];
+}
+
+- (BOOL)showsToolbarButton
+{
+  return mShowsToolbarButton;
+}
+#endif
 
 - (void)setWantsTitleDrawn:(BOOL)aDrawTitle
 {
@@ -3301,9 +3333,19 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 - (void)reflowTitlebarElements
 {
   NSView *frameView = [[self contentView] superview];
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   if ([frameView respondsToSelector:@selector(_tileTitlebarAndRedisplay:)]) {
     [frameView _tileTitlebarAndRedisplay:NO];
   }
+#else
+  if ([frameView respondsToSelector:@selector(_tileTitlebar)]) {
+    [frameView _tileTitlebar];
+  }
+  // Panther can change the legacy toolbar pill's visibility while retiling
+  // the frame. Restore the state Gecko requested for this window.
+  [[self standardWindowButton:NSWindowToolbarButton]
+    setHidden:!mShowsToolbarButton];
+#endif
 }
 
 - (NSArray*)titlebarControls
@@ -3312,6 +3354,16 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   NSView* frameView = [[self contentView] superview];
   NSMutableArray* array = [[[frameView subviews] mutableCopy] autorelease];
   [array removeObject:[self contentView]];
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  // Hidden frame controls are still present in -subviews, and nsChildView
+  // draws the returned buttons into its titlebar cache directly. Include the
+  // Panther toolbar pill only for windows whose XUL requests it.
+  NSButton* toolbarButton = [self standardWindowButton:NSWindowToolbarButton];
+  [toolbarButton setHidden:!mShowsToolbarButton];
+  if (!mShowsToolbarButton) {
+    [array removeObjectIdenticalTo:toolbarButton];
+  }
+#endif
   return array;
 }
 
@@ -3838,7 +3890,8 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
     } else {
       // If the titlebar color is not nil, just set and draw it normally.
       [NSGraphicsContext saveGraphicsState];
-      [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:aContext flipped:NO]];
+      [NSGraphicsContext setCurrentContext:
+        nsCocoaUtils::CreateNSGraphicsContext(aContext, NO)];
       [titlebarColor set];
       NSRectFill(titlebarRect);
       [NSGraphicsContext restoreGraphicsState];

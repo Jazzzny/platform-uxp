@@ -32,6 +32,12 @@ using mozilla::LogLevel;
 // Screenshots use the (undocumented) png pasteboard type.
 #define IMAGE_PASTEBOARD_TYPES NSTIFFPboardType, @"Apple PNG pasteboard type", nil
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+#define MOZ_HAS_IMAGEIO 1
+#else
+#define MOZ_HAS_IMAGEIO 0
+#endif
+
 extern PRLogModuleInfo* sCocoaLog;
 
 extern void EnsureLogInitialized();
@@ -243,6 +249,7 @@ nsClipboard::TransferableFromPasteboard(nsITransferable *aTransferable, NSPasteb
       if (!pasteboardData)
         continue;
 
+#if MOZ_HAS_IMAGEIO
       // Figure out what type we're converting to
       CFStringRef outputType = NULL; 
       if (flavorStr.EqualsLiteral(kJPEGImageMime) ||
@@ -290,6 +297,9 @@ nsClipboard::TransferableFromPasteboard(nsITransferable *aTransferable, NSPasteb
         break;
       else
         continue;
+#else
+      continue;
+#endif
     }
   }
 
@@ -536,6 +546,7 @@ nsClipboard::PasteboardDictFromTransferable(nsITransferable* aTransferable)
         continue;
       }
 
+#if MOZ_HAS_IMAGEIO
       // Convert the CGImageRef to TIFF data.
       CFMutableDataRef tiffData = CFDataCreateMutable(kCFAllocatorDefault, 0);
       CGImageDestinationRef destRef = CGImageDestinationCreateWithData(tiffData,
@@ -558,6 +569,10 @@ nsClipboard::PasteboardDictFromTransferable(nsITransferable* aTransferable)
       [pasteboardOutputDict setObject:(NSMutableData*)tiffData forKey:NSTIFFPboardType];
       if (tiffData)
         CFRelease(tiffData);
+#else
+      CGImageRelease(imageRef);
+      continue;
+#endif
     }
     else if (flavorStr.EqualsLiteral(kFileMime)) {
       uint32_t len = 0;

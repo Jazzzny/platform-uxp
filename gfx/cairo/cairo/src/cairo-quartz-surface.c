@@ -79,8 +79,13 @@ CG_EXTERN void CGContextSetCTM (CGContextRef, CGAffineTransform);
 /* We need to work with the 10.3 SDK as well (and 10.3 machines; luckily, 10.3.9
  * has all the stuff we care about, just some of it isn't exported in the SDK.
  */
-#ifndef kCGBitmapByteOrder32Host
+#if (!defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4) || \
+    (defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && \
+     __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1040)
 #define USE_10_3_WORKAROUNDS
+#endif
+
+#ifndef kCGBitmapByteOrder32Host
 #define kCGBitmapAlphaInfoMask 0x1F
 #define kCGBitmapByteOrderMask 0x7000
 #define kCGBitmapByteOrder32Host 0
@@ -709,7 +714,7 @@ _cairo_quartz_fixup_unbounded_operation (cairo_quartz_surface_t *surface,
 	CGAffineTransform ctm = CGContextGetCTM (cgc);
 	CGContextSaveGState (cgc);
 	CGContextConcatCTM (cgc, op->u.mask.maskTransform);
-	CGContextClipToMask (cgc, CGRectMake (0.0f, 0.0f,
+	CGContextClipToMaskPtr (cgc, CGRectMake (0.0f, 0.0f,
 					      CGImageGetWidth(op->u.mask.mask), CGImageGetHeight(op->u.mask.mask)),
 			     op->u.mask.mask);
 	CGContextSetCTM (cgc, ctm);
@@ -1707,7 +1712,7 @@ _cairo_quartz_setup_surface_source (cairo_quartz_surface_t *surface,
     patternSpace = CGColorSpaceCreatePattern (NULL);
     CGContextSetFillColorSpace (context, patternSpace);
     CGContextSetFillPattern (context, pattern, &patternAlpha);
-    CGContextSetStrokeColorSpace (context, patternSpace); 
+    CGContextSetStrokeColorSpace (context, patternSpace);
     CGContextSetStrokePattern (context, pattern, &patternAlpha);
     CGColorSpaceRelease (patternSpace);
 

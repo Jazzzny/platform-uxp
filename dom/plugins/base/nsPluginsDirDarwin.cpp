@@ -62,6 +62,51 @@ static CFBundleRef getPluginBundle(const char* path)
   return bundle;
 }
 
+static bool GetPluginExecutablePath(nsIFile* aPlugin, char* aExecutablePath,
+                                    size_t aExecutablePathLen)
+{
+  if (!aPlugin || !aExecutablePath || aExecutablePathLen == 0) {
+    return false;
+  }
+
+  aExecutablePath[0] = '\0';
+
+  nsAutoCString bundlePath;
+  if (NS_FAILED(aPlugin->GetNativePath(bundlePath))) {
+    return false;
+  }
+
+  CFStringRef pathRef = ::CFStringCreateWithCString(nullptr, bundlePath.get(),
+                                                    kCFStringEncodingUTF8);
+  if (!pathRef) {
+    return false;
+  }
+
+  bool rv = false;
+  CFURLRef bundleURL = ::CFURLCreateWithFileSystemPath(nullptr, pathRef,
+                                                       kCFURLPOSIXPathStyle,
+                                                       true);
+  if (bundleURL) {
+    CFBundleRef bundle = ::CFBundleCreate(nullptr, bundleURL);
+    if (bundle) {
+      CFURLRef executableURL = ::CFBundleCopyExecutableURL(bundle);
+      if (executableURL) {
+        rv = ::CFURLGetFileSystemRepresentation(executableURL, true,
+                                                (UInt8*)aExecutablePath,
+                                                aExecutablePathLen);
+        if (!rv) {
+          aExecutablePath[0] = '\0';
+        }
+        ::CFRelease(executableURL);
+      }
+      ::CFRelease(bundle);
+    }
+    ::CFRelease(bundleURL);
+  }
+  ::CFRelease(pathRef);
+  return rv;
+}
+
 static nsresult toCFURLRef(nsIFile* file, CFURLRef& outURL)
 {
   nsCOMPtr<nsILocalFileMac> lfm = do_QueryInterface(file);
@@ -294,6 +339,15 @@ nsresult nsPluginFile::LoadPlugin(PRLibrary **outLibrary)
   if (!mPlugin)
     return NS_ERROR_NULL_POINTER;
 
+  nsAutoCString bundlePath;
+  if (NS_FAILED(mPlugin->GetNativePath(bundlePath))) {
+    return NS_ERROR_FAILURE;
+  }
+
+  char executablePath[PATH_MAX];
+  executablePath[0] = '\0';
+  const char* loadPath = bundlePath.get();
+
   // 64-bit NSPR does not (yet) support bundles.  So in 64-bit builds we need
   // (for now) to load the bundle's executable.  However this can cause
   // problems:  CFBundleCreate() doesn't run the bundle's executable's
@@ -302,38 +356,20 @@ nsresult nsPluginFile::LoadPlugin(PRLibrary **outLibrary)
   // a bundle's initialization code to run earlier than expected, and lead to
   // crashes.  See bug 577967.
 #ifdef __LP64__
-  char executablePath[PATH_MAX];
-  executablePath[0] = '\0';
-  nsAutoCString bundlePath;
-  mPlugin->GetNativePath(bundlePath);
-  CFStringRef pathRef = ::CFStringCreateWithCString(nullptr, bundlePath.get(),
-                                                    kCFStringEncodingUTF8);
-  if (pathRef) {
-    CFURLRef bundleURL = ::CFURLCreateWithFileSystemPath(nullptr, pathRef,
-                                                         kCFURLPOSIXPathStyle,
-                                                         true);
-    if (bundleURL) {
-      CFBundleRef bundle = ::CFBundleCreate(nullptr, bundleURL);
-      if (bundle) {
-        CFURLRef executableURL = ::CFBundleCopyExecutableURL(bundle);
-        if (executableURL) {
-          if (!::CFURLGetFileSystemRepresentation(executableURL, true, (UInt8*)&executablePath, PATH_MAX))
-            executablePath[0] = '\0';
-          ::CFRelease(executableURL);
-        }
-        ::CFRelease(bundle);
-      }
-      ::CFRelease(bundleURL);
-    }
-    ::CFRelease(pathRef); 
+  if (!GetPluginExecutablePath(mPlugin, executablePath, sizeof(executablePath))) {
+    return NS_ERROR_FAILURE;
   }
+  loadPath = executablePath;
 #else
-  nsAutoCString bundlePath;
-  mPlugin->GetNativePath(bundlePath);
-  const char *executablePath = bundlePath.get();
+  if (!nsCocoaFeatures::IsAtLeastVersion(10, 4)) {
+    if (!GetPluginExecutablePath(mPlugin, executablePath, sizeof(executablePath))) {
+      return NS_ERROR_FAILURE;
+    }
+    loadPath = executablePath;
+  }
 #endif
 
-  *outLibrary = PR_LoadLibrary(executablePath);
+  *outLibrary = PR_LoadLibrary(loadPath);
   pLibrary = *outLibrary;
   if (!pLibrary) {
     return NS_ERROR_FAILURE;

@@ -4,6 +4,39 @@
 
 #include "secport.h"
 #include "nspr.h"
+#include <stdio.h>
+
+static const char*
+loader_ErrorName(PRErrorCode error)
+{
+    const char* name = PR_ErrorToName(error);
+    return name ? name : "unknown";
+}
+
+static void
+loader_LogPRError(const char* context, const char* path)
+{
+    PRErrorCode error = PR_GetError();
+    PRInt32 osError = PR_GetOSError();
+    char errorText[1024];
+    PRInt32 textLen = PR_GetErrorTextLength();
+    if (textLen > 0) {
+        PRInt32 copied = PR_GetErrorText(errorText);
+        if (copied < 0) {
+            errorText[0] = '\0';
+        } else if (copied >= (PRInt32)sizeof(errorText)) {
+            errorText[sizeof(errorText) - 1] = '\0';
+        } else {
+            errorText[copied] = '\0';
+        }
+    } else {
+        errorText[0] = '\0';
+    }
+    fprintf(stderr,
+            "PowerFox NSS: %s path='%s' error=%d(%s) osError=%d text='%s'\n",
+            context, path ? path : "(null)", error, loader_ErrorName(error),
+            osError, errorText);
+}
 
 #ifdef XP_UNIX
 #include <unistd.h>
@@ -89,8 +122,38 @@ loader_LoadLibInReferenceDir(const char* referencePath, const char* name)
                                                        | PR_LD_ALT_SEARCH_PATH
 #endif
             );
+#if defined(DARWIN)
+            if (!dlh) {
+                loader_LogPRError("failed loading from reference directory",
+                                  fullName);
+                dlh = PR_LoadLibraryWithFlags(libSpec, PR_LD_NOW
+#ifdef PR_LD_ALT_SEARCH_PATH
+                                                       | PR_LD_ALT_SEARCH_PATH
+#endif
+                );
+                if (!dlh) {
+                    loader_LogPRError("failed loading from reference directory without PR_LD_LOCAL",
+                                      fullName);
+                } else {
+                    fprintf(stderr,
+                            "PowerFox NSS: loaded without PR_LD_LOCAL path='%s'\n",
+                            fullName);
+                }
+            }
+#else
+            if (!dlh) {
+                loader_LogPRError("failed loading from reference directory",
+                                  fullName);
+            }
+#endif
             PORT_Free(fullName);
+        } else {
+            loader_LogPRError("failed allocating reference-directory path",
+                              name);
         }
+    } else {
+        loader_LogPRError("reference path had no directory separator",
+                          referencePath);
     }
     return dlh;
 }
@@ -164,6 +227,8 @@ PORT_LoadLibraryFromOrigin(const char* existingShLibName,
         }
 #endif
         PR_Free(fullPath);
+    } else {
+        loader_LogPRError("failed resolving origin library", existingShLibName);
     }
     if (!lib) {
 #ifdef DEBUG_LOADER
@@ -172,11 +237,30 @@ PORT_LoadLibraryFromOrigin(const char* existingShLibName,
         libSpec.type = PR_LibSpec_Pathname;
         libSpec.value.pathname = newShLibName;
         lib = PR_LoadLibraryWithFlags(libSpec, PR_LD_NOW | PR_LD_LOCAL);
+#if defined(DARWIN)
+        if (!lib) {
+            loader_LogPRError("failed loading by library name", newShLibName);
+            lib = PR_LoadLibraryWithFlags(libSpec, PR_LD_NOW);
+            if (!lib) {
+                loader_LogPRError("failed loading by library name without PR_LD_LOCAL",
+                                  newShLibName);
+            } else {
+                fprintf(stderr,
+                        "PowerFox NSS: loaded without PR_LD_LOCAL path='%s'\n",
+                        newShLibName ? newShLibName : "(null)");
+            }
+        }
+#else
+        if (!lib) {
+            loader_LogPRError("failed loading by library name", newShLibName);
+        }
+#endif
     }
     if (NULL == lib) {
 #ifdef DEBUG_LOADER
         PR_fprintf(PR_STDOUT, "\nLoading failed : %s.\n", newShLibName);
 #endif
+        loader_LogPRError("final load failure", newShLibName);
     }
     return lib;
 }

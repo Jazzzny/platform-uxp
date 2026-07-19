@@ -1891,7 +1891,11 @@ nsLocalFile::SetPersistentDescriptor(const nsACString& aPersistentDescriptor)
 
   // Cast to an alias record and resolve.
   AliasRecord aliasHeader = *(AliasPtr)decodedData;
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   int32_t aliasSize = ::GetAliasSizeFromPtr(&aliasHeader);
+#else
+  int32_t aliasSize = aliasHeader.aliasSize;
+#endif
   if (aliasSize > ((int32_t)dataSize * 3) / 4) { // be paranoid about having too few data
     PR_Free(decodedData);
     return NS_ERROR_FAILURE;

@@ -341,6 +341,11 @@ public:
    */
   static nsresult CreateNSImageFromCGImage(CGImageRef aInputImage, NSImage **aResult);
 
+  // Wrap a Core Graphics context for AppKit drawing.  Panther uses its
+  // private existing-CGS-context wrapper; 10.4 and later use the public API.
+  static NSGraphicsContext* CreateNSGraphicsContext(CGContextRef aContext,
+                                                    BOOL aFlipped);
+
   /** Creates a Cocoa <code>NSImage</code> from a frame of an <code>imgIContainer</code>.
       Combines the two methods above. The caller owns the <code>NSImage</code>.
       @param aImage the image to extract a frame from

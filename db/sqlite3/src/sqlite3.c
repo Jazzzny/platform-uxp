@@ -38944,6 +38944,14 @@ SQLITE_PRIVATE int sqlite3KvvfsInit(void){
 /* # include <sys/ioctl.h> */
 # include <sys/file.h>
 # include <sys/param.h>
+# if defined(__APPLE__)
+#  if defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) \
+      && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1040
+typedef unsigned char uuid_t[16];
+#  else
+#   include <uuid/uuid.h>
+#  endif
+# endif
 #endif /* SQLITE_ENABLE_LOCKING_STYLE */
 
 /*

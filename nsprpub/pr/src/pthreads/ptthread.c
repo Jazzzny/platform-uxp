@@ -55,7 +55,7 @@ static struct _PT_Bookeeping
     pthread_key_t key;          /* thread private data key */
     PRBool keyCreated;          /* whether 'key' should be deleted */
     PRThread *first, *last;     /* list of threads we know about */
-#if _POSIX_THREAD_PRIORITY_SCHEDULING > 0
+#if (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0
     PRInt32 minPrio, maxPrio;   /* range of scheduling priorities */
 #endif
 } pt_book = {0};
@@ -64,7 +64,7 @@ static void _pt_thread_death(void *arg);
 static void _pt_thread_death_internal(void *arg, PRBool callDestructors);
 static void init_pthread_gc_support(void);
 
-#if _POSIX_THREAD_PRIORITY_SCHEDULING > 0
+#if (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0
 static PRIntn pt_PriorityMap(PRThreadPriority pri)
 {
 #ifdef NTO
@@ -329,18 +329,18 @@ static PRThread* _PR_CreateThread(
 
     if (EPERM != pt_schedpriv)
     {
-#if _POSIX_THREAD_PRIORITY_SCHEDULING > 0
+#if (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0
         struct sched_param schedule;
 #endif
 
-#if _POSIX_THREAD_PRIORITY_SCHEDULING > 0
+#if (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0
         rv = pthread_attr_setinheritsched(&tattr, PTHREAD_EXPLICIT_SCHED);
         PR_ASSERT(0 == rv);
 #endif
 
         /* Use the default scheduling policy */
 
-#if _POSIX_THREAD_PRIORITY_SCHEDULING > 0
+#if (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0
         rv = pthread_attr_getschedparam(&tattr, &schedule);
         PR_ASSERT(0 == rv);
         schedule.sched_priority = pt_PriorityMap(priority);
@@ -350,7 +350,7 @@ static PRThread* _PR_CreateThread(
         rv = pthread_attr_setschedpolicy(&tattr, SCHED_RR); /* Round Robin */
         PR_ASSERT(0 == rv);
 #endif
-#endif /* _POSIX_THREAD_PRIORITY_SCHEDULING > 0 */
+#endif /* (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0 */
     }
 
     rv = pthread_attr_setdetachstate(&tattr,
@@ -394,7 +394,7 @@ static PRThread* _PR_CreateThread(
         }
 
         if (PR_GLOBAL_BOUND_THREAD == scope) {
-#if _POSIX_THREAD_PRIORITY_SCHEDULING > 0
+#if (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0
             rv = pthread_attr_setscope(&tattr, PTHREAD_SCOPE_SYSTEM);
             if (rv) {
                 /*
@@ -464,7 +464,7 @@ static PRThread* _PR_CreateThread(
             PR_LOG(_pr_thread_lm, PR_LOG_MIN,
                    ("_PR_CreateThread: no thread scheduling privilege"));
             /* Try creating the thread again without setting priority. */
-#if _POSIX_THREAD_PRIORITY_SCHEDULING > 0
+#if (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0
             rv = pthread_attr_setinheritsched(&tattr, PTHREAD_INHERIT_SCHED);
             PR_ASSERT(0 == rv);
 #endif
@@ -682,7 +682,7 @@ PR_IMPLEMENT(void) PR_SetThreadPriority(PRThread *thred, PRThreadPriority newPri
         newPri = PR_PRIORITY_LAST;
     }
 
-#if _POSIX_THREAD_PRIORITY_SCHEDULING > 0
+#if (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0
     if (EPERM != pt_schedpriv)
     {
         int policy;
@@ -931,7 +931,7 @@ void _PR_InitThreads(
     pthread_init();
 #endif
 
-#if _POSIX_THREAD_PRIORITY_SCHEDULING > 0
+#if (_POSIX_THREAD_PRIORITY_SCHEDULING - 0) > 0
 #if defined(FREEBSD)
     {
         pthread_attr_t attr;

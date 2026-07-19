@@ -1518,8 +1518,10 @@ EventStateManager::FireContextClick()
   // Hack to ensure that we don't show a context menu when the user
   // let go of the mouse after a long cpu-hogging operation prevented
   // us from handling any OS events. See bug 117589.
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   if (!CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kCGMouseButtonLeft))
     return;
+#endif
 #endif
 
   nsEventStatus status = nsEventStatus_eIgnore;

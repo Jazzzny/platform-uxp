@@ -369,6 +369,16 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
 
   // Don't evaluate special cases when we're evaluating the downloaded blocklist.
   if (!aDriverInfo.Length()) {
+    if (!nsCocoaFeatures::IsAtLeastVersion(10, 4) &&
+        (aFeature == nsIGfxInfo::FEATURE_OPENGL_LAYERS ||
+         aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL ||
+         aFeature == nsIGfxInfo::FEATURE_WEBGL_MSAA ||
+         aFeature == nsIGfxInfo::FEATURE_CANVAS2D_ACCELERATION)) {
+      *aStatus = nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION;
+      aFailureId = "FEATURE_FAILURE_OSX_10_3_NO_GL";
+      return NS_OK;
+    }
+
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
     // Block the non-QECI drivers for OpenGL. They just crash the browser
     // We only need this for 10.5 (PPC) as all drivers on Intel work.

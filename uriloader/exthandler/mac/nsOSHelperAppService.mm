@@ -23,6 +23,8 @@
 #include "nsMIMEInfoMac.h"
 #include "nsEmbedCID.h"
 
+#include <string.h>
+
 #import <CoreFoundation/CoreFoundation.h>
 #import <ApplicationServices/ApplicationServices.h>
 
@@ -31,6 +33,34 @@
 #define BRAND_BUNDLE_URL "chrome://branding/locale/brand.properties"
 
 using mozilla::LogLevel;
+
+static NSString*
+NSStringWithASCIIString(const char* aString)
+{
+  if (!aString) {
+    return nil;
+  }
+
+  CFStringRef string =
+    ::CFStringCreateWithCString(kCFAllocatorDefault, aString,
+                                kCFStringEncodingASCII);
+  return string ? [(NSString*)string autorelease] : nil;
+}
+
+static void
+AssignASCIINSString(NSString* aString, nsACString& aResult)
+{
+  aResult.Truncate();
+  if (!aString) {
+    return;
+  }
+
+  char buffer[1024];
+  if (::CFStringGetCString((CFStringRef)aString, buffer, sizeof(buffer),
+                           kCFStringEncodingASCII)) {
+    aResult.Assign(buffer);
+  }
+}
 
 /* This is an undocumented interface (in the Foundation framework) that has
  * been stable since at least 10.2.8 and is still present on SnowLeopard.
@@ -85,10 +115,23 @@ nsresult nsOSHelperAppService::OSProtocolHandlerExists(const char * aProtocolSch
     // never to fail.
     // http://lists.apple.com/archives/Carbon-dev/2007/May/msg00349.html
     // http://www.realsoftware.com/listarchives/realbasic-nug/2008-02/msg00119.html
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     CFArrayRef handlerArray = ::LSCopyAllHandlersForURLScheme(schemeString);
     *aHandlerExists = !!handlerArray;
     if (handlerArray)
       ::CFRelease(handlerArray);
+#else
+    CFStringRef urlString =
+      ::CFStringCreateWithFormat(kCFAllocatorDefault, nullptr, CFSTR("%@:"), schemeString);
+    CFURLRef url = urlString ?
+      ::CFURLCreateWithString(kCFAllocatorDefault, urlString, nullptr) : nullptr;
+    *aHandlerExists = url &&
+      (::LSGetApplicationForURL(url, kLSRolesAll, nullptr, nullptr) == noErr);
+    if (url)
+      ::CFRelease(url);
+    if (urlString)
+      ::CFRelease(urlString);
+#endif
     ::CFRelease(schemeString);
   } else {
     *aHandlerExists = false;
@@ -429,11 +472,11 @@ nsOSHelperAppService::GetMIMEInfoFromOS(const nsACString& aMIMEType,
       // the doc for this method says that if we have a MIME type (in
       // aMIMEType), we need to give it preference.)
       NSURLFileTypeMappings *map = [NSURLFileTypeMappings sharedMappings];
-      NSString *extStr = [NSString stringWithCString:flatExt.get() encoding:NSASCIIStringEncoding];
+      NSString *extStr = NSStringWithASCIIString(flatExt.get());
       NSString *typeStr = map ? [map MIMETypeForExtension:extStr] : NULL;
       if (typeStr) {
         nsAutoCString mimeType;
-        mimeType.Assign((char *)[typeStr cStringUsingEncoding:NSASCIIStringEncoding]);
+        AssignASCIINSString(typeStr, mimeType);
         mimeInfoMac->SetMIMEType(mimeType);
         haveAppForType = true;
       } else {
@@ -467,15 +510,21 @@ nsOSHelperAppService::GetMIMEInfoFromOS(const nsACString& aMIMEType,
     }
 
     CFStringRef cfAppName = NULL;
-    if (typeAppIsDefault) {
-      app->InitWithFSRef(&typeAppFSRef);
-      ::LSCopyItemAttribute((const FSRef *) &typeAppFSRef, kLSRolesAll,
-                            kLSItemDisplayName, (CFTypeRef *) &cfAppName);
-    } else {
-      app->InitWithFSRef(&extAppFSRef);
-      ::LSCopyItemAttribute((const FSRef *) &extAppFSRef, kLSRolesAll,
-                            kLSItemDisplayName, (CFTypeRef *) &cfAppName);
+    const FSRef* appFSRef = typeAppIsDefault ? &typeAppFSRef : &extAppFSRef;
+    app->InitWithFSRef(appFSRef);
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+    ::LSCopyItemAttribute(appFSRef, kLSRolesAll,
+                          kLSItemDisplayName, (CFTypeRef *) &cfAppName);
+#else
+    HFSUniStr255 appFileName;
+    if (::FSGetCatalogInfo(appFSRef, kFSCatInfoNone, nullptr,
+                           &appFileName, nullptr, nullptr) == noErr &&
+        appFileName.length) {
+      cfAppName = ::CFStringCreateWithCharacters(kCFAllocatorDefault,
+                                                 appFileName.unicode,
+                                                 appFileName.length);
     }
+#endif
     if (cfAppName) {
       AutoTArray<UniChar, 255> buffer;
       CFIndex appNameLength = ::CFStringGetLength(cfAppName);
@@ -500,11 +549,11 @@ nsOSHelperAppService::GetMIMEInfoFromOS(const nsACString& aMIMEType,
     // If we have a MIME type, make sure its preferred extension is included
     // in our list.
     NSURLFileTypeMappings *map = [NSURLFileTypeMappings sharedMappings];
-    NSString *typeStr = [NSString stringWithCString:mimeType.get() encoding:NSASCIIStringEncoding];
+    NSString *typeStr = NSStringWithASCIIString(mimeType.get());
     NSString *extStr = map ? [map preferredExtensionForMIMEType:typeStr] : NULL;
     if (extStr) {
       nsAutoCString preferredExt;
-      preferredExt.Assign((char *)[extStr cStringUsingEncoding:NSASCIIStringEncoding]);
+      AssignASCIINSString(extStr, preferredExt);
       mimeInfoMac->AppendExtension(preferredExt);
     }
 

@@ -8,6 +8,29 @@
 
 #import <Cocoa/Cocoa.h>
 
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+#define NSAccessibilityTopLevelUIElementAttribute @"AXTopLevelUIElement"
+#define NSAccessibilityDescriptionAttribute @"AXDescription"
+#define NSAccessibilityURLAttribute @"AXURL"
+#define NSAccessibilityIndexAttribute @"AXIndex"
+#define NSAccessibilityInsertionPointLineNumberAttribute @"AXInsertionPointLineNumber"
+#define NSAccessibilityAttributedStringForRangeParameterizedAttribute @"AXAttributedStringForRange"
+#define NSAccessibilityShowMenuAction @"AXShowMenu"
+#define NSAccessibilitySelectedTextChangedNotification @"AXSelectedTextChanged"
+
+static inline NSString*
+NSAccessibilityRoleDescription(NSString* role, NSString* subrole)
+{
+  return subrole ? subrole : role;
+}
+
+static inline NSString*
+NSAccessibilityActionDescription(NSString* action)
+{
+  return action;
+}
+#endif
+
 #import "mozAccessibleProtocol.h"
 
 @class mozRootAccessible;
@@ -178,4 +201,3 @@ static const uintptr_t IS_PROXY = 1;
 - (void)accessibilitySetValue:(id)value forAttribute:(NSString*)attribute;
 
 @end
-

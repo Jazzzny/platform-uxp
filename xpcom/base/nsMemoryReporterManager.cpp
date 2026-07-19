@@ -490,6 +490,7 @@ ResidentDistinguishedAmount(int64_t* aN)
   return ResidentDistinguishedAmountHelper(aN, /* doPurge = */ true);
 }
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
 #define HAVE_RESIDENT_UNIQUE_REPORTER 1
 
 static bool
@@ -606,6 +607,7 @@ ResidentUniqueDistinguishedAmount(int64_t* aN)
   *aN = privatePages * pageSize;
   return NS_OK;
 }
+#endif
 
 #elif defined(XP_WIN)
 

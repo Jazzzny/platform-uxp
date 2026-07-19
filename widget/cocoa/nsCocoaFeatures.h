@@ -18,6 +18,7 @@ public:
   static int32_t macOSVersionMajor();
   static int32_t macOSVersionMinor();
   static int32_t macOSVersionBugFix();
+  static bool OnTigerOrLater();
   static bool OnLeopardOrLater();
   static bool OnSnowLeopardOrLater();
   static bool OnLionOrLater();

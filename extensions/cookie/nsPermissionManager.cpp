@@ -2552,6 +2552,13 @@ nsPermissionManager::Import()
   rv = permissionsFile->AppendNative(NS_LITERAL_CSTRING(HOSTPERM_FILE_NAME));
   NS_ENSURE_SUCCESS(rv, rv);
 
+  bool exists = false;
+  rv = permissionsFile->Exists(&exists);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (!exists) {
+    return NS_OK;
+  }
+
   nsCOMPtr<nsIInputStream> fileInputStream;
   rv = NS_NewLocalFileInputStream(getter_AddRefs(fileInputStream),
                                   permissionsFile);

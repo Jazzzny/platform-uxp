@@ -18,8 +18,17 @@
 #include "gfxFontConstants.h"
 #include "gfxTextRun.h"
 
-#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if defined(MAC_OS_X_VERSION_10_4) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4) && \
+    (!defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5))
 #include "PhonyCoreText.h"
+#endif
+
+#if !defined(MAC_OS_X_VERSION_10_4) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+extern "C" {
+int CGFontGetUnitsPerEm(CGFontRef font);
+bool CGFontGetGlyphAdvances(CGFontRef font, const CGGlyph glyphs[],
+                            size_t count, int advances[]);
+}
 #endif
 
 #include "cairo-quartz.h"
@@ -667,7 +676,13 @@ gfxMacFont::GetScaledFont(DrawTarget *aTarget)
   if (!mAzureScaledFont) {
     NativeFont nativeFont;
     nativeFont.mType = NativeFontType::MAC_FONT_FACE;
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     nativeFont.mFont = GetCGFontRef();
+#else
+    ATSFontRef atsFont =
+        static_cast<MacOSFontEntry*>(GetFontEntry())->GetATSFontRef();
+    nativeFont.mFont = (void*)(uintptr_t)atsFont;
+#endif
     mAzureScaledFont = mozilla::gfx::Factory::CreateScaledFontWithCairo(nativeFont, GetAdjustedSize(), mScaledFont);
   }
 

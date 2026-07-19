@@ -70,6 +70,7 @@
 #include "nsNSSComponent.h"
 
 #include <limits>
+#include <stdio.h>
 
 using namespace mozilla;
 using namespace mozilla::net;
@@ -2084,7 +2085,11 @@ void net_EnsurePSMInit()
 {
     nsresult rv;
     nsCOMPtr<nsISupports> psm = do_GetService(PSM_COMPONENT_CONTRACTID, &rv);
-    MOZ_ASSERT(NS_SUCCEEDED(rv));
+    if (NS_FAILED(rv)) {
+        fprintf(stderr, "PowerFox PSM initialization failed: rv=0x%08x\n",
+                static_cast<uint32_t>(rv));
+        NS_WARNING("Failed to initialize PSM");
+    }
 }
 
 bool NS_IsAboutBlank(nsIURI *uri)

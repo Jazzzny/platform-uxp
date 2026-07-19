@@ -1762,7 +1762,23 @@ PluginInstanceParent::NPP_HandleEvent(void* event)
                 return false;
             }
 
-            CGImageRef shImage = ::CGBitmapContextCreateImage(shContext);
+            CGImageRef shImage = NULL;
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+            shImage = ::CGBitmapContextCreateImage(shContext);
+#else
+            CGDataProviderRef shProvider =
+                ::CGDataProviderCreateWithData(NULL, shContextByte,
+                                               mShWidth * mShHeight * 4,
+                                               NULL);
+            if (shProvider) {
+                shImage = ::CGImageCreate(mShWidth, mShHeight, 8, 32,
+                                          mShWidth * 4, mShColorSpace,
+                                          kCGImageAlphaPremultipliedFirst,
+                                          shProvider, NULL, false,
+                                          kCGRenderingIntentDefault);
+                ::CGDataProviderRelease(shProvider);
+            }
+#endif
             if (shImage) {
                 CGContextRef cgContext = npevent->data.draw.context;
 

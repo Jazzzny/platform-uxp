@@ -43,12 +43,18 @@ typedef double GLclampd;
 typedef void GLvoid;
 
 typedef char GLchar;
+#define MOZ_GLCHAR_DEFINED 1
 #ifndef __gl2_h_
 typedef intptr_t GLsizeiptr;
 typedef intptr_t GLintptr;
 #endif
 
 #endif /* #if !defined(__gltypes_h_) && !defined(__gl_h_) */
+
+#ifndef MOZ_GLCHAR_DEFINED
+typedef char GLchar;
+#define MOZ_GLCHAR_DEFINED 1
+#endif
 
 #include <stdint.h>
 

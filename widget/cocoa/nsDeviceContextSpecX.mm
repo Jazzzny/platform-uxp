@@ -71,7 +71,11 @@ NS_IMETHODIMP nsDeviceContextSpecX::BeginDocument(const nsAString& aTitle,
         ::CFStringCreateWithCharacters(NULL, reinterpret_cast<const UniChar*>(aTitle.BeginReading()),
                                              aTitle.Length());
       if (cfString) {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
         ::PMPrintSettingsSetJobName(mPrintSettings, cfString);
+#else
+        ::PMSetJobNameCFString(mPrintSettings, cfString);
+#endif
         ::CFRelease(cfString);
       }
     }
@@ -82,7 +86,11 @@ NS_IMETHODIMP nsDeviceContextSpecX::BeginDocument(const nsAString& aTitle,
     status = ::PMSetLastPage(mPrintSettings, aEndPage, false);
     NS_ASSERTION(status == noErr, "PMSetLastPage failed");
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     status = ::PMSessionBeginCGDocumentNoDialog(mPrintSession, mPrintSettings, mPageFormat);
+#else
+    status = ::PMSessionBeginDocumentNoDialog(mPrintSession, mPrintSettings, mPageFormat);
+#endif
     if (status != noErr)
       return NS_ERROR_ABORT;
 
@@ -148,7 +156,14 @@ already_AddRefed<PrintTarget> nsDeviceContextSpecX::MakePrintTarget()
     IntSize size = IntSize::Floor(width, height);
 
     CGContextRef context;
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     ::PMSessionGetCGGraphicsContext(mPrintSession, &context);
+#else
+    void* graphicsContext = nullptr;
+    ::PMSessionGetGraphicsContext(mPrintSession, kPMGraphicsContextCoreGraphics,
+                                  &graphicsContext);
+    context = static_cast<CGContextRef>(graphicsContext);
+#endif
 
     if (context) {
         // Initially, origin is at bottom-left corner of the paper.

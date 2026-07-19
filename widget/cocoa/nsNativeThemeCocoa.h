@@ -14,6 +14,12 @@
 #include "nsIAtom.h"
 #include "nsNativeTheme.h"
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+#define MOZ_HAS_NSLEVELINDICATORCELL 1
+#else
+#define MOZ_HAS_NSLEVELINDICATORCELL 0
+#endif
+
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
 // cgfloat
 #include "nsCocoaUtils.h"
@@ -21,6 +27,9 @@
 
 @class CellDrawView;
 @class NSProgressBarCell;
+#if MOZ_HAS_NSLEVELINDICATORCELL
+@class NSLevelIndicatorCell;
+#endif
 @class ContextAwareSearchFieldCell;
 class nsDeviceContext;
 struct SegmentedControlRenderSettings;
@@ -179,7 +188,13 @@ private:
   NSPopUpButtonCell* mDropdownCell;
   NSComboBoxCell* mComboBoxCell;
   NSProgressBarCell* mProgressBarCell;
+#if MOZ_HAS_NSLEVELINDICATORCELL
   NSLevelIndicatorCell* mMeterBarCell;
+#endif
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  NSSegmentedCell* mSegmentedCell;
+  CellDrawView* mToolbarCellDrawView;
+#endif
   CellDrawView* mCellDrawView;
 };
 

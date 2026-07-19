@@ -50,6 +50,16 @@ using namespace mozilla;
 using namespace mozilla::gfx;
 using mozilla::dom::HTMLMeterElement;
 
+#if !MOZ_HAS_NSLEVELINDICATORCELL
+#define NSRoundedDisclosureBezelStyle NSDisclosureBezelStyle
+#endif
+
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+#define MOZ_HAS_HITHEME_10_4 1
+#else
+#define MOZ_HAS_HITHEME_10_4 0
+#endif
+
 #define DRAW_IN_FRAME_DEBUG 0
 #define SCROLLBARS_VISUAL_DEBUG 0
 
@@ -96,6 +106,39 @@ extern "C" {
 }
 
 @end
+
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+// On Panther, NSSegmentedCell selects its recessed toolbar appearance when
+// the control view belongs to a textured window.  Gecko draws cells through a
+// detached view, so provide just enough window state for toolbar segments to
+// take that native AppKit path.
+@interface PantherToolbarCellDrawView : CellDrawView
+@end
+
+@implementation PantherToolbarCellDrawView
+
+- (NSWindow*)window
+{
+  return (NSWindow*)self;
+}
+
+- (unsigned int)styleMask
+{
+  return NSTexturedBackgroundWindowMask;
+}
+
+- (BOOL)isKeyWindow
+{
+  return YES;
+}
+
+- (BOOL)isMainWindow
+{
+  return YES;
+}
+
+@end
+#endif
 
 // These two classes don't actually add any behavior over NSButtonCell. Their
 // purpose is to make it easy to distinguish NSCell objects that are used for
@@ -600,8 +643,16 @@ nsNativeThemeCocoa::nsNativeThemeCocoa()
 
   mProgressBarCell = [[NSProgressBarCell alloc] init];
 
+#if MOZ_HAS_NSLEVELINDICATORCELL
   mMeterBarCell = [[NSLevelIndicatorCell alloc]
                     initWithLevelIndicatorStyle:NSContinuousCapacityLevelIndicatorStyle];
+#endif
+
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  mSegmentedCell = [[NSSegmentedCell alloc] init];
+  [mSegmentedCell setTrackingMode:NSSegmentSwitchTrackingSelectAny];
+  mToolbarCellDrawView = [[PantherToolbarCellDrawView alloc] init];
+#endif
 
   mCellDrawView = [[CellDrawView alloc] init];
 
@@ -612,7 +663,13 @@ nsNativeThemeCocoa::~nsNativeThemeCocoa()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
+#if MOZ_HAS_NSLEVELINDICATORCELL
   [mMeterBarCell release];
+#endif
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  [mSegmentedCell release];
+  [mToolbarCellDrawView release];
+#endif
   [mProgressBarCell release];
   [mDisclosureButtonCell release];
   [mHelpButtonCell release];
@@ -712,7 +769,7 @@ static void DrawCellWithScaling(NSCell *cell,
     InflateControlRect(&drawRect, controlSize, marginSet);
 
     NSGraphicsContext* savedContext = [NSGraphicsContext currentContext];
-    [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:cgContext flipped:YES]];
+    [NSGraphicsContext setCurrentContext:nsCocoaUtils::CreateNSGraphicsContext(cgContext, YES)];
 
     DrawCellIncludingFocusRing(cell, drawRect, view);
 
@@ -730,14 +787,6 @@ static void DrawCellWithScaling(NSCell *cell,
     w += kMaxFocusRingWidth * 2.0;
     h += kMaxFocusRingWidth * 2.0;
 
-    int backingScaleFactor = GetBackingScaleFactorForRendering(cgContext);
-    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
-    CGContextRef ctx = CGBitmapContextCreate(NULL,
-                                             (int) w * backingScaleFactor, (int) h * backingScaleFactor,
-                                             8, (int) w * backingScaleFactor * 4,
-                                             rgb, kCGImageAlphaPremultipliedFirst);
-    CGColorSpaceRelease(rgb);
-
     // We need to flip the image twice in order to avoid drawing bugs on 10.4, see bug 465069.
     // This is the first flip transform, applied to cgContext.
     CGContextScaleCTM(cgContext, 1.0f, -1.0f);
@@ -747,8 +796,17 @@ static void DrawCellWithScaling(NSCell *cell,
       CGContextTranslateCTM(cgContext, -(2.0 * destRect.origin.x + destRect.size.width), 0.0f);
     }
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+    int backingScaleFactor = GetBackingScaleFactorForRendering(cgContext);
+    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate(NULL,
+                                             (int) w * backingScaleFactor, (int) h * backingScaleFactor,
+                                             8, (int) w * backingScaleFactor * 4,
+                                             rgb, kCGImageAlphaPremultipliedFirst);
+    CGColorSpaceRelease(rgb);
+
     NSGraphicsContext* savedContext = [NSGraphicsContext currentContext];
-    [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:ctx flipped:YES]];
+    [NSGraphicsContext setCurrentContext:nsCocoaUtils::CreateNSGraphicsContext(ctx, YES)];
 
     CGContextScaleCTM(ctx, backingScaleFactor, backingScaleFactor);
 
@@ -764,6 +822,57 @@ static void DrawCellWithScaling(NSCell *cell,
     [NSGraphicsContext setCurrentContext:savedContext];
 
     CGImageRef img = CGBitmapContextCreateImage(ctx);
+#else
+    // Panther's _NSExistingCGSContext accepts an arbitrary CGContextRef, but
+    // AppKit's themed cells don't actually emit pixels into it.  NSImage's
+    // cache context is the supported Panther offscreen AppKit destination.
+    // Draw there, capture its bitmap representation, and expose those pixels
+    // to CoreGraphics for the final composite into Gecko's context.
+    NSImage* offscreenImage = [[NSImage alloc] initWithSize:NSMakeSize(w, h)];
+    [offscreenImage lockFocus];
+
+    NSGraphicsContext* imageContext = [NSGraphicsContext currentContext];
+    CGContextRef imageCGContext = (CGContextRef)[imageContext graphicsPort];
+    CGContextSaveGState(imageCGContext);
+    CGContextScaleCTM(imageCGContext, 1.0f, -1.0f);
+    CGContextTranslateCTM(imageCGContext, 0.0f, -h);
+    NSRect pantherDrawRect = tmpRect;
+    if (!nsCocoaFeatures::OnTigerOrLater() &&
+        ([cell isKindOfClass:[CheckboxCell class]] ||
+         [cell isKindOfClass:[RadioButtonCell class]])) {
+      // Panther's checkbox and radio cells treat the origin as the bottom of
+      // their image even though the supplied control view is flipped. Without
+      // this compensation, all but the bottom few rows land above the NSImage
+      // cache and are clipped.
+      pantherDrawRect.origin.y += pantherDrawRect.size.height;
+    }
+    DrawCellIncludingFocusRing(cell, pantherDrawRect, view);
+    CGContextRestoreGState(imageCGContext);
+
+    NSBitmapImageRep* bitmapRep = [[NSBitmapImageRep alloc]
+      initWithFocusedViewRect:NSMakeRect(0.0f, 0.0f, w, h)];
+    [offscreenImage unlockFocus];
+
+    CGDataProviderRef provider = CGDataProviderCreateWithData(
+      NULL, [bitmapRep bitmapData], [bitmapRep bytesPerRow] * h, NULL);
+    CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+    CGBitmapInfo bitmapInfo;
+    if ([bitmapRep hasAlpha]) {
+      bitmapInfo = kCGImageAlphaPremultipliedLast;
+    } else if ([bitmapRep bitsPerPixel] == 32) {
+      bitmapInfo = kCGImageAlphaNoneSkipLast;
+    } else {
+      bitmapInfo = kCGImageAlphaNone;
+    }
+    CGImageRef img = CGImageCreate(w, h,
+                                   [bitmapRep bitsPerSample],
+                                   [bitmapRep bitsPerPixel],
+                                   [bitmapRep bytesPerRow],
+                                   rgb, bitmapInfo, provider, NULL,
+                                   false, kCGRenderingIntentDefault);
+    CGColorSpaceRelease(rgb);
+    CGDataProviderRelease(provider);
+#endif
 
     // Drop the image into the original destination rectangle, scaling to fit
     // Only scale kMaxFocusRingWidth by xscale/yscale when the resulting rect
@@ -779,7 +888,12 @@ static void DrawCellWithScaling(NSCell *cell,
                        img);
 
     CGImageRelease(img);
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     CGContextRelease(ctx);
+#else
+    [bitmapRep release];
+    [offscreenImage release];
+#endif
   }
 
   [NSGraphicsContext restoreGraphicsState];
@@ -1273,7 +1387,15 @@ nsNativeThemeCocoa::DrawPushButton(CGContextRef cgContext, const HIRect& inBoxRe
                           IsFrameRTL(aFrame));
     } else {
       [cell setBezelStyle:NSRoundedBezelStyle];
-      DrawCellWithSnapping(cell, cgContext, inBoxRect, pushButtonSettings, 0.5f,
+      HIRect drawRect = inBoxRect;
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+      if (!nsCocoaFeatures::OnTigerOrLater()) {
+        // Panther's AppKit push-button cell paints two rows higher than the
+        // HITheme default button used beside it in dialogs.
+        drawRect.origin.y += 2.0f;
+      }
+#endif
+      DrawCellWithSnapping(cell, cgContext, drawRect, pushButtonSettings, 0.5f,
                            mCellDrawView, IsFrameRTL(aFrame), 1.0f);
     }
   }
@@ -1857,9 +1979,18 @@ nsNativeThemeCocoa::DrawMeter(CGContextRef cgContext, const HIRect& inBoxRect,
   // get all the needed information so we just draw an empty meter.
   nsIContent* content = aFrame->GetContent();
   if (!(content && content->IsHTMLElement(nsGkAtoms::meter))) {
+#if MOZ_HAS_NSLEVELINDICATORCELL
     DrawCellWithSnapping(mMeterBarCell, cgContext, inBoxRect,
                          meterSetting, VerticalAlignFactor(aFrame),
                          mCellDrawView, IsFrameRTL(aFrame));
+#else
+    CGContextSaveGState(cgContext);
+    CGContextSetRGBFillColor(cgContext, 0.88f, 0.88f, 0.88f, 1.0f);
+    CGContextFillRect(cgContext, inBoxRect);
+    CGContextSetRGBStrokeColor(cgContext, 0.45f, 0.45f, 0.45f, 1.0f);
+    CGContextStrokeRect(cgContext, inBoxRect);
+    CGContextRestoreGState(cgContext);
+#endif
     return;
   }
 
@@ -1868,6 +1999,7 @@ nsNativeThemeCocoa::DrawMeter(CGContextRef cgContext, const HIRect& inBoxRect,
   double min = meterElement->Min();
   double max = meterElement->Max();
 
+#if MOZ_HAS_NSLEVELINDICATORCELL
   NSLevelIndicatorCell* cell = mMeterBarCell;
 
   [cell setMinValue:min];
@@ -1925,6 +2057,50 @@ nsNativeThemeCocoa::DrawMeter(CGContextRef cgContext, const HIRect& inBoxRect,
                        mCellDrawView, !vertical && IsFrameRTL(aFrame));
 
   CGContextRestoreGState(cgContext);
+#else
+  double fraction = max > min ? (value - min) / (max - min) : 0.0;
+  if (fraction < 0.0) {
+    fraction = 0.0;
+  } else if (fraction > 1.0) {
+    fraction = 1.0;
+  }
+
+  EventStates states = aFrame->GetContent()->AsElement()->State();
+  float red = 0.20f;
+  float green = 0.55f;
+  float blue = 0.30f;
+  if (states.HasState(NS_EVENT_STATE_SUB_SUB_OPTIMUM)) {
+    red = 0.70f;
+    green = 0.25f;
+    blue = 0.20f;
+  } else if (states.HasState(NS_EVENT_STATE_SUB_OPTIMUM)) {
+    red = 0.75f;
+    green = 0.55f;
+    blue = 0.20f;
+  }
+
+  CGRect rect = CGRectStandardize(inBoxRect);
+  CGRect valueRect = rect;
+  BOOL vertical = IsVerticalMeter(aFrame);
+  if (vertical) {
+    valueRect.size.height *= fraction;
+    valueRect.origin.y += rect.size.height - valueRect.size.height;
+  } else {
+    valueRect.size.width *= fraction;
+    if (IsFrameRTL(aFrame)) {
+      valueRect.origin.x += rect.size.width - valueRect.size.width;
+    }
+  }
+
+  CGContextSaveGState(cgContext);
+  CGContextSetRGBFillColor(cgContext, 0.88f, 0.88f, 0.88f, 1.0f);
+  CGContextFillRect(cgContext, rect);
+  CGContextSetRGBFillColor(cgContext, red, green, blue, 1.0f);
+  CGContextFillRect(cgContext, valueRect);
+  CGContextSetRGBStrokeColor(cgContext, 0.45f, 0.45f, 0.45f, 1.0f);
+  CGContextStrokeRect(cgContext, rect);
+  CGContextRestoreGState(cgContext);
+#endif
 
   NS_OBJC_END_TRY_ABORT_BLOCK
 }
@@ -1937,11 +2113,17 @@ nsNativeThemeCocoa::DrawTabPanel(CGContextRef cgContext, const HIRect& inBoxRect
 
   HIThemeTabPaneDrawInfo tpdi;
 
+#if MOZ_HAS_HITHEME_10_4
   tpdi.version = 1;
+#else
+  tpdi.version = 0;
+#endif
   tpdi.state = FrameIsInActiveWindow(aFrame) ? kThemeStateActive : kThemeStateInactive;
   tpdi.direction = kThemeTabNorth;
   tpdi.size = kHIThemeTabSizeNormal;
+#if MOZ_HAS_HITHEME_10_4
   tpdi.kind = kHIThemeTabKindNormal;
+#endif
 
   HIThemeDrawTabPane(&inBoxRect, &tpdi, cgContext, HITHEME_ORIENTATION);
 
@@ -2085,7 +2267,7 @@ nsNativeThemeCocoa::DrawSegment(CGContextRef cgContext, const HIRect& inBoxRect,
             [NSNumber numberWithBool:YES], @"is.flipped",
             @"up", @"direction",
             nil]);
-#else
+#elif MOZ_HAS_HITHEME_10_4
   HIThemeSegmentDrawInfo sdi;
   sdi.version = 0;
 
@@ -2119,6 +2301,72 @@ nsNativeThemeCocoa::DrawSegment(CGContextRef cgContext, const HIRect& inBoxRect,
   if (drawRightSeparator) sdi.adornment |= kHIThemeSegmentAdornmentTrailingSeparator;
 
   HIThemeDrawSegment(&drawRect, &sdi, cgContext, kHIThemeOrientationNormal);
+#else
+  // Panther predates HIThemeDrawSegment, but it introduced NSSegmentedCell.
+  // Draw a synthetic control containing the current segment and its immediate
+  // neighbours, then clip to the segment Gecko asked us to paint.  This lets
+  // AppKit choose the native first/middle/last geometry and separator style.
+  int currentSegment = left ? 1 : 0;
+  int segmentCount = 1 + (left ? 1 : 0) + (right ? 1 : 0);
+  [mSegmentedCell setSegmentCount:segmentCount];
+  [mSegmentedCell setControlSize:controlSize];
+  [mSegmentedCell setEnabled:!IsDisabled(aFrame, inState)];
+  [mSegmentedCell setShowsFirstResponder:isFocused && isActive];
+  [mSegmentedCell setControlTint:isActive ? [NSColor currentControlTint]
+                                           : NSClearControlTint];
+
+  for (int segment = 0; segment < segmentCount; ++segment) {
+    [mSegmentedCell setLabel:@"" forSegment:segment];
+    // Panther adds one themed edge/separator pixel to every explicit segment
+    // width, plus the final outer edge.  Account for both so the cell fits its
+    // Gecko frame without clipping the last bevel.
+    CGFloat segmentWidth = inBoxRect.size.width - 1.0f;
+    if (!right && segment == currentSegment) {
+      segmentWidth -= 1.0f;
+    }
+    [mSegmentedCell setWidth:std::max(0.0f, segmentWidth)
+                   forSegment:segment];
+    [mSegmentedCell setEnabled:YES forSegment:segment];
+    [mSegmentedCell setSelected:NO forSegment:segment];
+  }
+  if (left) {
+    [mSegmentedCell setSelected:IsSelectedButton(left) || IsPressedButton(left)
+                     forSegment:0];
+  }
+  [mSegmentedCell setSelected:isSelected || isPressed forSegment:currentSegment];
+  if (right) {
+    [mSegmentedCell setSelected:IsSelectedButton(right) || IsPressedButton(right)
+                     forSegment:currentSegment + 1];
+  }
+
+  CGRect fullControlRect = inBoxRect;
+  if (left) {
+    fullControlRect.origin.x -= inBoxRect.size.width;
+    fullControlRect.size.width += inBoxRect.size.width;
+  }
+  if (right) {
+    fullControlRect.size.width += inBoxRect.size.width;
+  }
+
+  CGRect clipRect = inBoxRect;
+  clipRect.origin.y -= kMaxFocusRingWidth;
+  clipRect.size.height += 2 * kMaxFocusRingWidth;
+  if (!left) {
+    clipRect.origin.x -= kMaxFocusRingWidth;
+    clipRect.size.width += kMaxFocusRingWidth;
+  }
+  if (!right) {
+    clipRect.size.width += kMaxFocusRingWidth;
+  }
+
+  CGContextSaveGState(cgContext);
+  CGContextClipToRect(cgContext, clipRect);
+  CellDrawView* drawView = aSettings.isToolbarControl
+                             ? mToolbarCellDrawView
+                             : mCellDrawView;
+  DrawCellWithScaling(mSegmentedCell, cgContext, fullControlRect, controlSize,
+                      NSZeroSize, NSZeroSize, NULL, drawView, NO);
+  CGContextRestoreGState(cgContext);
 #endif
 }
 
@@ -2399,6 +2647,7 @@ nsNativeThemeCocoa::DrawNativeTitlebar(CGContextRef aContext, CGRect aTitlebarRe
 
 // On 10.5, we do not get the traffic lights drawn for us by CoreUI, draw them ourselves.
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   if (!nsCocoaFeatures::OnSnowLeopardOrLater()) {
     // HIThemeDrawTitleBarWidget draws relative to the content area, not the
     // unified titlebar Mozilla hands us. Moreover, the buttons are shifted
@@ -2448,6 +2697,12 @@ nsNativeThemeCocoa::DrawNativeTitlebar(CGContextRef aContext, CGRect aTitlebarRe
     HIThemeDrawTitleBarWidget(&hirect, &wwdi, aContext,
           kHIThemeOrientationNormal);
   }
+#else
+  // Panther's HIThemeDrawTitleBarWidget always uses the legacy Carbon
+  // document-window artwork, even for a textured Cocoa window.  The native
+  // NSWindow buttons are composited by nsChildView and retain both Panther's
+  // correct appearance and their real NSButton hit targets.
+#endif
 #endif
 }
 
@@ -2486,7 +2741,7 @@ DrawVibrancyBackground(CGContextRef cgContext, CGRect inBoxRect,
   if (childView) {
     NSRect rect = NSRectFromCGRect(inBoxRect);
     NSGraphicsContext* savedContext = [NSGraphicsContext currentContext];
-    [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:cgContext flipped:YES]];
+    [NSGraphicsContext setCurrentContext:nsCocoaUtils::CreateNSGraphicsContext(cgContext, YES)];
     [NSGraphicsContext saveGraphicsState];
 
     NSColor* fillColor = [childView vibrancyFillColorForThemeGeometryType:aThemeGeometryType];
@@ -2629,11 +2884,19 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
           ThemeGeometryType type = ThemeGeometryTypeForWidget(aFrame, aWidgetType);
           DrawVibrancyBackground(cgContext, macRect, aFrame, type);
         } else {
+#if MOZ_HAS_HITHEME_10_4
           HIThemeSetFill(kThemeBrushSheetBackgroundTransparent, NULL, cgContext, HITHEME_ORIENTATION);
+#else
+          CGContextSetRGBFillColor(cgContext, 0.93f, 0.93f, 0.93f, 1.0f);
+#endif
           CGContextFillRect(cgContext, macRect);
         }
       } else {
+#if MOZ_HAS_HITHEME_10_4
         HIThemeSetFill(kThemeBrushDialogBackgroundActive, NULL, cgContext, HITHEME_ORIENTATION);
+#else
+        CGContextSetRGBFillColor(cgContext, 0.93f, 0.93f, 0.93f, 1.0f);
+#endif
         CGContextFillRect(cgContext, macRect);
       }
 
@@ -2877,6 +3140,15 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       float unifiedToolbarHeight = [win isKindOfClass:[ToolbarWindow class]] ?
         [(ToolbarWindow*)win unifiedToolbarHeight] : macRect.size.height;
       DrawNativeTitlebar(cgContext, macRect, unifiedToolbarHeight, isMain, YES);
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+      // The Panther content view covers the real window frame, and
+      // nsChildView composites the standard AppKit buttons over Gecko's
+      // titlebar. Keep that button layer synchronized whenever the titlebar
+      // background is repainted, especially during live resize.
+      [[win standardWindowButton:NSWindowCloseButton] setNeedsDisplay:YES];
+      [[win standardWindowButton:NSWindowMiniaturizeButton] setNeedsDisplay:YES];
+      [[win standardWindowButton:NSWindowZoomButton] setNeedsDisplay:YES];
+#endif
     }
       break;
 
@@ -3143,7 +3415,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       // draw a focus ring
       if (eventState.HasState(NS_EVENT_STATE_FOCUS)) {
         NSGraphicsContext* savedContext = [NSGraphicsContext currentContext];
-        [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:cgContext flipped:YES]];
+        [NSGraphicsContext setCurrentContext:nsCocoaUtils::CreateNSGraphicsContext(cgContext, YES)];
         CGContextSaveGState(cgContext);
         NSSetFocusRingStyle(NSFocusRingOnly);
         NSRectFill(NSRectFromCGRect(macRect));
@@ -3669,8 +3941,13 @@ nsNativeThemeCocoa::GetMinimumWidgetSize(nsPresContext* aPresContext,
     {
       SInt32 width = 0;
       SInt32 height = 0;
+#if MOZ_HAS_HITHEME_10_4
       ::GetThemeMetric(kThemeMetricSliderMinThumbWidth, &width);
       ::GetThemeMetric(kThemeMetricSliderMinThumbHeight, &height);
+#else
+      ::GetThemeMetric(kThemeMetricSmallHSliderMinThumbWidth, &width);
+      ::GetThemeMetric(kThemeMetricSmallVSliderMinThumbHeight, &height);
+#endif
       aResult->SizeTo(width, height);
       *aIsOverridable = false;
       break;

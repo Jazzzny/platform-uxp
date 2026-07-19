@@ -146,6 +146,7 @@ NSCursorInfo::NSCursorInfo(NSCursor* aCursor)
           break;
         }
       }
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
       if (cgImage) {
         CFMutableDataRef data = ::CFDataCreateMutable(kCFAllocatorDefault, 0);
         if (data) {
@@ -167,6 +168,7 @@ NSCursorInfo::NSCursorInfo(NSCursor* aCursor)
           ::CFRelease(data);
         }
       }
+#endif
       if (!mCustomImageData) {
         mType = TypeArrow;
       }
@@ -237,6 +239,7 @@ NSCursorInfo::NSCursorInfo(const Cursor* aCursor)
     // data over IPC.
     mType = TypeTransparent;
   } else {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     CGColorSpaceRef color = ::CGColorSpaceCreateDeviceRGB();
     if (color) {
       CGContextRef context =
@@ -279,6 +282,7 @@ NSCursorInfo::NSCursorInfo(const Cursor* aCursor)
       }
       ::CGColorSpaceRelease(color);
     }
+#endif
   }
 
   free(bitmap);

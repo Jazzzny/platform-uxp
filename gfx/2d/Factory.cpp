@@ -515,7 +515,25 @@ Factory::CreateScaledFontForNativeFont(const NativeFont &aNativeFont, Float aSiz
 #ifdef XP_DARWIN
   case NativeFontType::MAC_FONT_FACE:
     {
+#if MOZ_MAC_USE_CORETEXT
       return MakeAndAddRef<ScaledFontMac>(static_cast<CGFontRef>(aNativeFont.mFont), aSize);
+#else
+      ATSFontRef atsFont = (ATSFontRef)(uintptr_t)aNativeFont.mFont;
+      if (!atsFont || atsFont == kInvalidFont ||
+          atsFont == kATSFontRefUnspecified) {
+        return nullptr;
+      }
+
+      CGFontRef fontRef = CGFontCreateWithPlatformFont(&atsFont);
+      if (!fontRef) {
+        return nullptr;
+      }
+
+      RefPtr<ScaledFontMac> scaledFont =
+        new ScaledFontMac(fontRef, aSize, atsFont);
+      CGFontRelease(fontRef);
+      return scaledFont.forget();
+#endif
     }
 #endif
 #if defined(USE_CAIRO) || defined(USE_SKIA_FREETYPE)

@@ -61,7 +61,11 @@ nsPrintDialogServiceX::Show(nsPIDOMWindowOuter *aParent, nsIPrintSettings *aSett
     CFStringRef cfTitleString = CFStringCreateWithCharacters(NULL, reinterpret_cast<const UniChar*>(docTitles[0]),
                                                              NS_strlen(docTitles[0]));
     if (cfTitleString) {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
       ::PMPrintSettingsSetJobName(settingsX->GetPMPrintSettings(), cfTitleString);
+#else
+      ::PMSetJobNameCFString(settingsX->GetPMPrintSettings(), cfTitleString);
+#endif
       CFRelease(cfTitleString);
     }
     for (int32_t i = titleCount - 1; i >= 0; i--) {

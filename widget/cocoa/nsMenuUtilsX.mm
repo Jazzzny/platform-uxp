@@ -140,7 +140,7 @@ NSMenuItem* nsMenuUtilsX::GetStandardEditMenuItem()
   NSMenuItem* standardEditMenuItem =
     [[[NSMenuItem alloc] initWithTitle:@"Edit" action:nil keyEquivalent:@""] autorelease];
   NSMenu* standardEditMenu = [[NSMenu alloc] initWithTitle:@"Edit"];
-  [standardEditMenuItem setSubmenu:standardEditMenu];
+  SetSubmenu(standardEditMenuItem, standardEditMenu);
   [standardEditMenu release];
 
   // Add Undo
@@ -184,6 +184,47 @@ NSMenuItem* nsMenuUtilsX::GetStandardEditMenuItem()
   return standardEditMenuItem;
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
+}
+
+void nsMenuUtilsX::SetSubmenu(NSMenuItem* aMenuItem, NSMenu* aSubmenu)
+{
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
+
+  if (!aMenuItem) {
+    return;
+  }
+
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+  [aMenuItem setSubmenu:aSubmenu];
+#else
+  // Panther raises NSInternalInconsistencyException if setSubmenu: is called
+  // with a menu that is already attached, even when it is attached to this
+  // exact menu item.  Later AppKit releases accept that operation as a no-op.
+  if ([aMenuItem submenu] == aSubmenu) {
+    return;
+  }
+
+  if (aSubmenu) {
+    NSMenu* oldParent = nil;
+    if ([aSubmenu respondsToSelector:@selector(supermenu)]) {
+      oldParent = [aSubmenu supermenu];
+    }
+    if (oldParent) {
+      int itemCount = [oldParent numberOfItems];
+      for (int i = 0; i < itemCount; ++i) {
+        NSMenuItem* item = [oldParent itemAtIndex:i];
+        if (item != aMenuItem && [item submenu] == aSubmenu) {
+          [item setSubmenu:nil];
+          break;
+        }
+      }
+    }
+  }
+
+  [aMenuItem setSubmenu:aSubmenu];
+#endif
+
+  NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
 bool nsMenuUtilsX::NodeIsHiddenOrCollapsed(nsIContent* inContent)
