@@ -49,6 +49,103 @@
 typedef UInt32  AudioFormatFlags;
 #endif
 
+#if !TARGET_OS_IPHONE && \
+    (!defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+#define CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE 1
+typedef UInt32 AudioObjectID;
+typedef UInt32 AudioObjectPropertySelector;
+typedef UInt32 AudioObjectPropertyScope;
+typedef UInt32 AudioObjectPropertyElement;
+typedef OSStatus (*AudioObjectPropertyListenerProc)(AudioObjectID,
+                                                    UInt32,
+                                                    const struct AudioObjectPropertyAddress *,
+                                                    void *);
+
+struct AudioObjectPropertyAddress {
+  AudioObjectPropertySelector mSelector;
+  AudioObjectPropertyScope mScope;
+  AudioObjectPropertyElement mElement;
+};
+
+#define kAudioObjectUnknown kAudioDeviceUnknown
+#define kAudioObjectSystemObject ((AudioObjectID) 1)
+#define kAudioObjectPropertyScopeGlobal ((AudioObjectPropertyScope) 0)
+#define kAudioObjectPropertyElementMaster ((AudioObjectPropertyElement) 0)
+#define kAudioDevicePropertyScopeOutput ((AudioObjectPropertyScope) 0)
+#define kAudioDevicePropertyScopeInput ((AudioObjectPropertyScope) 1)
+#define kAudioObjectPropertyName kAudioDevicePropertyDeviceNameCFString
+#define kAudioObjectPropertyManufacturer kAudioDevicePropertyDeviceManufacturerCFString
+
+static Boolean
+audiounit_legacy_scope_is_input(AudioObjectPropertyScope scope)
+{
+  return scope == kAudioDevicePropertyScopeInput;
+}
+
+static OSStatus
+audiounit_legacy_get_property_data_size(AudioObjectID id,
+                                        const AudioObjectPropertyAddress * address,
+                                        UInt32 * size)
+{
+  if (id == kAudioObjectSystemObject) {
+    return AudioHardwareGetPropertyInfo(address->mSelector, size, NULL);
+  }
+
+  return AudioDeviceGetPropertyInfo(id,
+                                    address->mElement,
+                                    audiounit_legacy_scope_is_input(address->mScope),
+                                    address->mSelector,
+                                    size,
+                                    NULL);
+}
+
+static OSStatus
+audiounit_legacy_get_property_data(AudioObjectID id,
+                                   const AudioObjectPropertyAddress * address,
+                                   UInt32 * size,
+                                   void * data)
+{
+  if (id == kAudioObjectSystemObject) {
+    return AudioHardwareGetProperty(address->mSelector, size, data);
+  }
+
+  return AudioDeviceGetProperty(id,
+                                address->mElement,
+                                audiounit_legacy_scope_is_input(address->mScope),
+                                address->mSelector,
+                                size,
+                                data);
+}
+
+static OSStatus
+AudioObjectGetPropertyDataSize(AudioObjectID id,
+                               const AudioObjectPropertyAddress * address,
+                               UInt32,
+                               const void *,
+                               UInt32 * size)
+{
+  return audiounit_legacy_get_property_data_size(id, address, size);
+}
+
+static OSStatus
+AudioObjectGetPropertyData(AudioObjectID id,
+                           const AudioObjectPropertyAddress * address,
+                           UInt32,
+                           const void *,
+                           UInt32 * size,
+                           void * data)
+{
+  return audiounit_legacy_get_property_data(id, address, size, data);
+}
+
+static bool
+AudioObjectHasProperty(AudioObjectID id, const AudioObjectPropertyAddress * address)
+{
+  UInt32 size;
+  return audiounit_legacy_get_property_data_size(id, address, &size) == noErr;
+}
+#endif
+
 #define CUBEB_STREAM_MAX 8
 
 #define AU_OUT_BUS    0
@@ -726,10 +823,54 @@ audiounit_property_listener_callback(AudioObjectID /* id */, UInt32 address_coun
   return noErr;
 }
 
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+static OSStatus
+audiounit_legacy_hardware_property_listener_callback(AudioHardwarePropertyID property_id,
+                                                     void * user)
+{
+  AudioObjectPropertyAddress address = {
+    property_id,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyElementMaster
+  };
+  return audiounit_property_listener_callback(kAudioObjectSystemObject, 1, &address, user);
+}
+
+static OSStatus
+audiounit_legacy_device_property_listener_callback(AudioDeviceID id,
+                                                   UInt32 channel,
+                                                   Boolean is_input,
+                                                   AudioDevicePropertyID property_id,
+                                                   void * user)
+{
+  AudioObjectPropertyAddress address = {
+    property_id,
+    is_input ? kAudioDevicePropertyScopeInput : kAudioDevicePropertyScopeOutput,
+    channel
+  };
+  return audiounit_property_listener_callback(id, 1, &address, user);
+}
+#endif
+
 OSStatus
 audiounit_add_listener(cubeb_stream * stm, AudioDeviceID id, AudioObjectPropertySelector selector,
     AudioObjectPropertyScope scope, AudioObjectPropertyListenerProc listener)
 {
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+  (void) listener;
+  if (id == kAudioObjectSystemObject) {
+    return AudioHardwareAddPropertyListener(selector,
+                                            audiounit_legacy_hardware_property_listener_callback,
+                                            stm);
+  }
+
+  return AudioDeviceAddPropertyListener(id,
+                                        kAudioObjectPropertyElementMaster,
+                                        audiounit_legacy_scope_is_input(scope),
+                                        selector,
+                                        audiounit_legacy_device_property_listener_callback,
+                                        stm);
+#else
   AudioObjectPropertyAddress address = {
       selector,
       scope,
@@ -737,6 +878,7 @@ audiounit_add_listener(cubeb_stream * stm, AudioDeviceID id, AudioObjectProperty
   };
 
   return AudioObjectAddPropertyListener(id, &address, listener, stm);
+#endif
 }
 
 OSStatus
@@ -745,6 +887,20 @@ audiounit_remove_listener(cubeb_stream * stm, AudioDeviceID id,
                           AudioObjectPropertyScope scope,
                           AudioObjectPropertyListenerProc listener)
 {
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+  (void) stm;
+  (void) listener;
+  if (id == kAudioObjectSystemObject) {
+    return AudioHardwareRemovePropertyListener(selector,
+                                               audiounit_legacy_hardware_property_listener_callback);
+  }
+
+  return AudioDeviceRemovePropertyListener(id,
+                                           kAudioObjectPropertyElementMaster,
+                                           audiounit_legacy_scope_is_input(scope),
+                                           selector,
+                                           audiounit_legacy_device_property_listener_callback);
+#else
   AudioObjectPropertyAddress address = {
       selector,
       scope,
@@ -752,6 +908,7 @@ audiounit_remove_listener(cubeb_stream * stm, AudioDeviceID id,
   };
 
   return AudioObjectRemovePropertyListener(id, &address, listener, stm);
+#endif
 }
 
 static AudioObjectID audiounit_get_default_device_id(cubeb_device_type type);
@@ -2417,9 +2574,13 @@ audiounit_get_device_presentation_latency(AudioObjectID devid, AudioObjectProper
   adr.mSelector = kAudioDevicePropertyStreams;
   size = sizeof(sid);
   if (AudioObjectGetPropertyData(devid, &adr, 0, NULL, &size, sid) == noErr) {
+#if !defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
     adr.mSelector = kAudioStreamPropertyLatency;
     size = sizeof(UInt32);
     AudioObjectGetPropertyData(sid[0], &adr, 0, NULL, &size, &stream);
+#else
+    (void) sid;
+#endif
   }
 
   adr.mSelector = kAudioDevicePropertySafetyOffset;
@@ -2671,6 +2832,20 @@ audiounit_collection_changed_callback(AudioObjectID /* inObjectID */,
   return noErr;
 }
 
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+static OSStatus
+audiounit_legacy_collection_changed_callback(AudioHardwarePropertyID property_id,
+                                             void * user)
+{
+  AudioObjectPropertyAddress address = {
+    property_id,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyElementMaster
+  };
+  return audiounit_collection_changed_callback(kAudioObjectSystemObject, 1, &address, user);
+}
+#endif
+
 static OSStatus
 audiounit_add_device_listener(cubeb * context,
                               cubeb_device_type devtype,
@@ -2686,10 +2861,16 @@ audiounit_add_device_listener(cubeb * context,
   devAddr.mScope = kAudioObjectPropertyScopeGlobal;
   devAddr.mElement = kAudioObjectPropertyElementMaster;
 
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+  OSStatus ret = AudioHardwareAddPropertyListener(kAudioHardwarePropertyDevices,
+                                                  audiounit_legacy_collection_changed_callback,
+                                                  context);
+#else
   OSStatus ret = AudioObjectAddPropertyListener(kAudioObjectSystemObject,
                                                 &devAddr,
                                                 audiounit_collection_changed_callback,
                                                 context);
+#endif
   if (ret == noErr) {
     /* Expected zero after unregister. */
     assert(context->devtype_device_count == 0);
@@ -2717,10 +2898,15 @@ audiounit_remove_device_listener(cubeb * context)
   devAddr.mElement = kAudioObjectPropertyElementMaster;
 
   /* Note: unregister a non registered cb is not a problem, not checking. */
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+  OSStatus ret = AudioHardwareRemovePropertyListener(kAudioHardwarePropertyDevices,
+                                                     audiounit_legacy_collection_changed_callback);
+#else
   OSStatus ret = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
                                                    &devAddr,
                                                    audiounit_collection_changed_callback,
                                                    context);
+#endif
   if (ret == noErr) {
     /* Reset all values. */
     context->collection_changed_devtype = CUBEB_DEVICE_TYPE_UNKNOWN;

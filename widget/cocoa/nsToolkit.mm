@@ -154,6 +154,7 @@ static NSPoint ConvertCGGlobalToCocoaScreen(CGPoint aPoint)
 
 // Since our event tap is "listen only", events arrive here a little after
 // they've already been processed.
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
 static CGEventRef EventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *refcon)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
@@ -190,6 +191,7 @@ static CGEventRef EventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEv
 
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(NULL);
 }
+#endif
 
 // Cocoa Firefox's use of custom context menus requires that we explicitly
 // handle mouse events from other processes that the OS handles
@@ -211,6 +213,9 @@ nsToolkit::RegisterForAllProcessMouseEvents()
   return;
 #endif /* MOZ_USE_NATIVE_POPUP_WINDOWS */
 
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  return;
+#else
   if (!mEventTapRLS) {
     // Using an event tap for mouseDown events (instead of installing a
     // handler for them on the EventMonitor target) works around an Apple
@@ -241,6 +246,7 @@ nsToolkit::RegisterForAllProcessMouseEvents()
     }
     CFRunLoopAddSource(CFRunLoopGetCurrent(), mEventTapRLS, kCFRunLoopDefaultMode);
   }
+#endif
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }

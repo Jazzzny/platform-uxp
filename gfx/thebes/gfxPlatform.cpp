@@ -40,6 +40,7 @@
 #elif defined(XP_MACOSX)
 #include "gfxPlatformMac.h"
 #include "gfxQuartzSurface.h"
+#include "nsCocoaFeatures.h"
 #elif defined(MOZ_WIDGET_GTK)
 #include "gfxPlatformGtk.h"
 #elif defined(ANDROID)
@@ -2376,6 +2377,15 @@ gfxPlatform::InitOpenGLConfig()
   #endif
 
   FeatureState& openGLFeature = gfxConfig::GetFeature(Feature::OPENGL_COMPOSITING);
+
+#ifdef XP_MACOSX
+  if (!nsCocoaFeatures::IsAtLeastVersion(10, 4)) {
+    openGLFeature.DisableByDefault(FeatureStatus::Unavailable,
+                           "OpenGL is disabled on Mac OS X 10.3",
+                           NS_LITERAL_CSTRING("FEATURE_FAILURE_OSX_10_3_NO_GL"));
+    return;
+  }
+#endif
 
   // Check to see hw comp supported
   if (!gfxConfig::IsEnabled(Feature::HW_COMPOSITING)) {

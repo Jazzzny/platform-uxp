@@ -103,6 +103,16 @@ loader_LoadLibInReferenceDir(const char* referencePath, const char* name)
             libSpec.type = PR_LibSpec_Pathname;
             libSpec.value.pathname = fullName;
             dlh = PR_LoadLibraryWithFlags(libSpec, PR_LD_NOW | PR_LD_LOCAL);
+#if defined(DARWIN)
+            if (!dlh) {
+                dlh = PR_LoadLibraryWithFlags(libSpec, PR_LD_NOW);
+                if (dlh) {
+                    fprintf(stderr,
+                            "PowerFox NSS freebl: loaded without PR_LD_LOCAL path='%s'\n",
+                            fullName);
+                }
+            }
+#endif
             PORT_Free(fullName);
         }
     }
@@ -157,6 +167,16 @@ loader_LoadLibrary(const char* nameToLoad)
         libSpec.type = PR_LibSpec_Pathname;
         libSpec.value.pathname = nameToLoad;
         lib = PR_LoadLibraryWithFlags(libSpec, PR_LD_NOW | PR_LD_LOCAL);
+#if defined(DARWIN)
+        if (!lib) {
+            lib = PR_LoadLibraryWithFlags(libSpec, PR_LD_NOW);
+            if (lib) {
+                fprintf(stderr,
+                        "PowerFox NSS freebl: loaded without PR_LD_LOCAL path='%s'\n",
+                        nameToLoad ? nameToLoad : "(null)");
+            }
+        }
+#endif
     }
     if (NULL == lib) {
 #ifdef DEBUG_LOADER

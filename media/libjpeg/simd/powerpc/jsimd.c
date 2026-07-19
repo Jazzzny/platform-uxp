@@ -43,6 +43,13 @@
 #include <sys/sysctl.h>
 #endif
 
+#if defined(__APPLE__) && defined(__MACH__)
+#include <AvailabilityMacros.h>
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#include <sys/sysctl.h>
+#endif
+#endif
+
 static unsigned int simd_support = ~0;
 
 #if !defined(__ALTIVEC__) && (defined(__linux__) || defined(ANDROID) || defined(__ANDROID__))
@@ -143,9 +150,7 @@ init_simd(void)
 #if defined(__ALTIVEC__) && !defined(__APPLE__) && !defined(__MACH__)
   simd_support |= JSIMD_ALTIVEC;
 #elif defined(__APPLE__) && defined(__MACH__)
-  #include <AvailabilityMacros.h>
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
-  #include <sys/sysctl.h>
   // from gfx/qcms/transformn.c
   {
     int sels[2] = {CTL_HW, HW_VECTORUNIT};

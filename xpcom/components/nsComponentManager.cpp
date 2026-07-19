@@ -706,9 +706,9 @@ nsComponentManagerImpl::ManifestComponent(ManifestProcessingContext& aCx,
   }
 
   // Precompute the hash/file data outside of the lock
-  FileLocation fl(aCx.mFile, file);
+  FileLocation fileLocation(aCx.mFile, file);
   nsCString hash;
-  fl.GetURIString(hash);
+  fileLocation.GetURIString(hash);
 
   MutexLock lock(mLock);
   nsFactoryEntry* f = mFactories.Get(cid);
@@ -736,7 +736,7 @@ nsComponentManagerImpl::ManifestComponent(ManifestProcessingContext& aCx,
 
   km = mKnownModules.Get(hash);
   if (!km) {
-    km = new KnownModule(fl);
+    km = new KnownModule(fileLocation);
     mKnownModules.Put(hash, km);
   }
 
@@ -2079,4 +2079,3 @@ XRE_AddJarManifestLocation(NSLocationType aType, nsIFile* aLocation)
 
   return NS_OK;
 }
-

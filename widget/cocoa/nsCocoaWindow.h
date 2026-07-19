@@ -19,6 +19,9 @@ class nsCocoaWindow;
 class nsChildView;
 class nsMenuBarX;
 @class ChildView;
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+@class NSAnimation;
+#endif
 
 // If we are using an SDK older than 10.7, define bits we need that are missing from it.
 #if !defined(MAC_OS_X_VERSION_10_7) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7)
@@ -90,6 +93,11 @@ typedef struct _nsCocoaWindowList {
   BOOL mDrawTitle;
   BOOL mBrightTitlebarForeground;
   BOOL mUseMenuStyle;
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  // Panther has NSWindowToolbarButton but not NSWindow's public
+  // showsToolbarButton state API.
+  BOOL mShowsToolbarButton;
+#endif
 }
 
 - (void)importState:(NSDictionary*)aState;
@@ -129,6 +137,11 @@ typedef struct _nsCocoaWindowList {
 - (NSRect)getAndResetNativeDirtyRect;
 
 - (void)setUseMenuStyle:(BOOL)aValue;
+
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+- (void)setShowsToolbarButton:(BOOL)aShow;
+- (BOOL)showsToolbarButton;
+#endif
 
 @end
 

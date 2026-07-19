@@ -19,6 +19,8 @@
 #import <IOKit/IOKitLib.h>
 #include <AvailabilityMacros.h>
 
+#include "nsCocoaFeatures.h"
+
 // When running inside a VM, creating an accelerated OpenGL context usually
 // fails. Uncomment this line to emulate that behavior.
 // #define EMULATE_VM
@@ -73,6 +75,12 @@ private:
 
 CGLLibrary sCGLLibrary;
 
+static bool
+IsCGLDisabledOnThisSystem()
+{
+    return !nsCocoaFeatures::IsAtLeastVersion(10, 4);
+}
+
 GLContextCGL::GLContextCGL(CreateContextFlags flags, const SurfaceCaps& caps,
                            NSOpenGLContext* context, bool isOffscreen,
                            ContextProfile profile)
@@ -91,6 +99,10 @@ GLContextCGL::~GLContextCGL()
 bool
 GLContextCGL::Init()
 {
+    if (IsCGLDisabledOnThisSystem()) {
+        NS_WARNING("OpenGL is disabled on Mac OS X 10.3.");
+        return false;
+    }
     return InitWithPrefix("gl", true);
 }
 
@@ -253,12 +265,19 @@ CreateWithFormat(const NSOpenGLPixelFormatAttribute* attribs)
 already_AddRefed<GLContext>
 GLContextProviderCGL::CreateForCompositorWidget(CompositorWidget* aCompositorWidget, bool aForceAccelerated)
 {
+    if (IsCGLDisabledOnThisSystem()) {
+        return nullptr;
+    }
     return CreateForWindow(aCompositorWidget->RealWidget(), aForceAccelerated);
 }
 
 already_AddRefed<GLContext>
 GLContextProviderCGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated)
 {
+    if (IsCGLDisabledOnThisSystem()) {
+        return nullptr;
+    }
+
     if (!sCGLLibrary.EnsureInitialized()) {
         return nullptr;
     }
@@ -309,6 +328,13 @@ GLContextProviderCGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated
             forceSoftware = true;
         }
     }
+
+    // if we are on 10.3, then no
+#if !defined(MAC_OS_X_VERSION_10_4) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+    if (!nsCocoaFeatures::OnTigerOrLater()) {
+        forceSoftware = true;
+    }
+#endif
 
     if (forceSoftware) {
         NSOpenGLPixelFormatAttribute attribs[] = {
@@ -364,6 +390,10 @@ GLContextProviderCGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated
 static already_AddRefed<GLContextCGL>
 CreateOffscreenFBOContext(CreateContextFlags flags)
 {
+    if (IsCGLDisabledOnThisSystem()) {
+        return nullptr;
+    }
+
     if (!sCGLLibrary.EnsureInitialized()) {
         return nullptr;
     }
@@ -410,6 +440,11 @@ already_AddRefed<GLContext>
 GLContextProviderCGL::CreateHeadless(CreateContextFlags flags,
                                      nsACString* const out_failureId)
 {
+    if (IsCGLDisabledOnThisSystem()) {
+        *out_failureId = NS_LITERAL_CSTRING("FEATURE_FAILURE_OSX_10_3_NO_GL");
+        return nullptr;
+    }
+
     RefPtr<GLContextCGL> gl;
     gl = CreateOffscreenFBOContext(flags);
     if (!gl) {

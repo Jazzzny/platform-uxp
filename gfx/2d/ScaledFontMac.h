@@ -15,7 +15,25 @@
 
 #include <AvailabilityMacros.h>
 
-#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
+#define MOZ_MAC_USE_PUBLIC_CORETEXT 1
+#else
+#define MOZ_MAC_USE_PUBLIC_CORETEXT 0
+#endif
+
+#if defined(MAC_OS_X_VERSION_10_4) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4) && !MOZ_MAC_USE_PUBLIC_CORETEXT
+#define MOZ_MAC_USE_PHONY_CORETEXT 1
+#else
+#define MOZ_MAC_USE_PHONY_CORETEXT 0
+#endif
+
+#if MOZ_MAC_USE_PUBLIC_CORETEXT || MOZ_MAC_USE_PHONY_CORETEXT
+#define MOZ_MAC_USE_CORETEXT 1
+#else
+#define MOZ_MAC_USE_CORETEXT 0
+#endif
+
+#if MOZ_MAC_USE_PHONY_CORETEXT
 // For 10.4
 typedef unsigned int PRUint32;
 typedef int PRInt32;
@@ -33,7 +51,11 @@ class ScaledFontMac : public ScaledFontBase
 {
 public:
   MOZ_DECLARE_REFCOUNTED_VIRTUAL_TYPENAME(ScaledFontMac)
+#if MOZ_MAC_USE_CORETEXT
   ScaledFontMac(CGFontRef aFont, Float aSize);
+#else
+  ScaledFontMac(CGFontRef aFont, Float aSize, ATSFontRef aATSFont = kInvalidFont);
+#endif
   virtual ~ScaledFontMac();
 
   virtual FontType GetType() const { return FontType::MAC; }
@@ -54,6 +76,7 @@ private:
   friend class DrawTargetCG;
   friend class DrawTargetSkia;
   CGFontRef mFont;
+#if MOZ_MAC_USE_CORETEXT
   CTFontRef mCTFont; // only created if CTFontDrawGlyphs is available, otherwise null
 
   typedef void (CTFontDrawGlyphsFuncT)(CTFontRef,
@@ -67,6 +90,9 @@ public:
   // initialized the first time a ScaledFontMac is created,
   // so it will be valid by the time DrawTargetCG wants to use it
   static CTFontDrawGlyphsFuncT* CTFontDrawGlyphsPtr;
+#else
+  ATSFontRef mATSFont;
+#endif
 };
 
 } // namespace gfx

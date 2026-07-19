@@ -321,6 +321,7 @@ PR_IMPLEMENT(PRUint64) PR_GetPhysicalMemorySize(void)
 
 #elif defined(DARWIN)
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     mach_port_t mach_host = mach_host_self();
     struct host_basic_info hInfo;
     mach_msg_type_number_t count = HOST_BASIC_INFO_COUNT;
@@ -333,6 +334,17 @@ PR_IMPLEMENT(PRUint64) PR_GetPhysicalMemorySize(void)
     if (result == KERN_SUCCESS) {
         bytes = hInfo.max_mem;
     }
+#else
+    int mib[2];
+    uint64_t memSize;
+    size_t len = sizeof(memSize);
+
+    mib[0] = CTL_HW;
+    mib[1] = HW_MEMSIZE;
+    if (sysctl(mib, 2, &memSize, &len, NULL, 0) != -1) {
+        bytes = memSize;
+    }
+#endif
 
 #elif defined(WIN32)
 

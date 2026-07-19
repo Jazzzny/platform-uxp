@@ -220,7 +220,7 @@ nsresult nsMenuBarX::InsertMenuAtIndex(nsMenuX* aMenu, uint32_t aIndex)
     // Hook the new Application menu up to the menu bar.
     NSMenu* mainMenu = [NSApp mainMenu];
     NS_ASSERTION([mainMenu numberOfItems] > 0, "Main menu does not have any items, something is terribly wrong!");
-    [[mainMenu itemAtIndex:0] setSubmenu:sApplicationMenu];
+    nsMenuUtilsX::SetSubmenu([mainMenu itemAtIndex:0], sApplicationMenu);
   }
 
   // add menu to array that owns our menus
@@ -693,8 +693,15 @@ nsresult nsMenuBarX::CreateApplicationMenu(nsMenuX* inMenu)
       [sApplicationMenu addItem:itemBeingAdded];
 
       // set this menu item up as the Mac OS X Services menu
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
       NSMenu* servicesMenu = [[GeckoServicesNSMenu alloc] initWithTitle:@""];
-      [itemBeingAdded setSubmenu:servicesMenu];
+#else
+      // Panther's Services implementation is not safe to drive through the
+      // GeckoServicesNSMenu overrides: its internal insertItemWithTitle: call
+      // crashes in objc_msgSendSuper.  Use AppKit's native menu on 10.3.
+      NSMenu* servicesMenu = [[NSMenu alloc] initWithTitle:@""];
+#endif
+      nsMenuUtilsX::SetSubmenu(itemBeingAdded, servicesMenu);
       [NSApp setServicesMenu:servicesMenu];
 
       [itemBeingAdded release];
@@ -807,6 +814,14 @@ static BOOL gMenuItemsExecuteCommands = YES;
   if (!keyWindow) {
     return [super performKeyEquivalent:theEvent];
   }
+
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  // Panther's -[NSApplication _handleKeyEquivalent:] crashes in
+  // objc_msgSendSuper when GeckoNSMenu calls through to NSMenu here.  Return
+  // NO without entering AppKit's native key-equivalent machinery and let the
+  // key window deliver the event to Gecko's keyDown: handler instead.
+  return NO;
+#endif
 
   NSResponder *firstResponder = [keyWindow firstResponder];
 
@@ -988,7 +1003,8 @@ static BOOL gMenuItemsExecuteCommands = YES;
   return newItem;
 }
 
-#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
+    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
 struct objc10_object {
 	Class	isa;
 };
@@ -996,11 +1012,19 @@ struct objc10_object {
 
 - (void) _overrideClassOfMenuItem:(NSMenuItem *)menuItem
 {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   if ([menuItem class] == [NSMenuItem class])
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
     object_setClass(menuItem, [GeckoServicesNSMenuItem class]);
 #else
     ((struct objc10_object *)menuItem)->isa = [GeckoServicesNSMenuItem class];
+#endif
+#else
+  // Rewriting the isa of an NSMenuItem while Panther's AppKit is constructing
+  // the Services menu corrupts the old Objective-C runtime's method lookup.
+  // Native Services items are safe; only Gecko's key-equivalent suppression
+  // is unavailable on 10.3.
+  (void)menuItem;
 #endif
 }
 

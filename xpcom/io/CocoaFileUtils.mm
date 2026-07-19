@@ -152,6 +152,7 @@ nsresult SetFileTypeCode(CFURLRef url, OSType typeCode)
 void AddOriginMetadataToFile(const CFStringRef filePath,
                              const CFURLRef sourceURL,
                              const CFURLRef referrerURL) {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   typedef OSStatus (*MDItemSetAttribute_type)(MDItemRef, CFStringRef, CFTypeRef);
   static MDItemSetAttribute_type mdItemSetAttributeFunc = NULL;
 
@@ -196,6 +197,11 @@ void AddOriginMetadataToFile(const CFStringRef filePath,
 
   ::CFRelease(list);
   ::CFRelease(mdItem);
+#else
+  (void)filePath;
+  (void)sourceURL;
+  (void)referrerURL;
+#endif
 }
 
 void AddQuarantineMetadataToFile(const CFStringRef filePath,

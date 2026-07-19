@@ -29,6 +29,7 @@ namespace nsMenuUtilsX
   unsigned int  MacModifiersForGeckoModifiers(uint8_t geckoModifiers);
   nsMenuBarX*   GetHiddenWindowMenuBar(); // returned object is not retained
   NSMenuItem*   GetStandardEditMenuItem(); // returned object is not retained
+  void          SetSubmenu(NSMenuItem* aMenuItem, NSMenu* aSubmenu);
   bool          NodeIsHiddenOrCollapsed(nsIContent* inContent);
   int           CalculateNativeInsertionPoint(nsMenuObjectX* aParent, nsMenuObjectX* aChild);
 } // namespace nsMenuUtilsX

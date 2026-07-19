@@ -141,8 +141,17 @@ NS_IMETHODIMP nsPrintSettingsX::ReadPageFormatFromPrefs()
   PMPageFormat newPageFormat;
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   OSStatus status = ::PMPageFormatCreateWithDataRepresentation((CFDataRef)data, &newPageFormat);
-#else
+#elif defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   OSStatus status = ::PMUnflattenPageFormatWithCFData((CFDataRef)data, &newPageFormat);
+#else
+  Handle pageFormatHandle = nullptr;
+  OSStatus status = ::PtrToHand([data bytes], &pageFormatHandle, [data length]);
+  if (status == noErr) {
+    status = ::PMUnflattenPageFormat(pageFormatHandle, &newPageFormat);
+  }
+  if (pageFormatHandle) {
+    ::DisposeHandle(pageFormatHandle);
+  }
 #endif
   if (status == noErr) {
     SetPMPageFormat(newPageFormat);
@@ -165,8 +174,20 @@ NS_IMETHODIMP nsPrintSettingsX::WritePageFormatToPrefs()
   NSData* data = nil;
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   OSStatus err = ::PMPageFormatCreateDataRepresentation(pageFormat, (CFDataRef*)&data, kPMDataFormatXMLDefault);
-#else
+#elif defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   OSStatus err = ::PMFlattenPageFormatToCFData(pageFormat, (CFDataRef*)&data);
+#else
+  Handle pageFormatHandle = nullptr;
+  OSStatus err = ::PMFlattenPageFormat(pageFormat, &pageFormatHandle);
+  if (err == noErr && pageFormatHandle) {
+    ::HLock(pageFormatHandle);
+    data = [NSData dataWithBytes:*pageFormatHandle
+                           length:GetHandleSize(pageFormatHandle)];
+    ::HUnlock(pageFormatHandle);
+  }
+  if (pageFormatHandle) {
+    ::DisposeHandle(pageFormatHandle);
+  }
 #endif
   if (err != noErr)
     return NS_ERROR_FAILURE;

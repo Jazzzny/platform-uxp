@@ -44,6 +44,70 @@ using mozilla::gfx::SourceSurface;
 using mozilla::image::ImageRegion;
 using std::ceil;
 
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+// Panther has no +graphicsContextWithGraphicsPort:flipped:, but AppKit uses
+// this private class internally to wrap an existing CGContextRef.  Keep the
+// private dependency strictly inside the 10.3 build.
+@interface _NSExistingCGSContext : NSGraphicsContext
+- (id)initWithCGSContext:(CGContextRef)aContext;
+@end
+
+@interface GeckoExistingCGSContext : _NSExistingCGSContext
+{
+  BOOL mGeckoFlipped;
+}
+- (id)initWithCGContext:(CGContextRef)aContext flipped:(BOOL)aFlipped;
+@end
+
+@implementation GeckoExistingCGSContext
+
+- (id)initWithCGContext:(CGContextRef)aContext flipped:(BOOL)aFlipped
+{
+  self = [super initWithCGSContext:aContext];
+  if (self) {
+    mGeckoFlipped = aFlipped;
+  }
+  return self;
+}
+
+- (BOOL)isFlipped
+{
+  return mGeckoFlipped;
+}
+
+// _NSExistingCGSContext deliberately returns itself from -focusStack and
+// -focusedView.  NSCell drawing consequently sends the context a small set of
+// NSFocusStack/NSView messages.  Panther's private class doesn't implement
+// those messages itself, so provide the inert behavior an offscreen context
+// needs while preserving the non-nil sentinels that AppKit expects.
+- (id)_clipViewAncestor
+{
+  return nil;
+}
+
+- (void)focusView:(id)aView inWindow:(id)aWindow
+{
+}
+
+- (void)invalidateFocus:(id)aView
+{
+}
+
+@end
+#endif
+
+NSGraphicsContext*
+nsCocoaUtils::CreateNSGraphicsContext(CGContextRef aContext, BOOL aFlipped)
+{
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+  return [NSGraphicsContext graphicsContextWithGraphicsPort:aContext
+                                                    flipped:aFlipped];
+#else
+  return [[[GeckoExistingCGSContext alloc] initWithCGContext:aContext
+                                                    flipped:aFlipped] autorelease];
+#endif
+}
+
 static float
 MenuBarScreenHeight()
 {
@@ -377,6 +441,7 @@ void nsCocoaUtils::CleanUpAfterNativeAppModalDialog()
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
 NSUInteger nsCocoaUtils::GetCocoaEventModifierFlags(NSEvent *theEvent)
 {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   NSUInteger modifierFlags = 0;
   if (nsCocoaFeatures::OnLeopardOrLater())
     return [theEvent modifierFlags];
@@ -398,6 +463,12 @@ NSUInteger nsCocoaUtils::GetCocoaEventModifierFlags(NSEvent *theEvent)
       modifierFlags = NSControlKeyMask;
   }
   return modifierFlags;
+#else
+  // -modifierFlags is present in Panther's public NSEvent API.  The
+  // Tiger-specific compatibility path above otherwise returns zero for every
+  // ordinary key event, which strips Command before Gecko sees the keyDown.
+  return [theEvent modifierFlags];
+#endif
 }
 #endif
 

@@ -18,7 +18,19 @@ GetSelectedCityInfo(nsAString& aCountryCode)
 
   // Can be replaced with [[NSLocale currentLocale] countryCode] once we build
   // with the 10.12 SDK.
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   id countryCode = [[NSLocale currentLocale] objectForKey:NSLocaleCountryCode];
+#else
+  NSString* appleLocale =
+    [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleLocale"];
+  NSRange separator = [appleLocale rangeOfString:@"_"];
+  id countryCode = separator.location == NSNotFound ? nil :
+    [appleLocale substringFromIndex:separator.location + 1];
+  separator = [countryCode rangeOfString:@"."];
+  if (separator.location != NSNotFound) {
+    countryCode = [countryCode substringToIndex:separator.location];
+  }
+#endif
 
   if (![countryCode isKindOfClass:[NSString class]]) {
     return NS_ERROR_FAILURE;
@@ -37,4 +49,3 @@ GetSelectedCityInfo(nsAString& aCountryCode)
 }
 
 } // namespace Mozilla
-

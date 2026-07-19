@@ -124,7 +124,7 @@ static void init(VPxWorker *const worker) {
   worker->status_ = VPX_WORKER_STATUS_NOT_OK;
 }
 
-static int sync(VPxWorker *const worker) {
+static int worker_sync(VPxWorker *const worker) {
 #if CONFIG_MULTITHREAD
   change_state(worker, VPX_WORKER_STATUS_OK);
 #endif
@@ -164,7 +164,7 @@ static int reset(VPxWorker *const worker) {
     worker->status_ = VPX_WORKER_STATUS_OK;
 #endif
   } else if (worker->status_ > VPX_WORKER_STATUS_OK) {
-    ok = sync(worker);
+    ok = worker_sync(worker);
   }
   assert(!ok || (worker->status_ == VPX_WORKER_STATUS_OK));
   return ok;

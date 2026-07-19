@@ -14,6 +14,13 @@
 
 #define MIN_VOLATILE_ALLOC_SIZE 8192
 
+#if defined(MAC_OS_X_VERSION_10_4) && \
+    MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+#define MOZ_HAS_MACH_PURGABLE_MEMORY 1
+#else
+#define MOZ_HAS_MACH_PURGABLE_MEMORY 0
+#endif
+
 namespace mozilla {
 
 VolatileBuffer::VolatileBuffer()
@@ -34,18 +41,21 @@ VolatileBuffer::Init(size_t aSize, size_t aAlignment)
 
   mSize = aSize;
 
-  kern_return_t ret = 0;
   if (aSize < MIN_VOLATILE_ALLOC_SIZE) {
     goto heap_alloc;
   }
 
-  ret = vm_allocate(mach_task_self(),
-                    (vm_address_t*)&mBuf,
-                    mSize,
-                    VM_FLAGS_PURGABLE | VM_FLAGS_ANYWHERE);
-  if (ret == KERN_SUCCESS) {
-    return true;
+#if MOZ_HAS_MACH_PURGABLE_MEMORY
+  {
+    kern_return_t ret = vm_allocate(mach_task_self(),
+                                    (vm_address_t*)&mBuf,
+                                    mSize,
+                                    VM_FLAGS_PURGABLE | VM_FLAGS_ANYWHERE);
+    if (ret == KERN_SUCCESS) {
+      return true;
+    }
   }
+#endif
 
 heap_alloc:
 #ifdef HAVE_POSIX_MEMALIGN
@@ -84,6 +94,7 @@ VolatileBuffer::Lock(void** aBuf)
     return true;
   }
 
+#if MOZ_HAS_MACH_PURGABLE_MEMORY
   int state = VM_PURGABLE_NONVOLATILE;
   kern_return_t ret =
     vm_purgable_control(mach_task_self(),
@@ -91,6 +102,9 @@ VolatileBuffer::Lock(void** aBuf)
                         VM_PURGABLE_SET_STATE,
                         &state);
   return ret == KERN_SUCCESS && !(state & VM_PURGABLE_EMPTY);
+#else
+  return true;
+#endif
 }
 
 void
@@ -103,6 +117,7 @@ VolatileBuffer::Unlock()
     return;
   }
 
+#if MOZ_HAS_MACH_PURGABLE_MEMORY
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   int state = VM_PURGABLE_VOLATILE | VM_VOLATILE_GROUP_DEFAULT;
 #else
@@ -114,6 +129,7 @@ VolatileBuffer::Unlock()
                         VM_PURGABLE_SET_STATE,
                         &state);
   MOZ_ASSERT(ret == KERN_SUCCESS, "Failed to set buffer as purgable");
+#endif
 }
 
 bool

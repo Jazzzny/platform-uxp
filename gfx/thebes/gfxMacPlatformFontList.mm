@@ -1281,12 +1281,28 @@ gfxMacPlatformFontList::InitSingleFaceList()
 // [[NSFont fontWithName:[[[NSFont menuFontOfSize:8.0] fontDescriptor] postscriptName]
 //          size:8.0] familyName] ==> .SF NS Text
 
+static NSString* GetPostScriptNameForFont(NSFont* aFont)
+{
+#if defined(MAC_OS_X_VERSION_10_4) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
+    if ([aFont respondsToSelector:@selector(fontDescriptor)]) {
+        NSFontDescriptor* descriptor = [aFont fontDescriptor];
+        if ([descriptor respondsToSelector:@selector(postscriptName)]) {
+            NSString* psName = [descriptor postscriptName];
+            if (psName) {
+                return psName;
+            }
+        }
+    }
+#endif
+    return [aFont fontName];
+}
+
 static NSString* GetRealFamilyName(NSFont* aFont)
 {
 #if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     if(nsCocoaFeatures::OnCatalinaOrLater())
     {
-        NSString* psName = [[aFont fontDescriptor] postscriptName];
+        NSString* psName = GetPostScriptNameForFont(aFont);
         // With newer macOS versions and SDKs (e.g. when compiled against SDK 10.15),
         // [NSFont fontWithName:] fails for hidden system fonts, because the underlying
         // Core Text functions it uses reject such names and tell us to use the special
@@ -1315,7 +1331,7 @@ static NSString* GetRealFamilyName(NSFont* aFont)
         return [familyName autorelease];
     }
 #endif
-    NSFont* f = [NSFont fontWithName: [[aFont fontDescriptor] postscriptName]
+    NSFont* f = [NSFont fontWithName: GetPostScriptNameForFont(aFont)
                         size: 0.0];
     return [f familyName];
 }
@@ -1327,7 +1343,7 @@ static NSString* GetRealFamilyName(NSFont* aFont)
 static gfxFontFamily* CreateFamilyForSystemFont(NSFont* aFont, const nsString& aFamilyName) {
   gfxFontFamily* familyEntry = new gfxFontFamily(aFamilyName);
 
-  NSString* psNameNS = [[aFont fontDescriptor] postscriptName];
+  NSString* psNameNS = GetPostScriptNameForFont(aFont);
   nsAutoString psName;
   nsCocoaUtils::GetStringForNSString(psNameNS, psName);
 
@@ -1986,6 +2002,7 @@ gfxMacPlatformFontList::LookupSystemFont(LookAndFeel::FontID aSystemFontID,
         aSystemFontName.AssignASCII(systemFontName);
     }
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     NSFontSymbolicTraits traits = [[font fontDescriptor] symbolicTraits];
     aFontStyle.style =
         (traits & NSFontItalicTrait) ?  NS_FONT_STYLE_ITALIC : NS_FONT_STYLE_NORMAL;
@@ -1995,8 +2012,30 @@ gfxMacPlatformFontList::LookupSystemFont(LookAndFeel::FontID aSystemFontID,
         (traits & NSFontExpandedTrait) ?
             NS_FONT_STRETCH_EXPANDED : (traits & NSFontCondensedTrait) ?
                 NS_FONT_STRETCH_CONDENSED : NS_FONT_STRETCH_NORMAL;
-    // convert size from css pixels to device pixels
-    aFontStyle.size = [font pointSize] * aDevPixPerCSSPixel;
+#else
+    NSFontTraitMask traits = [[NSFontManager sharedFontManager] traitsOfFont:font];
+    aFontStyle.style =
+        (traits & NSItalicFontMask) ?  NS_FONT_STYLE_ITALIC : NS_FONT_STYLE_NORMAL;
+    aFontStyle.weight =
+        (traits & NSBoldFontMask) ? NS_FONT_WEIGHT_BOLD : NS_FONT_WEIGHT_NORMAL;
+    aFontStyle.stretch =
+        (traits & NSExpandedFontMask) ?
+            NS_FONT_STRETCH_EXPANDED : (traits & NSCondensedFontMask) ?
+                NS_FONT_STRETCH_CONDENSED : NS_FONT_STRETCH_NORMAL;
+#endif
+    // Convert size from CSS pixels to device pixels. Panther reports its
+    // pull-down menu font as 13pt, but Cairo's 13px outline rendering is one
+    // pixel smaller than the native Panther menu text. Keep this adjustment
+    // limited to XUL popup menus; the broader eFont_Menu metric is also used
+    // by buttons and dialogs.
+    CGFloat fontSize = [font pointSize];
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+    if (!nsCocoaFeatures::OnTigerOrLater() &&
+        aSystemFontID == LookAndFeel::eFont_PullDownMenu) {
+        fontSize += 1.0;
+    }
+#endif
+    aFontStyle.size = fontSize * aDevPixPerCSSPixel;
     aFontStyle.systemFont = true;
 }
 

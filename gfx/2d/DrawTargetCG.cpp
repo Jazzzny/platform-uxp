@@ -77,7 +77,9 @@ extern "C" void CGContextSetCTM(CGContextRef, CGAffineTransform);
 }
 
 // Finally include 10.4's hidden CoreText support
+#if defined(MAC_OS_X_VERSION_10_4) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4)
 #include "../thebes/PhonyCoreText.h"
+#endif
 // and dlsym() so that we can find secret functions with variable names
 #include <dlfcn.h>
 // and our CTGradient library, through the CTGradientCPP C++ bridge object
@@ -438,6 +440,9 @@ class UnboundnessFixer
         // The clip bounding box will be in user space so we need to clear our transform first
         CGContextSetCTM(dt->mCg, dt->mOriginalTransform);
         mClipBounds = CGContextGetClipBoundingBox(dt->mCg);
+#if !defined(MAC_OS_X_VERSION_10_4) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+        mClipBounds = CGRectIntegral(mClipBounds);
+#endif
 
         // If we're entirely clipped out or if the drawing operation covers the entire clip then
         // we don't need to create a temporary surface.
@@ -1147,10 +1152,38 @@ DrawTargetCG::MaskSurface(const Pattern &aSource,
 
   CGImageRef image = GetRetainedImageFromSourceSurface(aMask);
 
+  IntSize size = aMask->GetSize();
+
+#if !defined(MAC_OS_X_VERSION_10_4) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+  {
+    // Draw the mask onto a transparency layer and draw the pattern on top using blending.
+    CGContextBeginTransparencyLayer(cg, NULL);
+
+    CGContextSaveGState(cg);
+    CGContextSetRGBFillColor(cg, 0.0, 0.0, 0.0, 1.0);
+    CGContextScaleCTM(cg, 1, -1);
+    CGContextDrawImage(cg,
+        CGRectMake(aOffset.x, -(aOffset.y + size.height),
+                   size.width, size.height),
+        image);
+    CGContextRestoreGState(cg);
+
+    CGContextSetCompositeOperation(cg, kPrivateCGCompositeSourceIn);
+
+    if (isGradient(aSource)) {
+      DrawGradient(mColorSpace, cg, aSource, CGRectMake(aOffset.x, aOffset.y, size.width, size.height));
+    } else {
+      SetFillFromPattern(cg, mColorSpace, aSource);
+      CGContextFillRect(cg, CGRectMake(aOffset.x, aOffset.y, size.width, size.height));
+    }
+
+    CGContextEndTransparencyLayer(cg);
+  }
+#else
+  /* 10.4+: use CGContextClipToMask directly. */
+
   // use a negative-y so that the mask image draws right ways up
   CGContextScaleCTM(cg, 1, -1);
-
-  IntSize size = aMask->GetSize();
 
   CGContextClipToMask(cg, CGRectMake(aOffset.x, -(aOffset.y + size.height), size.width, size.height), image);
 
@@ -1163,6 +1196,7 @@ DrawTargetCG::MaskSurface(const Pattern &aSource,
     SetFillFromPattern(cg, mColorSpace, aSource);
     CGContextFillRect(cg, CGRectMake(aOffset.x, aOffset.y, size.width, size.height));
   }
+#endif
 
   CGImageRelease(image);
 
@@ -2208,7 +2242,12 @@ DrawTargetCG::Mask(const Pattern &aSource,
       MOZ_ASSERT(pat.mSamplingRect.IsEmpty(), "Sampling rect not supported with masks!");
       Rect rect(0,0, CGImageGetWidth(mask), CGImageGetHeight(mask));
       // XXX: probably we need to do some flipping of the image or something
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
       CGContextClipToMask(mCg, RectToCGRect(rect), mask);
+#else
+      // this is dead code anyways?
+      CGContextClipToRect(mCg, RectToCGRect(rect));
+#endif
       FillRect(rect, aSource, aDrawOptions);
       CGImageRelease(mask);
     }

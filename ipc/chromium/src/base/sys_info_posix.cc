@@ -13,8 +13,10 @@
 #include <unistd.h>
 
 #if defined(OS_MACOSX)
+#include <AvailabilityMacros.h>
 #include <mach/mach_host.h>
 #include <mach/mach_init.h>
+#include <sys/sysctl.h>
 #endif
 
 #if defined(OS_NETBSD)
@@ -47,6 +49,8 @@ int SysInfo::NumberOfProcessors() {
 int64_t SysInfo::AmountOfPhysicalMemory() {
   // _SC_PHYS_PAGES is not part of POSIX and not available on OS X
 #if defined(OS_MACOSX)
+#if defined(MAC_OS_X_VERSION_10_4) && \
+    MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   struct host_basic_info hostinfo;
   mach_msg_type_number_t count = HOST_BASIC_INFO_COUNT;
   int result = host_info(mach_host_self(),
@@ -60,6 +64,19 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
   }
 
   return static_cast<int64_t>(hostinfo.max_mem);
+#else
+  int mib[2];
+  uint64_t memSize;
+  size_t len = sizeof(memSize);
+
+  mib[0] = CTL_HW;
+  mib[1] = HW_MEMSIZE;
+  if (sysctl(mib, 2, &memSize, &len, NULL, 0) != -1) {
+    return static_cast<int64_t>(memSize);
+  }
+
+  return 0;
+#endif
 #elif defined(OS_NETBSD)
   int mib[2];
   int rc;

@@ -194,7 +194,7 @@ nsresult nsMenuX::Create(nsMenuObjectX* aParent, nsMenuGroupOwnerX* aMenuGroupOw
 
   NSString *newCocoaLabelString = nsMenuUtilsX::GetTruncatedCocoaLabel(mLabel);
   mNativeMenuItem = [[NSMenuItem alloc] initWithTitle:newCocoaLabelString action:nil keyEquivalent:@""];
-  [mNativeMenuItem setSubmenu:mNativeMenu];
+  nsMenuUtilsX::SetSubmenu(mNativeMenuItem, mNativeMenu);
 
   SetEnabled(!mContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::disabled,
                                     nsGkAtoms::_true, eCaseMatters));
@@ -263,7 +263,7 @@ nsMenuX* nsMenuX::AddMenu(UniquePtr<nsMenuX> aMenu)
   NSMenuItem* newNativeMenuItem = menu->NativeMenuItem();
   if (newNativeMenuItem) {
     [mNativeMenu addItem:newNativeMenuItem];
-    [newNativeMenuItem setSubmenu:(NSMenu*)menu->NativeData()];
+    nsMenuUtilsX::SetSubmenu(newNativeMenuItem, (NSMenu*)menu->NativeData());
   }
 
   return menu;
@@ -753,7 +753,7 @@ void nsMenuX::ObserveAttributeChanged(nsIDocument *aDocument, nsIContent *aConte
         }
         NSMenu* parentMenu = (NSMenu*)mParent->NativeData();
         [parentMenu insertItem:mNativeMenuItem atIndex:insertionIndex];
-        [mNativeMenuItem setSubmenu:mNativeMenu];
+        nsMenuUtilsX::SetSubmenu(mNativeMenuItem, mNativeMenu);
         mVisible = true;
       }
     }

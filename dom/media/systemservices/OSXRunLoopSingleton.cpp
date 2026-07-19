@@ -24,18 +24,23 @@ void mozilla_set_coreaudio_notification_runloop_if_needed()
   /* This is needed so that AudioUnit listeners get called on this thread, and
    * not the main thread. If we don't do that, they are not called, or a crash
    * occur, depending on the OSX version. */
+  CFRunLoopRef run_loop = nullptr;
+
+  OSStatus r;
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   AudioObjectPropertyAddress runloop_address = {
     kAudioHardwarePropertyRunLoop,
     kAudioObjectPropertyScopeGlobal,
     kAudioObjectPropertyElementMaster
   };
 
-  CFRunLoopRef run_loop = nullptr;
-
-  OSStatus r;
   r = AudioObjectSetPropertyData(kAudioObjectSystemObject,
                                  &runloop_address,
                                  0, NULL, sizeof(CFRunLoopRef), &run_loop);
+#else
+  r = AudioHardwareSetProperty(kAudioHardwarePropertyRunLoop,
+                               sizeof(CFRunLoopRef), &run_loop);
+#endif
   if (r != noErr) {
     NS_WARNING("Could not make global CoreAudio notifications use their own thread.");
   }

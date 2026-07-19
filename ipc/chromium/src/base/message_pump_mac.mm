@@ -36,7 +36,11 @@ class MessagePumpScopedAutoreleasePool {
       pool_(pump->CreateAutoreleasePool()) {
   }
    ~MessagePumpScopedAutoreleasePool() {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     [pool_ drain];
+#else
+    [pool_ release];
+#endif
   }
 
  private:

@@ -6,6 +6,8 @@
 
 #include "nsNSSComponent.h"
 
+#include <stdio.h>
+
 #include "ExtendedValidation.h"
 #include "NSSCertDBTrustDomain.h"
 #include "ScopedNSSTypes.h"
@@ -1319,12 +1321,12 @@ static const CipherPref sCipherPrefs[] = {
  { "security.ssl3.ecdhe_ecdsa_aes_256_sha",
    TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, true },
 
- { "security.ssl3.dhe_rsa_camellia_256_sha", 
+ { "security.ssl3.dhe_rsa_camellia_256_sha",
    TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA, true},
  { "security.ssl3.dhe_rsa_aes_256_sha",
    TLS_DHE_RSA_WITH_AES_256_CBC_SHA, true },
 
- { "security.ssl3.dhe_rsa_camellia_128_sha", 
+ { "security.ssl3.dhe_rsa_camellia_128_sha",
    TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA, true },
  { "security.ssl3.dhe_rsa_aes_128_sha",
    TLS_DHE_RSA_WITH_AES_128_CBC_SHA, true },
@@ -1338,9 +1340,9 @@ static const CipherPref sCipherPrefs[] = {
 
  // Deprecated (RSA key exchange):
  { "security.ssl3.rsa_aes_256_gcm_sha384",
-   TLS_RSA_WITH_AES_256_GCM_SHA384, true }, 
+   TLS_RSA_WITH_AES_256_GCM_SHA384, true },
  { "security.ssl3.rsa_aes_256_sha256",
-   TLS_RSA_WITH_AES_256_CBC_SHA256, true }, 
+   TLS_RSA_WITH_AES_256_CBC_SHA256, true },
  {"security.ssl3.rsa_camellia_128_sha",
    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA, true },
  {"security.ssl3.rsa_camellia_256_sha",
@@ -1793,6 +1795,13 @@ nsNSSComponent::InitializeNSS()
   // pref has been set to "true", attempt to initialize with no DB.
   if (nocertdb || init_rv != SECSuccess) {
     init_rv = NSS_NoDB_Init(nullptr);
+    if (init_rv != SECSuccess) {
+      PRErrorCode error = PORT_GetError();
+      const char* errorName = PR_ErrorToName(error);
+      fprintf(stderr,
+              "PowerFox NSS_NoDB_Init failed: error=%d(%s) osError=%d\n",
+              error, errorName ? errorName : "unknown", PR_GetOSError());
+    }
   }
 
   if (init_rv != SECSuccess) {
@@ -1871,9 +1880,9 @@ nsNSSComponent::InitializeNSS()
   // Set TLS 1.3 compatibility mode for bad middleware boxes?
   SSL_OptionSetDefault(SSL_ENABLE_TLS13_COMPAT_MODE,
                        Preferences::GetBool("security.ssl.enable_tls13_compat_mode",
-                                            TLS13_COMPAT_MODE_DEFAULT));  
+                                            TLS13_COMPAT_MODE_DEFAULT));
 
-  
+
   if (NS_FAILED(InitializeCipherSuite())) {
 
     MOZ_LOG(gPIPNSSLog, LogLevel::Error, ("Unable to initialize cipher suite settings\n"));

@@ -144,7 +144,11 @@ nsColorPicker::GetHexStringFromNSColor(NSColor* aColor, nsAString& aResult)
   @try {
     [color getRed:&redFloat green:&greenFloat blue:&blueFloat alpha: nil];
   } @catch (NSException* e) {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     color = [color colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
+#else
+    color = [color colorUsingColorSpaceName:NSDeviceRGBColorSpace];
+#endif
     [color getRed:&redFloat green:&greenFloat blue:&blueFloat alpha: nil];
   }
 
