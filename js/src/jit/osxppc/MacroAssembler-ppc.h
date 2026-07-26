@@ -1591,9 +1591,17 @@ public:
     }
     void mulBy3(const Register &src, const Register &dest) {
     	ispew("mulBy3(reg, reg)");
-    	// Look familiar?!
-        add(dest, src, src);
-        add(dest, dest, src);
+        if (src == dest) {
+            // Keep the original source alive in the reserved scratch register.
+            // This has a fixed two-instruction dependency chain, whereas mulli
+            // takes 2-3 cycles on the 750/7400 and 3 cycles on the 7450.
+            MOZ_ASSERT(src != tempRegister);
+            x_slwi(tempRegister, src, 1);
+            add(dest, tempRegister, src);
+        } else {
+            add(dest, src, src);
+            add(dest, dest, src);
+        }
     }
 
     void breakpoint();
