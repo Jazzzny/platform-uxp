@@ -268,7 +268,9 @@ static inline void EnableIonDebugAsyncLogging()
 template <JitSpewChannel Channel>
 class AutoDisableSpew
 {
-    mozilla::DebugOnly<bool> enabled_;
+    // JIT spew can be enabled in optimized builds with --enable-jitspew, so
+    // this state must not disappear with the other debug-only values.
+    bool enabled_;
 
   public:
     AutoDisableSpew()
