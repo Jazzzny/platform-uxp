@@ -103,7 +103,7 @@ class Registers
     static const Encoding Invalid = invalid_reg;
 
     static const uint32_t Total = 32;
-    static const uint32_t Allocatable = 15;
+    static const uint32_t Allocatable = 18;
 
     static const uint32_t AllMask = 0xffffffff;
     static const uint32_t ArgRegMask =

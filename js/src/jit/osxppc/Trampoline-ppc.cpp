@@ -36,11 +36,35 @@
 using namespace js;
 using namespace js::jit;
 
-// All registers to save and restore. This includes the stack pointer, since we
-// use the ability to reference register values on the stack by index.
-static const LiveRegisterSet AllRegs =
-  LiveRegisterSet(GeneralRegisterSet(Registers::AllMask),
-              FloatRegisterSet(FloatRegisters::AllMask));
+// Bailout snapshots can only refer to registers exposed to the allocator.
+// Keep the complete RegisterDump stack layout, because generic bailout code
+// addresses entries by physical-register number, but avoid writing the holes.
+static void
+PushBailoutRegisterDump(MacroAssembler& masm)
+{
+    static_assert(sizeof(RegisterDump::GPRArray) ==
+                  sizeof(uintptr_t) * Registers::Total,
+                  "Unexpected PPC GPR dump layout");
+    static_assert(sizeof(RegisterDump::FPUArray) ==
+                  sizeof(double) * FloatRegisters::TotalPhys,
+                  "Unexpected PPC FPU dump layout");
+
+    const uint32_t fpuDumpSize = sizeof(RegisterDump::FPUArray);
+    masm.reserveStack(fpuDumpSize + sizeof(RegisterDump::GPRArray));
+
+    GeneralRegisterSet gprs(Registers::AllocatableMask);
+    for (GeneralRegisterIterator iter(gprs); iter.more(); ++iter) {
+        Register reg = *iter;
+        masm.storePtr(reg, Address(StackPointer,
+                                  fpuDumpSize + reg.code() * sizeof(uintptr_t)));
+    }
+
+    FloatRegisterSet fpus(FloatRegisters::AllocatableMask);
+    for (FloatRegisterIterator iter(fpus); iter.more(); ++iter) {
+        FloatRegister reg = *iter;
+        masm.storeDouble(reg, Address(StackPointer, reg.getRegisterDumpOffsetInBytes()));
+    }
+}
 
 // This is our *original* stack frame.
 struct EnterJITStack
@@ -70,8 +94,9 @@ struct EnterJITStack
     void *savedR16;     // temporary stack for ABI calls
     void *savedR17;     // temporary stack for Trampoline
     void *savedR18;     // temporary LR for ABI calls
-    // GPRs. Preserve the full PowerOpen nonvolatile set: generated code is
-    // entered as a C-callable function and must not disturb caller state.
+    // Allocatable nonvolatile GPRs. Registers r26-r31 are deliberately not
+    // allocatable and no trampoline uses them, so leaving them untouched
+    // already preserves their ABI values without a stack round-trip.
     void *savedR19;     // 84(r1)
     void *savedR20;
     void *savedR21;
@@ -79,15 +104,7 @@ struct EnterJITStack
     void *savedR23;
     void *savedR24;
     void *savedR25;
-    void *savedR26;
-    void *savedR27;
-    void *savedR28;
-    void *savedR29;
-    void *savedR30;
-    void *savedR31;
-    void *padding1;
-    void *padding2;
-    // 144(r1)
+    // 112(r1)
 
     // We don't need to save any FPRs; we don't let the allocator use
     // any of the non-volatile ones.
@@ -157,13 +174,14 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // Dump the GPRs in the new frame. Emit an unrolled loop.
     // We don't need to save any FPRs.
-    // XXX: We save more than we need, but that's probably a good thing.
+    // Save the nonvolatile work registers and the allocatable nonvolatile
+    // registers. The remaining nonvolatile GPRs are never touched by JIT code.
     uint32_t j = 60;
-    for (uint32_t i = 13; i < 32; i++) {
+    for (uint32_t i = 13; i < 26; i++) {
         masm.stw(Register::FromCode((Register::Code)i), sp, j);
         j+=4;
     }
-    MOZ_ASSERT(j == sizeof(EnterJITStack) - 2 * sizeof(void*));
+    MOZ_ASSERT(j == sizeof(EnterJITStack));
 
     // Save sp to r18 so that we can restore it for ABI calls.
     masm.x_mr(r18, r12);
@@ -392,8 +410,8 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     
     masm.bind(&epilogue);
     // Restore GPRs. (We have no FPRs to restore.)
-    j -= 4; // otherwise r31 starts one word past its saved slot.
-    for (uint32_t i = 31; i > 12; i--) {
+    j -= 4; // otherwise r25 starts one word past its saved slot.
+    for (uint32_t i = 25; i > 12; i--) {
         masm.lwz(Register::FromCode(i), sp, j);
         j-=4;
     }
@@ -443,7 +461,7 @@ JitRuntime::generateInvalidator(JSContext *cx)
 	// to us, so there *is* no return address on the stack. Instead, just start writing.
 	// Push registers such that we can access them from [base + code]. The script and
 	// osiPoint should already be on stack.
-	masm.PushRegsInMask(AllRegs);
+	PushBailoutRegisterDump(masm);
 	
     // Created InvalidationBailoutStack; hand it to InvalidationBailout().
     masm.x_mr(r3, stackPointerRegister);
@@ -700,7 +718,7 @@ PushBailoutFrame(MacroAssembler &masm, uint32_t frameClass, Register spArg)
 	// should already be present).
 	//
 	// First, save all registers, since the invalidator expects to examine them.
-	masm.PushRegsInMask(AllRegs);
+	PushBailoutRegisterDump(masm);
 	
 	// Get the framesize, which was stashed in LR.
 	// See also JitRuntime::generateBailoutTable() and
