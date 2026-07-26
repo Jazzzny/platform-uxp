@@ -1197,23 +1197,24 @@ CodeGeneratorPPC::visitModPowTwoI(LModPowTwoI *ins)
     Register in = ToRegister(ins->getOperand(0));
     Register out = ToRegister(ins->getDef(0));
     MMod *mir = ins->mir();
+    int32_t mask = int32_t((uint32_t(1) << ins->shift()) - 1);
 
     masm.move32(in, out);
-    
+
     // If zero, nothing to do.
     masm.cmpwi(in, 0); // signed comparison please
     BufferOffset done = masm._bc(0, Assembler::Equal);
     
     // If positive, just use a bitmask.
     BufferOffset negative = masm._bc(0, Assembler::LessThan);
-    masm.andi_rc(out, out, ((1 << ins->shift()) - 1));
+    masm.and32(Imm32(mask), out);
     BufferOffset done2 = masm._b(0);
     
     // If negative, negate, bitmask, and negate again.
     masm.bindSS(negative);
 
     masm.neg32(out);
-    masm.andi_rc(out, out, ((1 << ins->shift()) - 1));
+    masm.and32(Imm32(mask), out);
     masm.neg32(out);
 
     // Negative-zero check.

@@ -1280,6 +1280,52 @@ bool
 ICBinaryArith_Double::Compiler::generateStubCode(MacroAssembler& masm)
 {
     Label failure;
+
+#ifdef JS_CODEGEN_PPC_OSX
+    if (op == JSOP_MOD) {
+        // A single negative-zero result replaces the Int32 modulo stub with
+        // this Double stub.  Most subsequent operands can still be integers,
+        // and calling the system fmod for every one is particularly expensive
+        // on PowerPC. Keep exact Int32 results entirely in GPRs, including
+        // signed-zero cases, and fall through to NumberMod only for zero
+        // divisors and actual doubles.
+        Label doubleMod;
+        Label safeDividend;
+        Label intResult;
+        Label intNegativeZero;
+
+        masm.branchTestInt32(Assembler::NotEqual, R0, &doubleMod);
+        masm.branchTestInt32(Assembler::NotEqual, R1, &doubleMod);
+        masm.branch32(Assembler::Equal, R1.payloadReg(), Imm32(0), &doubleMod);
+
+        masm.branch32(Assembler::NotEqual, R1.payloadReg(), Imm32(-1),
+                      &safeDividend);
+        masm.branch32(Assembler::Equal, R0.payloadReg(), Imm32(INT32_MIN),
+                      &intNegativeZero);
+        masm.bind(&safeDividend);
+
+        Register remainder = R2.payloadReg();
+        masm.divw(addressTempRegister, R0.payloadReg(), R1.payloadReg());
+        masm.mullw(remainder, addressTempRegister, R1.payloadReg());
+        masm.subf(remainder, remainder, R0.payloadReg());
+
+        masm.branch32(Assembler::NotEqual, remainder, Imm32(0), &intResult);
+        masm.branch32(Assembler::LessThan, R0.payloadReg(), Imm32(0),
+                      &intNegativeZero);
+        masm.bind(&intResult);
+
+        masm.tagValue(JSVAL_TYPE_INT32, remainder, R0);
+        EmitReturnFromIC(masm);
+
+        masm.bind(&intNegativeZero);
+        masm.loadConstantDouble(-0.0, FloatReg0);
+        masm.boxDouble(FloatReg0, R0);
+        EmitReturnFromIC(masm);
+
+        masm.bind(&doubleMod);
+    }
+#endif
+
     masm.ensureDouble(R0, FloatReg0, &failure);
     masm.ensureDouble(R1, FloatReg1, &failure);
 

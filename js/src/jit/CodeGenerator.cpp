@@ -6808,6 +6808,59 @@ CodeGenerator::visitModD(LModD* ins)
 
     MOZ_ASSERT(ToFloatRegister(ins->output()) == ReturnDoubleReg);
 
+#ifdef JS_CODEGEN_PPC_OSX
+    bool hasTruncatedPowerOfTwoFastPath = false;
+    Label slow;
+    Label done;
+    MMod* mir = ins->mirRaw()->toMod();
+
+    // Type feedback can keep MMod as Double even when its only observable
+    // consumer applies ToInt32. Inspect that use directly instead of relying
+    // on truncation metadata, which is not propagated to this Double node.
+    bool hasTruncatingUse = false;
+    if (mir->hasOneDefUse()) {
+        for (MUseIterator use(mir->usesBegin()); use != mir->usesEnd(); use++) {
+            if ((*use)->consumer()->isDefinition()) {
+                hasTruncatingUse =
+                    (*use)->consumer()->toDefinition()->isTruncateToInt32();
+                break;
+            }
+        }
+    }
+
+    if (!gen->compilingWasm() && hasTruncatingUse) {
+        MDefinition* rhsDef = mir->rhs();
+        if (rhsDef->isToDouble())
+            rhsDef = rhsDef->toToDouble()->input();
+
+        int32_t divisor;
+        if (rhsDef->isConstant() &&
+            mozilla::NumberIsInt32(rhsDef->toConstant()->numberToDouble(), &divisor) &&
+            divisor != 0) {
+            uint32_t magnitude =
+                divisor < 0 ? 0u - uint32_t(divisor) : uint32_t(divisor);
+            if (mozilla::IsPowerOfTwo(magnitude)) {
+                hasTruncatedPowerOfTwoFastPath = true;
+                Register lhsInt = temp;
+
+                // Truncating consumers do not distinguish -0 from 0.
+                masm.convertDoubleToInt32(lhs, lhsInt, &slow, false);
+
+                // Compute abs(lhs) & (divisor - 1), then restore lhs' sign.
+                masm.srawi(addressTempRegister, lhsInt, 31);
+                masm.xor_(lhsInt, lhsInt, addressTempRegister);
+                masm.subf(lhsInt, addressTempRegister, lhsInt);
+                masm.and32(Imm32(magnitude - 1), lhsInt);
+                masm.xor_(lhsInt, lhsInt, addressTempRegister);
+                masm.subf(lhsInt, addressTempRegister, lhsInt);
+                masm.convertInt32ToDouble(lhsInt, ReturnDoubleReg);
+                masm.jump(&done);
+                masm.bind(&slow);
+            }
+        }
+    }
+#endif
+
     masm.setupUnalignedABICall(temp);
     masm.passABIArg(lhs, MoveOp::DOUBLE);
     masm.passABIArg(rhs, MoveOp::DOUBLE);
@@ -6816,6 +6869,11 @@ CodeGenerator::visitModD(LModD* ins)
         masm.callWithABI(wasm::SymbolicAddress::ModD, MoveOp::DOUBLE);
     else
         masm.callWithABI(JS_FUNC_TO_DATA_PTR(void*, NumberMod), MoveOp::DOUBLE);
+
+#ifdef JS_CODEGEN_PPC_OSX
+    if (hasTruncatedPowerOfTwoFastPath)
+        masm.bind(&done);
+#endif
 }
 
 typedef bool (*BinaryFn)(JSContext*, MutableHandleValue, MutableHandleValue, MutableHandleValue);
