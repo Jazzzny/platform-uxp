@@ -231,45 +231,57 @@ void MouseCursorMonitorMac::Capture() {
   callback_->OnMouseCursorPosition(state, position);
 }
 
-#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
-CGImageRef NSImageToCGImageRef(NSImage *image) {
-    NSSize imageSize = [image size];
-
-    // Create a bitmap context
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGContextRef context = CGBitmapContextCreate(NULL,
-                                                 imageSize.width,
-                                                 imageSize.height,
-                                                 8,       // bits per component
-                                                 0,       // bytes per row (0 for default)
-                                                 colorSpace,
-                                                 kCGImageAlphaPremultipliedLast); // or other bitmap info
-    CGColorSpaceRelease(colorSpace);
-
-    if (context == NULL) return NULL;
-
-    // Set up the graphics context for drawing the NSImage
-    [NSGraphicsContext saveGraphicsState];
-    NSGraphicsContext *nsContext = [NSGraphicsContext graphicsContextWithCGContext:context flipped:NO];
-    [NSGraphicsContext setCurrentContext:nsContext];
-
-    // Draw the image into the context
-    [image drawAtPoint:NSZeroPoint fromRect:NSZeroRect operation:NSCompositeCopy fraction:1.0];
-
-    // Restore the previous graphics context
-    [NSGraphicsContext restoreGraphicsState];
-
-    // Create a CGImage from the context
-    CGImageRef cgImage = CGBitmapContextCreateImage(context);
-
-    // Clean up
-    CGContextRelease(context);
-
-    return cgImage; // Caller is responsible for releasing this CGImageRef
-}
-#endif
-
 void MouseCursorMonitorMac::CaptureImage() {
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+  PixMapHandle cursor_data = NULL;
+  Point qd_hotspot;
+  if (QDGetCursorData(false, &cursor_data, &qd_hotspot) != noErr ||
+      cursor_data == NULL) {
+    return;
+  }
+
+  PixMap* pixmap = *cursor_data;
+  const int width = pixmap->bounds.right - pixmap->bounds.left;
+  const int height = pixmap->bounds.bottom - pixmap->bounds.top;
+  const int src_stride = pixmap->rowBytes & 0x3fff;
+  const uint8_t* src_data =
+      reinterpret_cast<const uint8_t*>(pixmap->baseAddr);
+  Ptr cursor_pixels = pixmap->baseAddr;
+
+  if (width <= 0 || height <= 0 || pixmap->pixelSize != 32 ||
+      src_data == NULL ||
+      src_stride < width * DesktopFrame::kBytesPerPixel) {
+    DisposePtr(cursor_pixels);
+    DisposePixMap(cursor_data);
+    return;
+  }
+
+  DesktopSize size(width, height);
+  DesktopVector hotspot(
+      std::max(0, std::min(size.width(), static_cast<int>(qd_hotspot.h))),
+      std::max(0, std::min(size.height(), static_cast<int>(qd_hotspot.v))));
+  rtc::scoped_ptr<DesktopFrame> image(new BasicDesktopFrame(size));
+
+  // QDGetCursorData returns ARGB with the cursor mask in the alpha byte.
+  // DesktopFrame uses premultiplied BGRA, so convert the component order and
+  // apply the alpha mask.
+  for (int y = 0; y < height; ++y) {
+    const uint8_t* src = src_data + y * src_stride;
+    uint8_t* dest = image->data() + y * image->stride();
+    for (int x = 0; x < width; ++x) {
+      const uint8_t alpha = src[0];
+      dest[0] = (src[3] * alpha + 127) / 255;
+      dest[1] = (src[2] * alpha + 127) / 255;
+      dest[2] = (src[1] * alpha + 127) / 255;
+      dest[3] = alpha;
+      src += DesktopFrame::kBytesPerPixel;
+      dest += DesktopFrame::kBytesPerPixel;
+    }
+  }
+
+  DisposePtr(cursor_pixels);
+  DisposePixMap(cursor_data);
+#else
   NSCursor* nscursor = [NSCursor currentSystemCursor];
 
   NSImage* nsimage = [nscursor image];
@@ -280,16 +292,12 @@ void MouseCursorMonitorMac::CaptureImage() {
       std::max(0, std::min(size.width(), static_cast<int>(nshotspot.x))),
       std::max(0, std::min(size.height(), static_cast<int>(nshotspot.y))));
   CGImageRef cg_image =
-#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
       [nsimage CGImageForProposedRect:NULL context:nil hints:nil];
-#else
-      NSImageToCGImageRef(nsimage);
-#endif
   if (!cg_image)
     return;
 
   if (CGImageGetBitsPerPixel(cg_image) != DesktopFrame::kBytesPerPixel * 8 ||
-      CGImageGetBytesPerRow(cg_image) !=
+      CGImageGetBytesPerRow(cg_image) <
           static_cast<size_t>(DesktopFrame::kBytesPerPixel * size.width()) ||
       CGImageGetBitsPerComponent(cg_image) != 8) {
     return;
@@ -302,25 +310,32 @@ void MouseCursorMonitorMac::CaptureImage() {
 
   const uint8_t* src_data =
       reinterpret_cast<const uint8_t*>(CFDataGetBytePtr(image_data_ref));
+  rtc::scoped_ptr<DesktopFrame> image(new BasicDesktopFrame(size));
+  for (int y = 0; y < size.height(); ++y) {
+    memcpy(image->data() + y * image->stride(),
+           src_data + y * CGImageGetBytesPerRow(cg_image),
+           size.width() * DesktopFrame::kBytesPerPixel);
+  }
+
+#endif
 
   // Compare the cursor with the previous one.
   if (last_cursor_.get() &&
       last_cursor_->image()->size().equals(size) &&
       last_cursor_->hotspot().equals(hotspot) &&
-      memcmp(last_cursor_->image()->data(), src_data,
+      memcmp(last_cursor_->image()->data(), image->data(),
              last_cursor_->image()->stride() * size.height()) == 0) {
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
     CFRelease(image_data_ref);
+#endif
     return;
   }
 
   // Create a MouseCursor that describes the cursor and pass it to
   // the client.
-  rtc::scoped_ptr<DesktopFrame> image(
-      new BasicDesktopFrame(DesktopSize(size.width(), size.height())));
-  memcpy(image->data(), src_data,
-         size.width() * size.height() * DesktopFrame::kBytesPerPixel);
-
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
   CFRelease(image_data_ref);
+#endif
 
   rtc::scoped_ptr<MouseCursor> cursor(
       new MouseCursor(image.release(), hotspot));
