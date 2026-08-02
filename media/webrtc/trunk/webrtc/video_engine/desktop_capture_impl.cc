@@ -824,10 +824,25 @@ void DesktopCaptureImpl::OnCaptureCompleted(DesktopFrame* frame) {
   frameInfo.height = frame->size().height();
   frameInfo.rawType = kVideoARGB;
 
-  // combine cursor in frame
-  // Latest WebRTC already support it by DesktopFrameWithCursor/DesktopAndCursorComposer.
+  const int packedStride =
+      frameInfo.width * DesktopFrame::kBytesPerPixel;
+  if (frame->stride() == -packedStride) {
+    // Pre-Lion OpenGL capture returns an InvertedDesktopFrame. ConvertToI420
+    // expects an inverted image to start at the physical beginning of the
+    // buffer and uses a negative height to walk it from the last row.
+    videoFrame += (frameInfo.height - 1) * frame->stride();
+    frameInfo.height = -frameInfo.height;
+  } else if (frame->stride() != packedStride) {
+    WEBRTC_TRACE(webrtc::kTraceError, webrtc::kTraceVideoCapture, _id,
+                 "Unsupported desktop frame stride %d for width %d.",
+                 frame->stride(), frameInfo.width);
+    delete frame;
+    return;
+  }
 
-  size_t videoFrameLength = frameInfo.width * frameInfo.height * DesktopFrame::kBytesPerPixel;
+  size_t videoFrameLength =
+      frame->size().width() * frame->size().height() *
+      DesktopFrame::kBytesPerPixel;
   IncomingFrame(videoFrame, videoFrameLength, frameInfo);
   delete frame; //handled it, so we need delete it
 }
@@ -858,4 +873,3 @@ void DesktopCaptureImpl::process() {
 }
 
 }  // namespace webrtc
-
