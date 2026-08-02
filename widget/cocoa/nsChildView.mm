@@ -7704,6 +7704,18 @@ static const char* ToEscapedString(NSString* aString, nsAutoCString& aBuf)
     if (mf & NSCommandKeyMask) {
         UInt32 kc = [theEvent keyCode];
         if (kc != kTildeKeyCode) {
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
+    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+            // PowerFox's window responder reaches us before NSApplication
+            // checks the main menu.  Run only the menu's disabled-action pass
+            // for AppKit's visual feedback, then dispatch through the reliable
+            // Gecko/Cocoa keyDown: path below.
+            NSMenu* mainMenu = [NSApp mainMenu];
+            if ([mainMenu isKindOfClass:[GeckoNSMenu class]]) {
+                [(GeckoNSMenu*)mainMenu
+                    performKeyEquivalentForHighlightingOnly:theEvent];
+            }
+#endif
     		[self keyDown:theEvent]; // this calls processKeyDownEvent too
     		return YES;
 	}
@@ -7791,14 +7803,12 @@ static const char* ToEscapedString(NSString* aString, nsAutoCString& aBuf)
   }
 
   // Let Cocoa interpret the key events, caching IsIMEComposing first.
-  // Command key equivalents are dispatched to Gecko by performKeyEquivalent:.
-  // Tiger's interpretKeyEvents: treats some of them as text-system commands,
-  // which can consume the shortcut or make NSResponder beep.
+  // We don't do it if this came from performKeyEquivalent because
+  // interpretKeyEvents isn't set up to handle those key combinations.
+  // XXX?
   bool wasComposing = nsTSMManager::IsComposing();
   bool interpretKeyEventsCalled = false;
-  bool isKeyEquivalent =
-    (nsCocoaUtils::GetCocoaEventModifierFlags(theEvent) & NSCommandKeyMask) != 0;
-  if (!isKeyEquivalent &&
+  if (//!isKeyEquiv && // XXX? Cameron
       (nsTSMManager::IsIMEEnabled() || nsTSMManager::IsRomanKeyboardsOnly())) {
     [super interpretKeyEvents:[NSArray arrayWithObject:theEvent]];
     interpretKeyEventsCalled = true;

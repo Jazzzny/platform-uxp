@@ -28,6 +28,22 @@
 #include "nsIStringBundle.h"
 #include "nsToolkitCompsCID.h"
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
+    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+@interface NSMenu (TigerMenuImplementation)
+- (id)_menuImpl;
+@end
+
+@interface NSEvent (TigerKeyEquivalents)
+- (BOOL)_matchesKeyEquivalent:(NSString*)keyEquivalent
+                 modifierMask:(NSUInteger)modifierMask;
+@end
+
+@interface NSObject (TigerCarbonMenuImplementation)
+- (void)performActionWithHighlightingForItemAtIndex:(NSInteger)index;
+@end
+#endif
+
 NativeMenuItemTarget* nsMenuBarX::sNativeEventTarget = nil;
 nsMenuBarX* nsMenuBarX::sLastGeckoMenuBarPainted = nullptr;
 NSMenu* sApplicationMenu = nil;
@@ -788,7 +804,67 @@ void nsMenuBarX::SetParent(nsIWidget* aParent)
 // Controls whether or not native menu items should invoke their commands.
 static BOOL gMenuItemsExecuteCommands = YES;
 
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
+    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+static BOOL
+HighlightKeyEquivalentInMenu(NSMenu* aMenu, NSEvent* aEvent)
+{
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
+
+  [aMenu update];
+  NSInteger itemCount = [aMenu numberOfItems];
+  for (NSInteger index = 0; index < itemCount; ++index) {
+    NSMenuItem* item = [aMenu itemAtIndex:index];
+    NSString* keyEquivalent = [item keyEquivalent];
+    BOOL matches = [keyEquivalent length] &&
+      [aEvent _matchesKeyEquivalent:keyEquivalent
+                        modifierMask:[item keyEquivalentModifierMask]];
+    if ([item isEnabled] && matches) {
+      id menuImpl = [aMenu _menuImpl];
+      if (![menuImpl respondsToSelector:
+              @selector(performActionWithHighlightingForItemAtIndex:)]) {
+        return NO;
+      }
+
+      // NSCarbonMenuImpl's visual action also invokes the item.  Temporarily
+      // route that invocation through Gecko's disabled native target so this
+      // pass can only highlight; keyDown: performs the real command afterward.
+      id oldTarget = [item target];
+      SEL oldAction = [item action];
+      [item setTarget:nsMenuBarX::sNativeEventTarget];
+      [item setAction:@selector(menuItemHit:)];
+      gMenuItemsExecuteCommands = NO;
+      @try {
+        [menuImpl performActionWithHighlightingForItemAtIndex:index];
+      }
+      @finally {
+        gMenuItemsExecuteCommands = YES;
+        [item setAction:oldAction];
+        [item setTarget:oldTarget];
+      }
+      return YES;
+    }
+
+    NSMenu* submenu = [item submenu];
+    if (submenu && HighlightKeyEquivalentInMenu(submenu, aEvent)) {
+      return YES;
+    }
+  }
+  return NO;
+
+  NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(NO);
+}
+#endif
+
 @implementation GeckoNSMenu
+
+#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
+    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+- (void)performKeyEquivalentForHighlightingOnly:(NSEvent*)theEvent
+{
+  HighlightKeyEquivalentInMenu(self, theEvent);
+}
+#endif
 
 // Keyboard commands should not cause menu items to invoke their
 // commands when there is a key window because we'd rather send

@@ -442,9 +442,9 @@ void nsCocoaUtils::CleanUpAfterNativeAppModalDialog()
 NSUInteger nsCocoaUtils::GetCocoaEventModifierFlags(NSEvent *theEvent)
 {
 #if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
-  NSUInteger modifierFlags = 0;
+  NSUInteger modifierFlags = [theEvent modifierFlags];
   if (nsCocoaFeatures::OnLeopardOrLater())
-    return [theEvent modifierFlags];
+    return modifierFlags;
   NSEventType type = [theEvent type];
   if ((type != NSKeyDown) && (type != NSKeyUp))
     return modifierFlags;
@@ -464,9 +464,7 @@ NSUInteger nsCocoaUtils::GetCocoaEventModifierFlags(NSEvent *theEvent)
   }
   return modifierFlags;
 #else
-  // -modifierFlags is present in Panther's public NSEvent API.  The
-  // Tiger-specific compatibility path above otherwise returns zero for every
-  // ordinary key event, which strips Command before Gecko sees the keyDown.
+  // -modifierFlags is present in Panther's public NSEvent API.
   return [theEvent modifierFlags];
 #endif
 }
