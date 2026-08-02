@@ -62,6 +62,11 @@
 #include "nsCocoaUtils.h"
 #include "gfxFontConstants.h"
 
+#if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#include "PhonyCoreText.h"
+extern "C" size_t CGFontGetNumberOfGlyphs(CGFontRef aFont);
+#endif
+
 #include "mozilla/MemoryReporting.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/Sprintf.h"
@@ -367,6 +372,18 @@ MacOSFontEntry::MacOSFontEntry(const nsAString& aPostscriptName,
                  "userfont is either a data font or a local font");
     mIsDataUserFont = aIsDataUserFont;
     mIsLocalUserFont = aIsLocalUserFont;
+}
+
+MacOSFontEntry::~MacOSFontEntry()
+{
+    if (mFontRefInitialized && mFontRef) {
+        CGFontRelease(mFontRef);
+    }
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+    if (mContainerRef) {
+        ATSFontDeactivate(mContainerRef, nullptr, kATSOptionFlagsDefault);
+    }
+#endif
 }
 
 #if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
@@ -1704,17 +1721,313 @@ static void ReleaseData(void *info, const void *data, size_t size)
     free((void*)data);
 }
 
-// Backout from bug 811312 (needed for MakePlatformFont)
-// grumble, another non-publised Apple API dependency (found in Webkit code)
-// activated with this value, font will not be found via system lookup routines
-// it can only be used via the created ATSFontRef
-// needed to prevent one doc from finding a font used in a separate doc
-
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
 enum {
     kPrivateATSFontContextPrivate = 3
 };
 #endif
+
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+static uint32_t
+LegacyMacFontTableChecksum(const uint8_t* aData, uint32_t aLength)
+{
+    uint32_t checksum = 0;
+    for (uint32_t i = 0; i < aLength; i += 4) {
+        uint32_t word = uint32_t(aData[i]) << 24;
+        if (i + 1 < aLength) {
+            word |= uint32_t(aData[i + 1]) << 16;
+        }
+        if (i + 2 < aLength) {
+            word |= uint32_t(aData[i + 2]) << 8;
+        }
+        if (i + 3 < aLength) {
+            word |= uint32_t(aData[i + 3]);
+        }
+        checksum += word;
+    }
+    return checksum;
+}
+
+static bool
+ReadCFFIndexOffset(const uint8_t* aData, uint32_t aLength,
+                   uint32_t aOffset, uint8_t aOffSize, uint32_t* aValue)
+{
+    if (!aValue || aOffSize < 1 || aOffSize > 4 ||
+        aOffset > aLength || aLength - aOffset < aOffSize) {
+        return false;
+    }
+
+    uint32_t value = 0;
+    for (uint8_t i = 0; i < aOffSize; ++i) {
+        value = (value << 8) | aData[aOffset + i];
+    }
+    *aValue = value;
+    return true;
+}
+
+// Tiger resolves CFF fonts through the Macintosh PostScript-name record, but
+// the CFF scaler uses the Name INDEX FontName. If those names differ, or the
+// Mac record is absent, ATS reports success while creating an unusable font
+// record. Give every webfont a fresh identity in both places before ATS sees
+// it. Keeping the CFF Name INDEX object the same size avoids relocating the
+// rest of the CFF table and rewriting Top DICT offsets.
+static nsresult
+PrepareLegacyMacWebFont(const nsAString& aUniqueName,
+                        const uint8_t* aFontData, uint32_t aLength,
+                        nsAString& aATSName,
+                        nsAString& aOriginalFontName,
+                        FallibleTArray<uint8_t>& aPreparedFont,
+                        bool* aRepairedUnsafeIdentity)
+{
+    *aRepairedUnsafeIdentity = false;
+    aOriginalFontName.Truncate();
+    const uint8_t* sourceData = aFontData;
+    FallibleTArray<uint8_t> cffPatchedFont;
+    const TableDirEntry* cffEntry = gfxFontUtils::FindTableDirEntry(
+        aFontData, TRUETYPE_TAG('C','F','F',' '));
+
+    if (cffEntry) {
+        uint32_t cffOffset = cffEntry->offset;
+        uint32_t cffLength = cffEntry->length;
+        if (cffOffset > aLength || cffLength > aLength - cffOffset ||
+            cffLength < 7) {
+            return NS_ERROR_FAILURE;
+        }
+
+        const uint8_t* cff = aFontData + cffOffset;
+        uint32_t headerSize = cff[2];
+        if (headerSize < 4 || headerSize > cffLength ||
+            cffLength - headerSize < 3) {
+            return NS_ERROR_FAILURE;
+        }
+
+        uint16_t nameCount = (uint16_t(cff[headerSize]) << 8) |
+                             cff[headerSize + 1];
+        uint8_t offSize = cff[headerSize + 2];
+        // An OpenType CFF table represents one face and therefore has one
+        // FontName in its Name INDEX. Unexpected structures stay on FT.
+        if (nameCount != 1 || offSize < 1 || offSize > 4) {
+            return NS_ERROR_NOT_AVAILABLE;
+        }
+
+        uint32_t offsetsStart = headerSize + 3;
+        uint32_t firstOffset;
+        uint32_t lastOffset;
+        if (!ReadCFFIndexOffset(cff, cffLength, offsetsStart, offSize,
+                                &firstOffset) ||
+            !ReadCFFIndexOffset(cff, cffLength, offsetsStart + offSize,
+                                offSize, &lastOffset) ||
+            firstOffset < 1 || lastOffset <= firstOffset) {
+            return NS_ERROR_FAILURE;
+        }
+
+        uint32_t namesStart = offsetsStart + 2 * offSize;
+        uint32_t cffNameOffset = namesStart + firstOffset - 1;
+        uint32_t cffNameLength = lastOffset - firstOffset;
+        // A CFF FontName is a non-empty PostScript name of at most 127 bytes.
+        // Keep its exact size so no Top DICT offsets need to be relocated.
+        if (cffNameLength == 0 || cffNameLength > 127 ||
+            cffNameOffset > cffLength ||
+            cffNameLength > cffLength - cffNameOffset) {
+            return NS_ERROR_NOT_AVAILABLE;
+        }
+
+        nsAutoString originalCFFName;
+        originalCFFName.AssignASCII(
+            reinterpret_cast<const char*>(cff + cffNameOffset),
+            cffNameLength);
+        aOriginalFontName = originalCFFName;
+
+        // CFF Name INDEX FontName must have an identical
+        // Macintosh-platform nameID 6 record. Windows name records do not
+        // satisfy ATS.
+        bool macPostScriptNameMatches = false;
+        const TableDirEntry* nameEntry = gfxFontUtils::FindTableDirEntry(
+            aFontData, TRUETYPE_TAG('n','a','m','e'));
+        if (nameEntry) {
+            uint32_t nameOffset = nameEntry->offset;
+            uint32_t nameLength = nameEntry->length;
+            if (nameOffset <= aLength && nameLength <= aLength - nameOffset) {
+                nsTArray<nsString> macPostScriptNames;
+                if (NS_SUCCEEDED(gfxFontUtils::ReadNames(
+                        reinterpret_cast<const char*>(aFontData + nameOffset),
+                        nameLength, gfxFontUtils::NAME_ID_POSTSCRIPT,
+                        gfxFontUtils::PLATFORM_ID_MAC,
+                        macPostScriptNames))) {
+                    for (const auto& name : macPostScriptNames) {
+                        if (name.Equals(originalCFFName)) {
+                            macPostScriptNameMatches = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        NS_ConvertUTF16toUTF8 uniqueASCII(aUniqueName);
+        // Skip MakeUniqueUserFontName's fixed "uf" prefix so short CFF names
+        // receive random identities too. Filter the UUID payload to a compact
+        // PostScript-safe alphabet, then repeat it only for unusually long
+        // names. The random payload still determines every resulting name.
+        nsAutoCString identitySeed;
+        for (uint32_t i = std::min(uint32_t(2), uniqueASCII.Length());
+             i < uniqueASCII.Length(); ++i) {
+            char ch = uniqueASCII[i];
+            if ((ch >= 'A' && ch <= 'Z') ||
+                (ch >= 'a' && ch <= 'z') ||
+                (ch >= '0' && ch <= '9')) {
+                identitySeed.Append(ch);
+            }
+        }
+        if (identitySeed.IsEmpty()) {
+            return NS_ERROR_FAILURE;
+        }
+        nsAutoCString cffName;
+        for (uint32_t i = 0; i < cffNameLength; ++i) {
+            char ch = identitySeed[i % identitySeed.Length()];
+            // Keep the first character alphabetic for maximum compatibility
+            // with old PostScript consumers, without introducing a fixed
+            // prefix that would make all one-character names collide.
+            if (i == 0 && ch >= '0' && ch <= '9') {
+                ch = char('A' + (ch - '0'));
+            }
+            cffName.Append(ch);
+        }
+        aATSName.AssignASCII(cffName.get(), cffName.Length());
+
+        if (!cffPatchedFont.AppendElements(aFontData, aLength, fallible)) {
+            return NS_ERROR_OUT_OF_MEMORY;
+        }
+        uint8_t* mutableData = cffPatchedFont.Elements();
+        memcpy(mutableData + cffOffset + cffNameOffset,
+               cffName.get(), cffNameLength);
+
+        TableDirEntry* mutableCFFEntry = gfxFontUtils::FindTableDirEntry(
+            mutableData, TRUETYPE_TAG('C','F','F',' '));
+        mutableCFFEntry->checkSum = LegacyMacFontTableChecksum(
+            mutableData + cffOffset, cffLength);
+        sourceData = mutableData;
+        *aRepairedUnsafeIdentity = !macPostScriptNameMatches;
+    } else {
+        aATSName = aUniqueName;
+    }
+
+    aPreparedFont.Clear();
+    return gfxFontUtils::RenameFont(aATSName, sourceData, aLength,
+                                    &aPreparedFont, true);
+}
+
+static bool
+GetLegacyMacExpectedFontShape(const uint8_t* aFontData, uint32_t aLength,
+                              uint16_t* aGlyphCount, uint16_t* aUnitsPerEm)
+{
+    const TableDirEntry* maxp = gfxFontUtils::FindTableDirEntry(
+        aFontData, TRUETYPE_TAG('m','a','x','p'));
+    const TableDirEntry* head = gfxFontUtils::FindTableDirEntry(
+        aFontData, TRUETYPE_TAG('h','e','a','d'));
+    if (!maxp || !head || maxp->offset > aLength || head->offset > aLength ||
+        maxp->length < 6 || head->length < 20 ||
+        maxp->length > aLength - uint32_t(maxp->offset) ||
+        head->length > aLength - uint32_t(head->offset)) {
+        return false;
+    }
+
+    *aGlyphCount = gfxFontUtils::ReadShortAt(
+        aFontData + uint32_t(maxp->offset), 4);
+    *aUnitsPerEm = gfxFontUtils::ReadShortAt(
+        aFontData + uint32_t(head->offset), 18);
+    return *aGlyphCount > 0 && *aUnitsPerEm > 0;
+}
+
+static bool
+LegacyMacCGFontMatchesData(CGFontRef aFont, const uint8_t* aFontData,
+                           uint32_t aLength)
+{
+    uint16_t expectedGlyphs;
+    uint16_t expectedUnitsPerEm;
+    if (!aFont ||
+        !GetLegacyMacExpectedFontShape(aFontData, aLength, &expectedGlyphs,
+                                       &expectedUnitsPerEm) ||
+        CGFontGetNumberOfGlyphs(aFont) != expectedGlyphs ||
+        CGFontGetUnitsPerEm(aFont) != expectedUnitsPerEm) {
+        return false;
+    }
+
+    CGGlyph glyph = expectedGlyphs > 1 ? 1 : 0;
+    int advance = 0;
+    return CGFontGetGlyphAdvances(aFont, &glyph, 1, &advance);
+}
+
+static bool
+ActivateValidatedLegacyMacATSFont(const uint8_t* aFontData, uint32_t aLength,
+                                  const nsAString& aATSName,
+                                  ATSFontContainerRef* aContainer,
+                                  ATSFontRef* aFont)
+{
+    *aContainer = 0;
+    *aFont = kInvalidFont;
+
+    OSStatus status = ATSFontActivateFromMemory(
+        const_cast<uint8_t*>(aFontData), aLength,
+        kPrivateATSFontContextPrivate, kATSFontFormatUnspecified, nullptr,
+        kATSOptionFlagsDoNotNotify, aContainer);
+    if (status != noErr || !*aContainer) {
+        return false;
+    }
+
+    bool valid = false;
+    ItemCount fontCount = 0;
+    ATSFontMetrics metrics;
+    CFStringRef postScriptName = nullptr;
+    CGFontRef cgFont = nullptr;
+
+    status = ATSFontFindFromContainer(*aContainer, kATSOptionFlagsDefault,
+                                      0, nullptr, &fontCount);
+    if (status == noErr && fontCount == 1) {
+        status = ATSFontFindFromContainer(*aContainer,
+                                          kATSOptionFlagsDefault,
+                                          1, aFont, nullptr);
+    }
+    if (status == noErr && *aFont != kInvalidFont) {
+        status = ATSFontGetPostScriptName(*aFont, kATSOptionFlagsDefault,
+                                          &postScriptName);
+    }
+    if (status == noErr && postScriptName) {
+        NSString* expectedName = GetNSStringForString(aATSName);
+        if (!CFEqual(postScriptName, (CFStringRef)expectedName)) {
+            status = paramErr;
+        }
+    }
+    if (status == noErr) {
+        status = ATSFontGetHorizontalMetrics(*aFont,
+                                             kATSOptionFlagsDefault,
+                                             &metrics);
+    }
+    if (status == noErr) {
+        cgFont = CGFontCreateWithPlatformFont(aFont);
+        valid = LegacyMacCGFontMatchesData(cgFont, aFontData, aLength);
+    }
+
+    if (cgFont) {
+        CGFontRelease(cgFont);
+    }
+    if (postScriptName) {
+        CFRelease(postScriptName);
+    }
+    if (!valid) {
+        ATSFontDeactivate(*aContainer, nullptr, kATSOptionFlagsDefault);
+        *aContainer = 0;
+        *aFont = kInvalidFont;
+    }
+    return valid;
+}
+#endif
+
+// Backout from bug 811312 (needed for MakePlatformFont)
+// grumble, another non-publised Apple API dependency (found in Webkit code)
+// activated with this value, font will not be found via system lookup routines
+// it can only be used via the created ATSFontRef
+// needed to prevent one doc from finding a font used in a separate doc
 
 gfxFontEntry*
 gfxMacPlatformFontList::MakePlatformFont(const nsAString& aFontName,
@@ -1765,157 +2078,47 @@ gfxMacPlatformFontList::MakePlatformFont(const nsAString& aFontName,
 
     return nullptr;
 #else
-    // ATSFontRef version
-    OSStatus err;
-
-    // MakePlatformFont is responsible for deleting the font data with NS_Free
-    // so we set up a stack object to ensure it is freed even if we take an
-    // early exit
-    // XXX Is this still needed? If we exit early, we die anyway.
-    struct FontDataDeleter {
-        FontDataDeleter(const uint8_t *aFontData)
-            : mFontData(aFontData) { }
-        ~FontDataDeleter() { NS_Free((void*)mFontData); }
-        const uint8_t *mFontData;
-    };
-    FontDataDeleter autoDelete(aFontData);
-
-    ATSFontRef fontRef;
-    ATSFontContainerRef containerRef;
-
-    // we get occasional failures when multiple fonts are activated in quick succession
-    // if the ATS font cache is damaged; to work around this, we can retry the activation
-    const uint32_t kMaxRetries = 3;
-    uint32_t retryCount = 0;
-    while (retryCount++ < kMaxRetries) {
-        err = ::ATSFontActivateFromMemory(const_cast<uint8_t*>(aFontData), aLength,
-                                          kPrivateATSFontContextPrivate,
-                                          kATSFontFormatUnspecified,
-                                          NULL,
-                                          kATSOptionFlagsDoNotNotify,
-                                          &containerRef);
-        mATSGeneration = ::ATSGetGeneration();
-
-        if (MOZ_UNLIKELY(err != noErr)) {
-#if DEBUG
-            char warnBuf[1024];
-            sprintf(warnBuf, "downloaded font error, ATSFontActivateFromMemory err: %d",
-                    int32_t(err));
-            NS_WARNING(warnBuf);
-#endif
-            return nullptr;
-        }
-
-        // ignoring containers with multiple fonts, use the first face only for now
-        err = ::ATSFontFindFromContainer(containerRef, kATSOptionFlagsDefault, 1,
-                                         &fontRef, NULL);
-        if (MOZ_UNLIKELY(err != noErr)) {
-#if DEBUG
-            char warnBuf[1024];
-            sprintf(warnBuf, "downloaded font error, ATSFontFindFromContainer err: %d",
-                    int32_t(err));
-            NS_WARNING(warnBuf);
-#endif
-            ::ATSFontDeactivate(containerRef, NULL, kATSOptionFlagsDefault);
-            return nullptr;
-        }
-
-        // now lookup the Postscript name; this may fail if the font cache is bad
-        OSStatus err;
-        NSString *psname = NULL;
-        err = ::ATSFontGetPostScriptName(fontRef, kATSOptionFlagsDefault, (CFStringRef*) (&psname));
-        if (MOZ_LIKELY(err == noErr)) {
-        // Check the font blacklist (TenFourFox issue 261).
-        // Warning: fonts here do NOT properly fall back. Prefer URI blocking
-        // if we have the option.
-        if (0 ||
-            [psname isEqualToString:@"prisjakticons"] ||
-            [psname isEqualToString:@"FSEmericWeb-SemiBold"] ||
-            [psname isEqualToString:@".SFNSDisplay-Ultralight"] ||
-            [psname isEqualToString:@".SFNSText-Light"] ||
-            [psname isEqualToString:@".SFNSDisplay-Light"] ||
-            [psname isEqualToString:@".SFNSText-Medium"] ||
-            [psname isEqualToString:@".SFNSDisplay-Medium"] ||
-                0) {
-            fprintf(stderr, "Warning: Rejected ATSUI-incompatible web font %s.\n",
-                [psname UTF8String]);
-            [psname release];
-            ::ATSFontDeactivate(containerRef, NULL,
-                kATSOptionFlagsDefault);
-
-            // Create a dummy font, since returning nullptr
-            // doesn't work properly anymore (TenFourFox issue
-            // 330).
-            MacOSFontEntry *newFontEntry =
-                new MacOSFontEntry(uniqueName,
-                    NULL, // not nullptr
-                    aWeight, aStretch, aStyle,
-                    NULL, // not nullptr
-                    true, false);
-            // Make it "valid with no characters."
-            newFontEntry->mIsValid = true;
-            newFontEntry->mCharacterMap = new gfxCharacterMap();
-            return newFontEntry;
-        }
-            [psname release];
-        } else {
-#ifdef DEBUG
-            char warnBuf[1024];
-            sprintf(warnBuf, "ATSFontGetPostScriptName err = %d, retries = %d",
-                    (int32_t)err, retryCount);
-            NS_WARNING(warnBuf);
-#endif
-            ::ATSFontDeactivate(containerRef, NULL, kATSOptionFlagsDefault);
-            // retry the activation a couple of times if this fails
-            // (may be a transient failure due to ATS font cache issues)
-            continue;
-        }
-
-        // font entry will own the container ref now
-        // THIS MUST BE A C++ OBJECT, not an nsAutoPtr, or it will not
-        // live long enough to be instantiated!
-        MacOSFontEntry *newFontEntry =
-            new MacOSFontEntry(uniqueName,
-                             fontRef,
-                             aWeight,
-                             aStretch,
-                             aStyle,
-                             containerRef, true, false);
-
-        // if succeeded and font cmap is good, return the new font
-        if (MOZ_LIKELY(newFontEntry->mIsValid && NS_SUCCEEDED(newFontEntry->ReadCMAP()))) {
-            return newFontEntry;
-        }
-
-        // if something is funky about this font, delete immediately
-#if DEBUG
-        char warnBuf[1024];
-        sprintf(warnBuf, "downloaded font not loaded properly, removed face");
-        NS_WARNING(warnBuf);
-#endif
-        delete newFontEntry;
-
-        // We don't retry from here; the ATS font cache issue would have caused failure earlier
-        // so if we get here, there's something else bad going on within our font data structures.
-        // Currently, there should be no way to reach here, as fontentry creation cannot fail
-        // except by memory allocation failure.
-        NS_WARNING("invalid font entry for a newly activated font");
-        break;
+    // Give the sanitized sfnt a private PostScript identity before any native
+    // loader sees it. In particular, Tiger's CFF scaler requires its internal
+    // FontName to match the Macintosh nameID 6 record.
+    FallibleTArray<uint8_t> preparedFont;
+    nsAutoString atsName;
+    nsAutoString originalFontName;
+    bool repairedUnsafeIdentity = false;
+    rv = PrepareLegacyMacWebFont(uniqueName, aFontData, aLength,
+                                 atsName, originalFontName, preparedFont,
+                                 &repairedUnsafeIdentity);
+    NS_Free(const_cast<uint8_t*>(aFontData));
+    if (NS_FAILED(rv)) {
+        return nullptr;
     }
 
-    // If we get here, the activation failed (even with possible retries); we can't use this font.
-    // We can't just return nullptr anymore, so create a dummy font, like we do above.
-    fprintf(stderr, "Warning: TenFourFox detected ATSUI font failure; aborting font load.\n");
-    MacOSFontEntry *newFontEntry =
-                    new MacOSFontEntry(uniqueName,
-                                       NULL, // not nullptr
-                                       aWeight, aStretch, aStyle,
-                                       NULL, // not nullptr
-                                       true, false);
-    // Make it "valid with no characters."
-    newFontEntry->mIsValid = true;
-    newFontEntry->mCharacterMap = new gfxCharacterMap();
-    return newFontEntry;
+    if (repairedUnsafeIdentity) {
+        NS_ConvertUTF16toUTF8 diagnosticName(originalFontName);
+        fprintf(stderr,
+                "PowerFox: sanitized ATS-unsafe CFF webfont '%s' "
+                "(CFF FontName did not match Macintosh nameID 6).\n",
+                diagnosticName.get());
+    }
+
+    ATSFontContainerRef containerRef = 0;
+    ATSFontRef atsFontRef = kInvalidFont;
+    bool atsAccepted = ActivateValidatedLegacyMacATSFont(
+        preparedFont.Elements(), preparedFont.Length(), atsName,
+        &containerRef, &atsFontRef);
+    mATSGeneration = ATSGetGeneration();
+
+    if (atsAccepted) {
+        auto atsFontEntry = MakeUnique<MacOSFontEntry>(
+            uniqueName, atsFontRef, aWeight, aStretch, aStyle,
+            containerRef, true, false);
+        if (atsFontEntry->mIsValid &&
+            NS_SUCCEEDED(atsFontEntry->ReadCMAP())) {
+            return atsFontEntry.release();
+        }
+    }
+
+    return nullptr;
 #endif
 }
 

@@ -876,7 +876,8 @@ public:
     // appended on the end, returns true on success
     static nsresult
     RenameFont(const nsAString& aName, const uint8_t *aFontData, 
-               uint32_t aFontDataLength, FallibleTArray<uint8_t> *aNewFont);
+               uint32_t aFontDataLength, FallibleTArray<uint8_t> *aNewFont,
+               bool aAddMacNames = false);
     
     // read all names matching aNameID, returning in aNames array
     static nsresult

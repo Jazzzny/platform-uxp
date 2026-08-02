@@ -1012,7 +1012,9 @@ gfxFontUtils::GetTableFromFontData(const void* aFontData, uint32_t aTableTag)
 
 nsresult
 gfxFontUtils::RenameFont(const nsAString& aName, const uint8_t *aFontData, 
-                         uint32_t aFontDataLength, FallibleTArray<uint8_t> *aNewFont)
+                         uint32_t aFontDataLength,
+                         FallibleTArray<uint8_t> *aNewFont,
+                         bool aAddMacNames)
 {
     NS_ASSERTION(aNewFont, "null font data array");
     
@@ -1026,11 +1028,14 @@ gfxFontUtils::RenameFont(const nsAString& aName, const uint8_t *aFontData,
                                              NAME_ID_POSTSCRIPT};
 
     // calculate new name table size
-    uint16_t nameCount = ArrayLength(neededNameIDs);
+    uint16_t namesPerPlatform = ArrayLength(neededNameIDs);
+    uint16_t nameCount = namesPerPlatform * (aAddMacNames ? 2 : 1);
 
     // leave room for null-terminator
-    uint32_t nameStrLength = (aName.Length() + 1) * sizeof(char16_t);
-    if (nameStrLength > 65535) {
+    uint32_t unicodeNameStrLength =
+        (aName.Length() + 1) * sizeof(char16_t);
+    uint32_t macNameStrLength = aAddMacNames ? aName.Length() + 1 : 0;
+    if (unicodeNameStrLength > 65535 || macNameStrLength > 65535) {
         // The name length _in bytes_ must fit in an unsigned short field;
         // therefore, a name longer than this cannot be used.
         return NS_ERROR_FAILURE;
@@ -1039,7 +1044,7 @@ gfxFontUtils::RenameFont(const nsAString& aName, const uint8_t *aFontData,
     // round name table size up to 4-byte multiple
     uint32_t nameTableSize = (sizeof(NameHeader) +
                               sizeof(NameRecord) * nameCount +
-                              nameStrLength +
+                              unicodeNameStrLength + macNameStrLength +
                               3) & ~3;
                               
     if (dataLength + nameTableSize > UINT32_MAX)
@@ -1077,13 +1082,26 @@ gfxFontUtils::RenameFont(const nsAString& aName, const uint8_t *aFontData,
     uint32_t i;
     NameRecord *nameRecord = reinterpret_cast<NameRecord*>(nameHeader + 1);
     
-    for (i = 0; i < nameCount; i++, nameRecord++) {
+    if (aAddMacNames) {
+        for (i = 0; i < namesPerPlatform; i++, nameRecord++) {
+            nameRecord->platformID = PLATFORM_ID_MAC;
+            nameRecord->encodingID = ENCODING_ID_MAC_ROMAN;
+            nameRecord->languageID = LANG_ID_MAC_ENGLISH;
+            nameRecord->nameID = neededNameIDs[i];
+            nameRecord->offset = unicodeNameStrLength;
+            nameRecord->length = aName.Length();
+        }
+    }
+
+    for (i = 0; i < namesPerPlatform; i++, nameRecord++) {
         nameRecord->platformID = PLATFORM_ID_MICROSOFT;
         nameRecord->encodingID = ENCODING_ID_MICROSOFT_UNICODEBMP;
         nameRecord->languageID = LANG_ID_MICROSOFT_EN_US;
         nameRecord->nameID = neededNameIDs[i];
         nameRecord->offset = 0;
-        nameRecord->length = nameStrLength;
+        nameRecord->length = aAddMacNames
+            ? aName.Length() * sizeof(char16_t)
+            : unicodeNameStrLength;
     }
     
     // -- string data, located after the name records, stored in big-endian form
@@ -1093,6 +1111,21 @@ gfxFontUtils::RenameFont(const nsAString& aName, const uint8_t *aFontData,
                                                   aName.BeginReading(),
                                                   aName.Length());
     strData[aName.Length()] = 0; // add null termination
+
+    if (aAddMacNames) {
+        // MakeUniqueUserFontName produces printable ASCII, so the same code
+        // units are valid Mac Roman. Tiger's CFF loader requires this legacy
+        // PostScript-name record and treats it as authoritative.
+        char* macStrData = reinterpret_cast<char*>(strData) +
+                           unicodeNameStrLength;
+        for (i = 0; i < aName.Length(); ++i) {
+            if (aName[i] > 0x7f) {
+                return NS_ERROR_FAILURE;
+            }
+            macStrData[i] = char(aName[i]);
+        }
+        macStrData[aName.Length()] = 0;
+    }
     
     // adjust name table header to point to the new name table
     SFNTHeader *sfntHeader = reinterpret_cast<SFNTHeader*>(newFontData);

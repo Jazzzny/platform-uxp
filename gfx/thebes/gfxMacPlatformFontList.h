@@ -46,17 +46,7 @@ public:
 #endif
                    bool aIsDataUserFont, bool aIsLocal);
 
-    virtual ~MacOSFontEntry() {
-        if (mFontRefInitialized)
-          ::CGFontRelease(mFontRef);
-#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
-        /* Per Apple, even synthesized CGFontRefs must be released. Also,
-           we do need to release our container ref, if any. */
-        if (mContainerRef)
-                ::ATSFontDeactivate(mContainerRef, NULL,
-                        kATSOptionFlagsDefault);
-#endif
-    }
+    virtual ~MacOSFontEntry();
 
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
     ATSFontRef GetATSFontRef();
