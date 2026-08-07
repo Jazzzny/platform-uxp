@@ -175,6 +175,14 @@ namespace mozilla {
 } // namespace mozilla
 #endif
 
+#ifdef HAVE_ALTIVEC
+namespace mozilla {
+namespace VMX {
+int32_t FirstNon8Bit(const char16_t* str, const char16_t* end);
+} // namespace VMX
+} // namespace mozilla
+#endif
+
 /*
  * This function returns -1 if all characters in str are 8 bit characters.
  * Otherwise, it returns a value less than or equal to the index of the first
@@ -189,6 +197,9 @@ FirstNon8Bit(const char16_t *str, const char16_t *end)
   if (mozilla::supports_sse2()) {
     return mozilla::SSE2::FirstNon8Bit(str, end);
   }
+#endif
+#ifdef HAVE_ALTIVEC
+  return mozilla::VMX::FirstNon8Bit(str, end);
 #endif
 
   return FirstNon8BitUnvectorized(str, end);

@@ -24,8 +24,12 @@ EXPORTS.nspr += [
     '/nsprpub/lib/libc/include/plbase64.h',
     '/nsprpub/lib/libc/include/plerror.h',
     '/nsprpub/lib/libc/include/plgetopt.h',
+    '/nsprpub/lib/libc/include/plmemsearch.h',
     '/nsprpub/lib/libc/include/plstr.h',
 ]
+
+if CONFIG['OS_ARCH'] == 'Darwin' and CONFIG['CPU_ARCH'] == 'ppc':
+    EXPORTS.nspr += ['/nsprpub/lib/libc/include/plvmx.h']
 
 SOURCES += [
     '/nsprpub/lib/libc/src/base64.c',
@@ -42,3 +46,10 @@ SOURCES += [
     '/nsprpub/lib/libc/src/strstr.c',
     '/nsprpub/lib/libc/src/strtok.c',
 ]
+
+if CONFIG['OS_ARCH'] == 'Darwin' and CONFIG['CPU_ARCH'] == 'ppc' and CONFIG['HAVE_ALTIVEC']:
+    SOURCES += [
+        '/nsprpub/lib/libc/src/vmx_haschr.S',
+        '/nsprpub/lib/libc/src/vmx_memchr.S',
+        '/nsprpub/lib/libc/src/vmx_strchr.S',
+    ]

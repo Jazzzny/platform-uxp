@@ -12,6 +12,7 @@
 #include "OggCodecState.h"
 #include "OpusParser.h"
 #include "VideoUtils.h"
+#include "plmemsearch.h"
 #include <algorithm>
 
 #include <opus/opus.h>
@@ -112,7 +113,7 @@ OggCodecState::AddVorbisComment(MetadataTags* aTags,
                                 const char* aComment,
                                 uint32_t aLength)
 {
-  const char* div = (const char*)memchr(aComment, '=', aLength);
+  const char* div = (const char*)PL_MEMCHR(aComment, '=', aLength);
   if (!div) {
     LOG(LogLevel::Debug, ("Skipping comment: no separator"));
     return false;
@@ -1824,4 +1825,3 @@ SkeletonState::DecodeHeader(ogg_packet* aPacket)
 }
 
 } // namespace mozilla
-

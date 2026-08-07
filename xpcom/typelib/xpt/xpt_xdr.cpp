@@ -9,6 +9,7 @@
 #include "nscore.h"
 #include <string.h>             /* strchr */
 #include "mozilla/EndianUtils.h"
+#include "plmemsearch.h"
 
 #define CURS_POOL_OFFSET_RAW(cursor)                                          \
   ((cursor)->pool == XPT_HEADER                                               \
@@ -118,7 +119,7 @@ XPT_DoCString(XPTArena *arena, NotNull<XPTCursor*> cursor, char **identp,
     my_cursor.state = cursor->state;
     char* start = &CURS_POINT(&my_cursor);
 
-    char* end = strchr(start, 0); /* find the end of the string */
+    char* end = PL_STRCHR(start, 0); /* find the end of the string */
     if (!end) {
         fprintf(stderr, "didn't find end of string on decode!\n");
         return false;
@@ -223,5 +224,4 @@ XPT_Do8(NotNull<XPTCursor*> cursor, uint8_t *u8p)
 
     return true;
 }
-
 

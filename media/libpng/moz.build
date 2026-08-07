@@ -45,6 +45,15 @@ if CONFIG['INTEL_ARCHITECTURE']:
         'sse2/intel_init.c'
     ]
 
+if CONFIG['HAVE_ALTIVEC']:
+    DEFINES['MOZ_PNG_USE_ALTIVEC'] = True
+    SOURCES += [
+        'powerpc/filter_vmx_intrinsics.c',
+        'powerpc/powerpc_vmx_init.c',
+    ]
+    SOURCES['powerpc/filter_vmx_intrinsics.c'].flags += ['-maltivec']
+    SOURCES['powerpc/powerpc_vmx_init.c'].flags += ['-maltivec']
+
 if CONFIG['CPU_ARCH'] == 'loongarch64':
     DEFINES['PNG_LOONGARCH_LSX_OPT'] = 1
     SOURCES += [

@@ -11,6 +11,7 @@
 #include "mozilla/Mutex.h"
 #include "mozilla/HashFunctions.h"
 #include "nsCRT.h"
+#include "plmemsearch.h"
 #include <errno.h>
 
 namespace mozilla {
@@ -290,9 +291,9 @@ nsHttp::FindToken(const char *input, const char *token, const char *seps)
     const char *inputEnd = input + inputLen - tokenLen;
     for (; input <= inputEnd; ++input) {
         if (PL_strncasecmp(input, token, tokenLen) == 0) {
-            if (input > inputTop && !strchr(seps, *(input - 1)))
+            if (input > inputTop && !PL_STRCHR(seps, *(input - 1)))
                 continue;
-            if (input < inputEnd && !strchr(seps, *(input + tokenLen)))
+            if (input < inputEnd && !PL_STRCHR(seps, *(input + tokenLen)))
                 continue;
             return input;
         }

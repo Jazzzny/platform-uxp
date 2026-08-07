@@ -6,6 +6,7 @@
 #include "Tokenizer.h"
 
 #include "nsUnicharUtils.h"
+#include "plmemsearch.h"
 #include <algorithm>
 
 namespace mozilla {
@@ -430,7 +431,7 @@ TokenizerBase::Parse(Token& aToken) const
     state = PARSE_WORD;
   } else if (IsNumber(*next)) {
     state = PARSE_INTEGER;
-  } else if (strchr(mWhitespaces, *next)) { // not UTF-8 friendly?
+  } else if (PL_STRCHR(mWhitespaces, *next)) { // not UTF-8 friendly?
     state = PARSE_WS;
   } else if (*next == '\r') {
     state = PARSE_CRLF;
@@ -525,7 +526,7 @@ TokenizerBase::IsWordFirst(const char aInput) const
   return (ToLowerCase(static_cast<uint32_t>(aInput)) !=
           ToUpperCase(static_cast<uint32_t>(aInput))) ||
           '_' == aInput ||
-          (mAdditionalWordChars ? !!strchr(mAdditionalWordChars, aInput) : false);
+          (mAdditionalWordChars ? !!PL_STRCHR(mAdditionalWordChars, aInput) : false);
 }
 
 bool

@@ -75,6 +75,9 @@ DEFINES['PACKAGE'] = 'mozpixman'
 
 DEFINES['_USE_MATH_DEFINES'] = True
 
+if CONFIG['TARGET_ENDIANNESS'] == 'big':
+    DEFINES['WORDS_BIGENDIAN'] = True
+
 use_mmx = False
 use_sse2 = False
 use_vmx = False
@@ -87,8 +90,8 @@ if '86' in CONFIG['OS_TEST']:
             use_mmx = True
     if CONFIG['GNU_CC']:
         use_mmx = True
-elif 'ppc' in CONFIG['OS_TEST']:
-    if CONFIG['GNU_CC']:
+elif CONFIG['CPU_ARCH'] == 'ppc':
+    if CONFIG['GNU_CC'] and CONFIG['HAVE_ALTIVEC']:
         use_vmx = True
 # Apple's arm assembler doesn't support the same syntax as
 # the standard GNU assembler, so use the C fallback paths for now.

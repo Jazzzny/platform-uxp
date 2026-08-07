@@ -6,6 +6,7 @@
 #include "mozilla/CheckedInt.h"
 #include "mozilla/double-conversion.h"
 #include "mozilla/MemoryReporting.h"
+#include "plmemsearch.h"
 
 using double_conversion::DoubleToStringConverter;
 
@@ -971,7 +972,7 @@ FormatWithoutTrailingZeros(char (&aBuf)[40], double aDouble,
   }
 
   char* end = formattedDouble + length;
-  char* decimalPoint = strchr(aBuf, '.');
+  char* decimalPoint = PL_STRCHR(aBuf, '.');
   // No trailing zeros to remove.
   if (!decimalPoint) {
     return length;
@@ -1085,4 +1086,3 @@ nsTSubstring_CharT::SizeOfIncludingThisEvenIfShared(
 {
   return aMallocSizeOf(this) + SizeOfExcludingThisEvenIfShared(aMallocSizeOf);
 }
-

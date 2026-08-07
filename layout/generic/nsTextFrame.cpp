@@ -18,6 +18,7 @@
 #include "mozilla/BinarySearch.h"
 #include "mozilla/IntegerRange.h"
 #include "mozilla/Unused.h"
+#include "plmemsearch.h"
 
 #include "nsCOMPtr.h"
 #include "nsBlockFrame.h"
@@ -3035,7 +3036,7 @@ static int32_t FindChar(const nsTextFragment* frag,
   } else {
     if (uint16_t(ch) <= 0xFF) {
       const char* str = frag->Get1b() + aOffset;
-      const void* p = memchr(str, ch, aLength);
+      const void* p = PL_MEMCHR(str, ch, aLength);
       if (p)
         return (static_cast<const char*>(p) - str) + aOffset;
     }

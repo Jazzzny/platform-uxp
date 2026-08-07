@@ -9,6 +9,9 @@
 #include "mozilla/SSE.h"
 #include "nsCharTraits.h"
 #include <algorithm>
+#ifdef HAVE_ALTIVEC
+#include <altivec.h>
+#endif
 
 #define UNICODE_BYTE_ORDER_MARK    0xFEFF
 
@@ -91,6 +94,89 @@ NS_IMETHODIMP nsUTF8ToUnicode::Reset()
 // number of bytes left in src and the number of unichars available in
 // dst.)
 
+#ifdef HAVE_ALTIVEC
+// Safe to use with aligned and unaligned addresses
+#define LoadUnaligned(return, index, target, MSQ, LSQ, mask) \
+{ \
+  LSQ = vec_ldl(index + 15, target); \
+  return = vec_perm(MSQ, LSQ, mask); \
+}
+
+// Based broadly on the SSE2 version -- Cameron Kaiser
+// Unaligned version by Tobias Netzel
+
+static inline void
+Convert_ascii_run(const char *&src, char16_t *&dst, int32_t len) {
+	int32_t i = 0;
+	int32_t alignLen =
+		std::min(len, int32_t(((-NS_PTR_TO_UINT32(dst)) & 0xf) / sizeof(char16_t)));
+	// Not worth doing if < 16 bytes.
+	if (len - alignLen > 15) {
+		// Align destination to a 16-byte boundary.
+		for (; i < alignLen; i++) {
+			if (src[i] & 0x80U) {
+				src += i;
+				dst += i;
+				len -= i;
+				return;
+			}
+			dst[i] = static_cast<unsigned char>(src[i]);
+		}
+
+		// Watch the offset. If we are at a point where our dst and
+		// src are both 16-byte aligned, use aligned stores. Let
+		// failure fall through to the bottom to catch byte-by-byte
+		// moves. This is not as efficient as the SSE2 version because
+		// unaligned stores are much more difficult on AltiVec.
+		// However, OS X usually gives us allocations that are aligned.
+
+		int32_t maxIndex = len - 17;
+
+		register vector unsigned char in, out1, out2;
+		register vector unsigned char zeroes = vec_splat_u8(0);
+		register const vector unsigned char bit7 = vec_sl( vec_splat_u8( 1 ), vec_splat_u8( 7 ) );
+		int32_t ourDstOffset = i * 2;
+		if ((NS_PTR_TO_UINT32(&src[i]) & 15) == 0) {
+			// Aligned version (typical path)
+			for (; i < maxIndex; i += 16, ourDstOffset += 32) {
+				in = vec_ldl(i, (unsigned char *)src);
+				if (vec_any_ge(in, bit7)) break; // NOT RETURN!
+				// Convert, essentially, char to short.
+				out1 = vec_mergeh(zeroes, in);
+				out2 = vec_mergel(zeroes, in);
+				vec_st(out1, ourDstOffset, (unsigned char *)dst);
+				vec_st(out2, ourDstOffset + 16, (unsigned char *)dst);
+			}
+		}
+		else {
+			// Unaligned version
+			register vector unsigned char mask = vec_lvsl(i, (unsigned char *)src);
+			register vector unsigned char vector1 = vec_ldl(i, (unsigned char *)src);
+			register vector unsigned char vector2;
+			for (; i < maxIndex; i += 16, ourDstOffset += 32) {
+				LoadUnaligned(in, i, (unsigned char *)src, vector1, vector2, mask);
+				if (vec_any_ge(in, bit7)) break; // NOT RETURN!
+				// Convert, essentially, char to short.
+				out1 = vec_mergeh(zeroes, in);
+				out2 = vec_mergel(zeroes, in);
+				vec_st(out1, ourDstOffset, (unsigned char *)dst);
+				vec_st(out2, ourDstOffset + 16, (unsigned char *)dst);
+				vector1 = vector2;
+			}
+		}
+		// Don't bother with half moves.
+	}
+
+	// finish off byte by byte
+	for (; i < len && (src[i] & 0x80U) == 0; i++) {
+		dst[i] = static_cast<unsigned char>(src[i]);
+	}
+	src += i;
+	dst += i;
+	len -= i;
+}
+#endif
+
 #if defined(__arm__) || defined(_M_ARM)
 
 // on ARM, do extra work to avoid byte/halfword reads/writes by
@@ -160,6 +246,7 @@ void Convert_ascii_run(const char *&src, char16_t *&dst, int32_t len);
 } // namespace mozilla
 #endif
 
+#ifndef HAVE_ALTIVEC
 static inline void
 Convert_ascii_run (const char *&src,
                    char16_t *&dst,
@@ -176,6 +263,7 @@ Convert_ascii_run (const char *&src,
     *dst++ = (char16_t) *src++;
   }
 }
+#endif
 
 #endif
 

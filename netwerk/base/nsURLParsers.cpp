@@ -12,6 +12,7 @@
 #include "nsURLHelper.h"
 #include "nsString.h"
 #include "nsCRT.h"
+#include "plmemsearch.h"
 
 using namespace mozilla;
 
@@ -535,7 +536,7 @@ nsAuthURLParser::ParseUserInfo(const char *userinfo, int32_t userinfoLen,
         return NS_OK;
     }
 
-    const char *p = (const char *) memchr(userinfo, ':', userinfoLen);
+    const char *p = (const char *) PL_MEMCHR(userinfo, ':', userinfoLen);
     if (p) {
         // userinfo = <username:password>
         if (p == userinfo) {
@@ -673,7 +674,7 @@ nsStdURLParser::ParseAfterScheme(const char *spec, int32_t specLen,
     const char *end = spec + specLen;
     const char *p;
     for (p = spec + nslash; p < end; ++p) {
-        if (strchr("/?#;", *p))
+        if (PL_STRCHR("/?#;", *p))
             break;
     }
     switch (nslash) {

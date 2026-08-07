@@ -5,6 +5,7 @@
 
 #include "unicpriv.h"
 #include "nsUnicodeDecodeHelper.h"
+#include "nsDebug.h"
 #include "mozilla/UniquePtr.h"
 
 //----------------------------------------------------------------------
@@ -231,4 +232,3 @@ nsresult nsUnicodeDecodeHelper::CreateFastTable(
   return ConvertByTable(buff.get(), &buffSize, aFastTable, &tableSize, 
                         u1ByteCharset, nullptr, aMappingTable);
 }
-

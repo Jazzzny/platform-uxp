@@ -7,6 +7,7 @@
 #define mozilla_BinaryPath_h
 
 #include "nsXPCOMPrivate.h" // for MAXPATHLEN
+#include "plmemsearch.h"
 #ifdef XP_WIN
 #include <windows.h>
 #elif defined(XP_MACOSX)
@@ -95,7 +96,7 @@ private:
     //    PATH. Only do so if argv[0] looks like a path (contains a /).
     // 2) manually walk through the PATH and look for ourself
     // 3) give up
-    if (strchr(aArgv0, '/') && realpath(aArgv0, aResult) &&
+    if (PL_STRCHR(aArgv0, '/') && realpath(aArgv0, aResult) &&
         stat(aResult, &fileStat) == 0) {
       return NS_OK;
     }

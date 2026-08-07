@@ -68,6 +68,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "plmemsearch.h"
 #ifdef _EVENT_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -1299,7 +1300,7 @@ evbuffer_strchr(struct evbuffer_ptr *it, const char chr)
 	size_t i = it->_internal.pos_in_chain;
 	while (chain != NULL) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
-		char *cp = memchr(buffer+i, chr, chain->off-i);
+		char *cp = PL_MEMCHR(buffer+i, chr, chain->off-i);
 		if (cp) {
 			it->_internal.chain = chain;
 			it->_internal.pos_in_chain = cp - buffer;
@@ -1325,8 +1326,8 @@ find_eol_char(char *s, size_t len)
 	s_end = s+len;
 	while (s < s_end) {
 		size_t chunk = (s + CHUNK_SZ < s_end) ? CHUNK_SZ : (s_end - s);
-		cr = memchr(s, '\r', chunk);
-		lf = memchr(s, '\n', chunk);
+		cr = PL_MEMCHR(s, '\r', chunk);
+		lf = PL_MEMCHR(s, '\n', chunk);
 		if (cr) {
 			if (lf && lf < cr)
 				return lf;
@@ -2528,7 +2529,7 @@ evbuffer_search_range(struct evbuffer *buffer, const char *what, size_t len, con
 		const unsigned char *start_at =
 		    chain->buffer + chain->misalign +
 		    pos._internal.pos_in_chain;
-		p = memchr(start_at, first,
+		p = PL_MEMCHR(start_at, first,
 		    chain->off - pos._internal.pos_in_chain);
 		if (p) {
 			pos.pos += p - start_at;

@@ -9,6 +9,7 @@
 #include "nsError.h"
 #include "DataChannelChild.h"
 #include "plstr.h"
+#include "plmemsearch.h"
 
 static NS_DEFINE_CID(kSimpleURICID, NS_SIMPLEURI_CID);
 
@@ -171,8 +172,8 @@ nsDataHandler::ParseURI(nsCString& spec,
     roBuffer += sizeof("data:") - 1;
 
     // First, find the start of the data
-    const char* roComma = strchr(roBuffer, ',');
-    const char* roHash = strchr(roBuffer, '#');
+    const char* roComma = PL_STRCHR(roBuffer, ',');
+    const char* roHash = PL_STRCHR(roBuffer, '#');
     if (!roComma || (roHash && roHash < roComma)) {
         return NS_ERROR_MALFORMED_URI;
     }
@@ -207,7 +208,7 @@ nsDataHandler::ParseURI(nsCString& spec,
         }
 
         // everything else is content type
-        char *semiColon = (char *) strchr(buffer, ';');
+        char *semiColon = (char *) PL_STRCHR(buffer, ';');
         if (semiColon)
             *semiColon = '\0';
 

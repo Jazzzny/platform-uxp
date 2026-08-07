@@ -17,6 +17,7 @@
 #include "mozilla/Preferences.h"
 #include "prnetdb.h"
 #include "mozilla/Tokenizer.h"
+#include "plmemsearch.h"
 
 using namespace mozilla;
 
@@ -887,7 +888,7 @@ net_ParseMediaType(const nsACString &aMediaTypeStr,
     // include a comma, so this check makes us a bit more tolerant.
 
     if (type != typeEnd &&
-        memchr(type, '/', typeEnd - type) != nullptr &&
+        PL_HASCHR(type, '/', typeEnd - type) &&
         (aStrict ? (net_FindCharNotInSet(start + consumed, end, HTTP_LWS) == end) :
                    (strncmp(type, "*/*", typeEnd - type) != 0))) {
         // Common case here is that aContentType is empty

@@ -9,6 +9,7 @@
 #include "nsHttpChunkedDecoder.h"
 #include <algorithm>
 #include "plstr.h"
+#include "plmemsearch.h"
 
 namespace mozilla {
 namespace net {
@@ -93,7 +94,7 @@ nsHttpChunkedDecoder::ParseChunkRemaining(char *buf,
 
     *bytesConsumed = 0;
 
-    char *p = static_cast<char *>(memchr(buf, '\n', count));
+    char *p = static_cast<char *>(PL_MEMCHR(buf, '\n', count));
     if (p) {
         *p = 0;
         count = p - buf; // new length

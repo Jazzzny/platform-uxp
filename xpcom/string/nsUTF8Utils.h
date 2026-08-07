@@ -656,14 +656,23 @@ public:
       return;
     }
 #endif
+#ifdef HAVE_ALTIVEC
+    write_vmx(aSource, aSourceLength);
+    return;
+#endif
     const char* done_writing = aSource + aSourceLength;
     while (aSource < done_writing) {
       *mDestination++ = (char16_t)(unsigned char)(*aSource++);
     }
   }
 
-  void
-  write_sse2(const char* aSource, uint32_t aSourceLength);
+#ifdef MOZILLA_MAY_SUPPORT_SSE2
+  void write_sse2(const char* aSource, uint32_t aSourceLength);
+#endif
+
+#ifdef HAVE_ALTIVEC
+  void write_vmx(const char* aSource, uint32_t aSourceLength);
+#endif
 
   void
   write_terminator()
@@ -700,6 +709,10 @@ public:
       return;
     }
 #endif
+#ifdef HAVE_ALTIVEC
+    write_vmx(aSource, aSourceLength);
+    return;
+#endif
     const char16_t* done_writing = aSource + aSourceLength;
     while (aSource < done_writing) {
       *mDestination++ = (char)(*aSource++);
@@ -709,6 +722,10 @@ public:
 #ifdef MOZILLA_MAY_SUPPORT_SSE2
   void
   write_sse2(const char16_t* aSource, uint32_t aSourceLength);
+#endif
+
+#ifdef HAVE_ALTIVEC
+  void write_vmx(const char16_t* aSource, uint32_t aSourceLength);
 #endif
 
   void

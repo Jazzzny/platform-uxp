@@ -29,6 +29,7 @@
 #include "nsNetCID.h"
 #include "prprf.h"
 #include "mozilla/Sprintf.h"
+#include "plmemsearch.h"
 #include "nsAsyncRedirectVerifyHelper.h"
 #include "nsSocketTransportService2.h"
 #include "nsAlgorithm.h"
@@ -1728,9 +1729,9 @@ CanonicalizeLanguageTag(char *languageTag)
     bool isFirst = true;
     bool seenSingleton = false;
     while (*s != '\0') {
-        char *subTagEnd = strchr(s, '-');
+        char *subTagEnd = PL_STRCHR(s, '-');
         if (subTagEnd == nullptr) {
-            subTagEnd = strchr(s, '\0');
+            subTagEnd = PL_STRCHR(s, '\0');
         }
 
         if (isFirst) {

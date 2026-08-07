@@ -10,6 +10,7 @@
 
 #include "mozilla/dom/nsCSPContext.h"
 #include "mozilla/Sprintf.h"
+#include "plmemsearch.h"
 
 #include "nsHttp.h"
 #include "nsHttpChannel.h"
@@ -4228,7 +4229,7 @@ nsHttpChannel::AssembleCacheKey(const char *spec, uint32_t postID,
     }
 
     // Strip any trailing #ref from the URL before using it as the key
-    const char *p = strchr(spec, '#');
+    const char *p = PL_STRCHR(spec, '#');
     if (p)
         cacheKey.Append(spec, p - spec);
     else
@@ -4903,7 +4904,7 @@ GetAuthType(const char *challenge, nsCString &authType)
     const char *p;
 
     // get the challenge type
-    if ((p = strchr(challenge, ' ')) != nullptr)
+    if ((p = PL_STRCHR(challenge, ' ')) != nullptr)
         authType.Assign(challenge, p - challenge);
     else
         authType.Assign(challenge);

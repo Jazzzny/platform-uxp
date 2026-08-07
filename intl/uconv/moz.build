@@ -155,6 +155,12 @@ if CONFIG['INTEL_ARCHITECTURE']:
     SOURCES += ['nsUTF8ToUnicodeSSE2.cpp']
     SOURCES['nsUTF8ToUnicodeSSE2.cpp'].flags += CONFIG['SSE2_FLAGS']
 
+if CONFIG['HAVE_ALTIVEC']:
+    DEFINES['HAVE_ALTIVEC'] = True
+    UNIFIED_SOURCES.remove('nsUTF8ToUnicode.cpp')
+    SOURCES += ['nsUTF8ToUnicode.cpp']
+    SOURCES['nsUTF8ToUnicode.cpp'].flags += ['-maltivec']
+
 LOCAL_INCLUDES += [
     'ucvcn',
     'ucvja',

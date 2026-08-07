@@ -280,6 +280,11 @@ void FilterRows_SSE2(uint8_t* ybuf, const uint8_t* y0_ptr, const uint8_t* y1_ptr
                      int source_width, int source_y_fraction);
 #endif
 
+#ifdef HAVE_ALTIVEC
+void FilterRows_VMX(uint8_t* ybuf, const uint8_t* y0_ptr, const uint8_t* y1_ptr,
+                    int source_width, int source_y_fraction);
+#endif
+
 static inline void FilterRows(uint8_t* ybuf, const uint8_t* y0_ptr,
                               const uint8_t* y1_ptr, int source_width,
                               int source_y_fraction) {
@@ -295,6 +300,11 @@ static inline void FilterRows(uint8_t* ybuf, const uint8_t* y0_ptr,
     FilterRows_MMX(ybuf, y0_ptr, y1_ptr, source_width, source_y_fraction);
     return;
   }
+#endif
+
+#ifdef HAVE_ALTIVEC
+  FilterRows_VMX(ybuf, y0_ptr, y1_ptr, source_width, source_y_fraction);
+  return;
 #endif
 
   FilterRows_C(ybuf, y0_ptr, y1_ptr, source_width, source_y_fraction);

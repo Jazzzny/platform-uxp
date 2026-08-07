@@ -11,6 +11,10 @@
 
 #include "nscore.h" // for |char16_t|
 
+#ifndef NS_NO_XPCOM
+#include "plmemsearch.h"
+#endif
+
 // This file may be used (through nsUTF8Utils.h) from non-XPCOM code, in
 // particular the standalone software updater. In that case stub out
 // the macros provided by nsDebug.h which are only usable when linking XPCOM
@@ -500,8 +504,14 @@ struct nsCharTraits<char>
   static const char_type*
   find(const char_type* aStr, size_t aN, char_type aChar)
   {
+#ifdef NS_NO_XPCOM
     return reinterpret_cast<const char_type*>(memchr(aStr, to_int_type(aChar),
                                                      aN));
+#else
+    return reinterpret_cast<const char_type*>(PL_MEMCHR(aStr,
+                                                         to_int_type(aChar),
+                                                         aN));
+#endif
   }
 };
 

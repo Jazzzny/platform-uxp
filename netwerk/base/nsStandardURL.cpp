@@ -27,6 +27,7 @@
 #include "nsReadableUtils.h"
 #include "nsPrintfCString.h"
 #include "mozilla/Preferences.h" //fixes up dependency issues in non-unified building
+#include "plmemsearch.h"
 
 using mozilla::dom::EncodingUtils;
 using namespace mozilla::ipc;
@@ -1995,7 +1996,7 @@ nsStandardURL::SetHost(const nsACString &input)
 
     // For consistency with SetSpec/nsURLParsers, don't allow spaces
     // in the hostname.
-    if (strchr(host, ' '))
+    if (PL_STRCHR(host, ' '))
         return NS_ERROR_MALFORMED_URI;
 
     if (mSpec.Length() + strlen(host) - Host().Length() > (uint32_t) net_GetURLMaxLength()) {

@@ -57,6 +57,7 @@
 #include "CocoaFileUtils.h"
 #include "prmem.h"
 #include "plbase64.h"
+#include "plmemsearch.h"
 
 static nsresult MacErrorMapper(OSErr inErr);
 #endif
@@ -326,7 +327,7 @@ nsLocalFile::CreateAllAncestors(uint32_t aPermissions)
   fprintf(stderr, "nsIFile: before: %s\n", buffer);
 #endif
 
-  while ((slashp = strchr(slashp + 1, '/'))) {
+  while ((slashp = PL_STRCHR(slashp + 1, '/'))) {
     /*
      * Sequences of '/' are equivalent to a single '/'.
      */

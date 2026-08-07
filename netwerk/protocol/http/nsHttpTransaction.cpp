@@ -20,6 +20,7 @@
 #include "nsIPipe.h"
 #include "nsCRT.h"
 #include "mozilla/Tokenizer.h"
+#include "plmemsearch.h"
 
 #include "nsISeekableStream.h"
 #include "nsMultiplexInputStream.h"
@@ -1579,7 +1580,7 @@ nsHttpTransaction::ParseHead(char *buf,
     // otherwise we can assume that we don't have a HTTP/0.9 response.
 
     MOZ_ASSERT (mHttpResponseMatched);
-    while ((eol = static_cast<char *>(memchr(buf, '\n', count - *countRead))) != nullptr) {
+    while ((eol = static_cast<char *>(PL_MEMCHR(buf, '\n', count - *countRead))) != nullptr) {
         // found line in range [buf:eol]
         len = eol - buf + 1;
 

@@ -61,6 +61,7 @@
 #include "nsIViewSourceChannel.h"
 #include "nsInterfaceRequestorAgg.h"
 #include "plstr.h"
+#include "plmemsearch.h"
 #include "nsINestedURI.h"
 #include "mozilla/dom/nsCSPUtils.h"
 #include "mozilla/net/HttpBaseChannel.h"
@@ -2107,7 +2108,7 @@ nsresult
 NS_GenerateHostPort(const nsCString& host, int32_t port,
                     nsACString &hostLine)
 {
-    if (strchr(host.get(), ':')) {
+    if (PL_STRCHR(host.get(), ':')) {
         // host is an IPv6 address literal and must be encapsulated in []'s
         hostLine.Assign('[');
         // scope id is not needed for Host header.

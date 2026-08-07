@@ -48,6 +48,7 @@
 #include "mozilla/net/NeckoChild.h"
 
 #include "mozilla/dom/ContentParent.h"
+#include "plmemsearch.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -1799,7 +1800,7 @@ Predictor::ParseMetaDataEntry(const char *key, const char *value, nsIURI **uri,
   PREDICTOR_LOG(("Predictor::ParseMetaDataEntry key=%s value=%s",
                  key ? key : "", value));
 
-  const char *comma = strchr(value, ',');
+  const char *comma = PL_STRCHR(value, ',');
   if (!comma) {
     PREDICTOR_LOG(("    could not find first comma"));
     return false;
@@ -1815,7 +1816,7 @@ Predictor::ParseMetaDataEntry(const char *key, const char *value, nsIURI **uri,
   }
 
   value = comma + 1;
-  comma = strchr(value, ',');
+  comma = PL_STRCHR(value, ',');
   if (!comma) {
     PREDICTOR_LOG(("    could not find second comma"));
     return false;
@@ -1825,7 +1826,7 @@ Predictor::ParseMetaDataEntry(const char *key, const char *value, nsIURI **uri,
   PREDICTOR_LOG(("    hitCount -> %u", hitCount));
 
   value = comma + 1;
-  comma = strchr(value, ',');
+  comma = PL_STRCHR(value, ',');
   if (!comma) {
     PREDICTOR_LOG(("    could not find third comma"));
     return false;

@@ -20,6 +20,7 @@
 #include "nsNetUtil.h"
 #include "nsIURI.h"
 #include "nsHttpHeaderArray.h"
+#include "plmemsearch.h"
 
 //
 // Helper function for determining the length of data bytes up to
@@ -742,12 +743,12 @@ nsMultiMixedConv::OnStartRequest(nsIRequest *request, nsISupports *ctxt) {
         return NS_ERROR_FAILURE;
     }
 
-    bndry = strchr(bndry, '=');
+    bndry = PL_STRCHR(bndry, '=');
     if (!bndry) return NS_ERROR_FAILURE;
 
     bndry++; // move past the equals sign
 
-    char *attrib = (char *) strchr(bndry, ';');
+    char *attrib = (char *) PL_STRCHR(bndry, ';');
     if (attrib) *attrib = '\0';
 
     nsAutoCString boundaryString(bndry);
@@ -995,7 +996,7 @@ nsMultiMixedConv::ParseHeaders(nsIChannel *aChannel, char *&aPtr,
     uint32_t lineFeedIncrement = 1;
 
     mContentLength = UINT64_MAX; // XXX what if we were already called?
-    while (cursorLen && (newLine = (char *) memchr(cursor, nsCRT::LF, cursorLen))) {
+    while (cursorLen && (newLine = (char *) PL_MEMCHR(cursor, nsCRT::LF, cursorLen))) {
         // adjust for linefeeds
         if ((newLine > cursor) && (newLine[-1] == nsCRT::CR) ) { // CRLF
             lineFeedIncrement = 2;
@@ -1018,7 +1019,7 @@ nsMultiMixedConv::ParseHeaders(nsIChannel *aChannel, char *&aPtr,
         char tmpChar = *newLine;
         *newLine = '\0'; // cursor is now null terminated
 
-        char *colon = (char *) strchr(cursor, ':');
+        char *colon = (char *) PL_STRCHR(cursor, ':');
         if (colon) {
             *colon = '\0';
             nsAutoCString headerStr(cursor);
@@ -1049,12 +1050,12 @@ nsMultiMixedConv::ParseHeaders(nsIChannel *aChannel, char *&aPtr,
                 // something like: Content-range: bytes 7000-7999/8000
                 char* tmpPtr;
 
-                tmpPtr = (char *) strchr(colon + 1, '/');
+                tmpPtr = (char *) PL_STRCHR(colon + 1, '/');
                 if (tmpPtr) 
                     *tmpPtr = '\0';
 
                 // pass the bytes-unit and the SP
-                char *range = (char *) strchr(colon + 2, ' ');
+                char *range = (char *) PL_STRCHR(colon + 2, ' ');
                 if (!range)
                     return NS_ERROR_FAILURE;
 
@@ -1066,7 +1067,7 @@ nsMultiMixedConv::ParseHeaders(nsIChannel *aChannel, char *&aPtr,
                     mByteRangeStart = mByteRangeEnd = 0;
                 }
                 else {
-                    tmpPtr = (char *) strchr(range, '-');
+                    tmpPtr = (char *) PL_STRCHR(range, '-');
                     if (!tmpPtr)
                         return NS_ERROR_FAILURE;
                     

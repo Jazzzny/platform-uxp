@@ -57,4 +57,9 @@ if CONFIG['INTEL_ARCHITECTURE']:
     SOURCES += ['nsReadableUtilsSSE2.cpp']
     SOURCES['nsReadableUtilsSSE2.cpp'].flags += CONFIG['SSE2_FLAGS']
 
+if CONFIG['HAVE_ALTIVEC']:
+    DEFINES['HAVE_ALTIVEC'] = True
+    SOURCES += ['nsUTF8UtilsVMX.cpp']
+    SOURCES['nsUTF8UtilsVMX.cpp'].flags += ['-maltivec']
+
 FINAL_LIBRARY = 'xul'

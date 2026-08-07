@@ -26,6 +26,7 @@
 #include "nsNetUtil.h"
 #include "nsNetCID.h"
 #include "plstr.h"
+#include "plmemsearch.h"
 #include "prnetdb.h"
 #include "nsPACMan.h"
 #include "nsProxyRelease.h"
@@ -906,7 +907,7 @@ nsProtocolProxyService::ExtractProxyInfo(const char *start,
             // www.example.com:8080
             if (start < end) {
                 host = start;
-                hostEnd = strchr(host, ':');
+                hostEnd = PL_STRCHR(host, ':');
                 if (!hostEnd || hostEnd > end) {
                     hostEnd = end;
                     // no port, so assume default

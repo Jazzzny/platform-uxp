@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
+#include "plmemsearch.h"
 #include <ogg/ogg.h>
 
 /* A complete description of Ogg framing exists in docs/framing.html */
@@ -716,7 +717,7 @@ long ogg_sync_pageseek(ogg_sync_state *oy,ogg_page *og){
   oy->bodybytes=0;
 
   /* search for possible capture */
-  next=memchr(page+1,'O',bytes-1);
+  next=PL_MEMCHR(page+1,'O',bytes-1);
   if(!next)
     next=oy->data+oy->fill;
 
