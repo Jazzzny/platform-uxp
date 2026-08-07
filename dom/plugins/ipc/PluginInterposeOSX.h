@@ -45,7 +45,8 @@ class NSCursor;
 // relevant parts of its contents here.  It's likely that Apple will eventually
 // remove the APIs themselves (probably in OS X 10.8), so we need to make them
 // weak imports, and test for their presence before using them.
-#if !defined(__QUICKDRAWAPI__) && !defined(__QUICKDRAW__)
+#if !defined(__QUICKDRAWAPI__) && !defined(__QUICKDRAW__) \
+    || defined(MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)
 
 typedef short Bits16[16];
 struct Cursor {

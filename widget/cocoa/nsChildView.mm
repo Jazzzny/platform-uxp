@@ -4199,11 +4199,19 @@ NSEvent* gLastDragMouseDownEvent = nil;
   if (!mGLContext) {
     mGLContext = aGLContext;
     [mGLContext retain];
-    CGLLockContext((CGLContextObj)[aGLContext CGLContextObj]);
-    [mGLContext setView:mPixelHostingView];
-    [mGLContext update];
-    CGLUnlockContext((CGLContextObj)[aGLContext CGLContextObj]);
-    mNeedsGLUpdate = NO;
+#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+    if (!nsCocoaFeatures::OnSnowLeopardOrLater()) {
+      CGLLockContext((CGLContextObj)[aGLContext CGLContextObj]);
+      [mGLContext setView:mPixelHostingView];
+      [mGLContext update];
+      CGLUnlockContext((CGLContextObj)[aGLContext CGLContextObj]);
+      mNeedsGLUpdate = NO;
+    } else {
+      mNeedsGLUpdate = YES;
+    }
+#else
+    mNeedsGLUpdate = YES;
+#endif
   }
 
   CGLLockContext((CGLContextObj)[aGLContext CGLContextObj]);
