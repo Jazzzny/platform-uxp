@@ -18,10 +18,6 @@
 #endif
 #include <gtk/gtk.h>
 
-#if (MOZ_WIDGET_GTK == 3)
-extern "C" __attribute__((weak,visibility("default"))) int atk_bridge_adaptor_init(int*, char **[]);
-#endif
-
 using namespace mozilla;
 using namespace mozilla::a11y;
 
@@ -33,12 +29,20 @@ extern "C" {
 typedef GType (* AtkGetTypeType) (void);
 typedef void (*GnomeAccessibilityInit) (void);
 typedef void (*GnomeAccessibilityShutdown) (void);
+#if (MOZ_WIDGET_GTK == 3)
+typedef int (*AtkBridgeAdaptorInit) (int*, char***);
+#endif
 }
 
 static PRLibrary* sATKLib = nullptr;
 static const char sATKLibName[] = "libatk-1.0.so.0";
 static const char sATKHyperlinkImplGetTypeSymbol[] =
   "atk_hyperlink_impl_get_type";
+#if (MOZ_WIDGET_GTK == 3)
+static PRLibrary* sAtkBridgeAdaptorLib = nullptr;
+static const char sAtkBridgeAdaptorLibName[] = "libatk-bridge-2.0.so.0";
+static const char sAtkBridgeAdaptorInitSymbol[] = "atk_bridge_adaptor_init";
+#endif
 
 gboolean toplevel_event_watcher(GSignalInvocationHint*, guint, const GValue*,
                                 gpointer);
@@ -127,6 +131,38 @@ LoadGtkModule(GnomeAccessibilityModule& aModule)
     return NS_OK;
 }
 
+#if (MOZ_WIDGET_GTK == 3)
+static bool
+InitAtkBridgeAdaptor()
+{
+  AtkBridgeAdaptorInit initBridge =
+    reinterpret_cast<AtkBridgeAdaptorInit>(
+      PR_FindFunctionSymbolAndLibrary(sAtkBridgeAdaptorInitSymbol,
+                                      &sAtkBridgeAdaptorLib));
+
+  if (!initBridge) {
+    sAtkBridgeAdaptorLib = PR_LoadLibrary(sAtkBridgeAdaptorLibName);
+    if (sAtkBridgeAdaptorLib) {
+      initBridge =
+        reinterpret_cast<AtkBridgeAdaptorInit>(
+          PR_FindFunctionSymbol(sAtkBridgeAdaptorLib,
+                                sAtkBridgeAdaptorInitSymbol));
+      if (!initBridge) {
+        PR_UnloadLibrary(sAtkBridgeAdaptorLib);
+        sAtkBridgeAdaptorLib = nullptr;
+      }
+    }
+  }
+
+  if (!initBridge) {
+    return false;
+  }
+
+  initBridge(nullptr, nullptr);
+  return true;
+}
+#endif
+
 void
 a11y::PlatformInit()
 {
@@ -181,9 +217,7 @@ a11y::PlatformInit()
   // Init atk-bridge now
   PR_SetEnv("NO_AT_BRIDGE=0");
 #if (MOZ_WIDGET_GTK == 3)
-  if (atk_bridge_adaptor_init) {
-    atk_bridge_adaptor_init(nullptr, nullptr);
-  } else
+  if (!InitAtkBridgeAdaptor())
 #endif
   {
     nsresult rv = LoadGtkModule(sAtkBridge);
@@ -228,6 +262,13 @@ a11y::PlatformShutdown()
         sAtkBridge.init = nullptr;
         sAtkBridge.shutdown = nullptr;
     }
+#if (MOZ_WIDGET_GTK == 3)
+    if (sAtkBridgeAdaptorLib) {
+        // Do not shutdown/unload atk-bridge; an exit function registered by
+        // the bridge will take care of it.
+        sAtkBridgeAdaptorLib = nullptr;
+    }
+#endif
 #if (MOZ_WIDGET_GTK == 2)
     if (sGail.lib) {
         // Do not shutdown gail because

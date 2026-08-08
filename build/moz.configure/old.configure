@@ -164,6 +164,7 @@ def old_configure_options(*options):
     '--enable-negotiateauth',
     '--enable-nfc',
     '--enable-npapi',
+    '--enable-npapi-gtk2',
     '--enable-nspr-build',
     '--enable-official-branding',
     '--enable-official-vendor',

@@ -7,8 +7,11 @@ SOURCES += [
     '../mozgtk.c',
 ]
 
-for var in ('COMMON_SYMBOLS', 'GTK2_SYMBOLS', 'GTK3_SYMBOLS'):
+for var in ('COMMON_SYMBOLS', 'GTK3_SYMBOLS'):
     DEFINES[var] = True
+
+if CONFIG['MOZ_ENABLE_NPAPI_GTK2']:
+    DEFINES['GTK2_SYMBOLS'] = True
 
 SharedLibrary('mozgtk_stub')
 

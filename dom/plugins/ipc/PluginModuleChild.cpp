@@ -12,6 +12,9 @@
 
 #ifdef MOZ_WIDGET_GTK
 #include <gtk/gtk.h>
+#if (GTK_MAJOR_VERSION == 3)
+#include <gtk/gtkx.h>
+#endif
 #endif
 
 #include "nsIFile.h"
@@ -1101,7 +1104,11 @@ _getvalue(NPP aNPP,
                 return InstCast(aNPP)->NPN_GetValue(aVariable, aValue);
             } 
             else {
+#ifdef MOZ_ENABLE_NPAPI_GTK2
                 *(void **)aValue = xt_client_get_display();
+#else
+                *(void **)aValue = DefaultXDisplay();
+#endif
             }          
             return NPERR_NO_ERROR;
         }

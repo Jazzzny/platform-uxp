@@ -55,7 +55,12 @@ using namespace std;
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 #include <gdk/gdk.h>
+#if (GTK_MAJOR_VERSION == 3)
+#include <gtk/gtkx.h>
+#endif
+#ifdef MOZ_ENABLE_NPAPI_GTK2
 #include "gtk2xtbin.h"
+#endif
 
 #elif defined(OS_WIN)
 
@@ -215,7 +220,9 @@ PluginInstanceChild::PluginInstanceChild(const NPPluginFuncs* aPluginIface,
     memset(&mWsInfo, 0, sizeof(mWsInfo));
 #ifdef MOZ_WIDGET_GTK
     mWsInfo.display = nullptr;
+#ifdef MOZ_ENABLE_NPAPI_GTK2
     mXtClient.top_widget = nullptr;
+#endif
 #else
     mWsInfo.display = DefaultXDisplay();
 #endif
@@ -629,15 +636,17 @@ PluginInstanceChild::NPN_SetValue(NPPVariable aVar, void* aValue)
         NPWindowType newWindowType = windowed ? NPWindowTypeWindow : NPWindowTypeDrawable;
 #ifdef MOZ_WIDGET_GTK
         if (mWindow.type != newWindowType && mWsInfo.display) {
-           // plugin type has been changed but we already have a valid display
-           // so update it for the recent plugin mode
-           if (mXEmbed || !windowed) {
-               // Use default GTK display for XEmbed and windowless plugins
-               mWsInfo.display = DefaultXDisplay();
-           }
-           else {
-               mWsInfo.display = xt_client_get_display();
-           }
+            // plugin type has been changed but we already have a valid display
+            // so update it for the recent plugin mode
+#ifdef MOZ_ENABLE_NPAPI_GTK2
+            if (!mXEmbed && windowed) {
+                mWsInfo.display = xt_client_get_display();
+            } else
+#endif
+            {
+                // Use default GTK display for XEmbed and windowless plugins.
+                mWsInfo.display = DefaultXDisplay();
+            }
         }
 #endif
         mWindow.type = newWindowType;
@@ -1226,12 +1235,18 @@ bool PluginInstanceChild::CreateWindow(const NPRemoteWindow& aWindow)
     if (mXEmbed) {
         mWindow.window = reinterpret_cast<void*>(aWindow.window);
     }
+#ifdef MOZ_ENABLE_NPAPI_GTK2
     else {
         Window browserSocket = (Window)(aWindow.window);
         xt_client_init(&mXtClient, mWsInfo.visual, mWsInfo.colormap, mWsInfo.depth);
         xt_client_create(&mXtClient, browserSocket, mWindow.width, mWindow.height);
         mWindow.window = (void *)XtWindow(mXtClient.child_widget);
     }
+#else
+    else {
+        mWindow.window = reinterpret_cast<void*>(aWindow.window);
+    }
+#endif
 #else
     mWindow.window = reinterpret_cast<void*>(aWindow.window);
 #endif
@@ -1251,8 +1266,8 @@ void PluginInstanceChild::DeleteWindow()
   if (!mWindow.window)
       return;
 
-#ifdef MOZ_WIDGET_GTK
-  if (mXtClient.top_widget) {
+#ifdef MOZ_ENABLE_NPAPI_GTK2
+  if (mXtClient.top_widget) {     
       xt_client_unrealize(&mXtClient);
       xt_client_destroy(&mXtClient);
       mXtClient.top_widget = nullptr;
@@ -1333,7 +1348,7 @@ PluginInstanceChild::AnswerNPP_SetWindow(const NPRemoteWindow& aWindow)
         CreateWindow(aWindow);
     }
 
-#ifdef MOZ_WIDGET_GTK
+#ifdef MOZ_ENABLE_NPAPI_GTK2
     if (mXEmbed && gtk_check_version(2,18,7) != nullptr) { // older
         if (aWindow.type == NPWindowTypeWindow) {
             GdkWindow* socket_window = gdk_window_lookup(static_cast<GdkNativeWindow>(aWindow.window));
@@ -1468,20 +1483,28 @@ PluginInstanceChild::Initialize()
     if (mWindow.type == NPWindowTypeWindow) {
         AnswerNPP_GetValue_NPPVpluginNeedsXEmbed(&mXEmbed, &rv);
 
+#ifdef MOZ_ENABLE_NPAPI_GTK2
         // Set up Xt loop for windowed plugins without XEmbed support
         if (!mXEmbed) {
            xt_client_xloop_create();
         }
+#endif
     }
 
-    // Use default GTK display for XEmbed and windowless plugins
+    // Use default GTK display for XEmbed and windowless plugins.
     if (mXEmbed || mWindow.type != NPWindowTypeWindow) {
         mWsInfo.display = DefaultXDisplay();
     }
+#ifdef MOZ_ENABLE_NPAPI_GTK2
     else {
         mWsInfo.display = xt_client_get_display();
     }
+#else
+    else {
+        mWsInfo.display = DefaultXDisplay();
+    }
 #endif
+#endif 
 
     return true;
 }
@@ -4667,8 +4690,8 @@ PluginInstanceChild::Destroy()
         mPendingAsyncCalls[i]->Cancel();
 
     mPendingAsyncCalls.Clear();
-
-#ifdef MOZ_WIDGET_GTK
+    
+#if defined(MOZ_WIDGET_GTK) && defined(MOZ_ENABLE_NPAPI_GTK2)
     if (mWindow.type == NPWindowTypeWindow && !mXEmbed) {
       xt_client_xloop_destroy();
     }

@@ -2136,6 +2136,16 @@ fi
 AC_SUBST(XULRUNNER_STUB_NAME)
 
 dnl ========================================================
+
+dnl there are a lot of tests on MOZ_ENABLE_GTK below, that are more convenient
+dnl to keep that way than testing against MOZ_WIDGET_TOOLKIT
+case "$MOZ_WIDGET_TOOLKIT" in
+gtk*)
+    MOZ_ENABLE_GTK=1
+    ;;
+esac
+
+dnl ========================================================
 dnl = NPAPI support
 dnl ========================================================
 
@@ -2152,6 +2162,22 @@ then
 fi
 
 AC_SUBST(MOZ_ENABLE_NPAPI)
+
+if test -n "$MOZ_ENABLE_GTK" ; then
+    MOZ_ENABLE_NPAPI_GTK2=1
+
+    MOZ_ARG_DISABLE_BOOL(npapi-gtk2,
+    [  --disable-npapi-gtk2     Disable GTK2 support for NPAPI plugins ],
+        MOZ_ENABLE_NPAPI_GTK2=,
+        MOZ_ENABLE_NPAPI_GTK2=1)
+
+    if test "$MOZ_ENABLE_NPAPI" -a "$MOZ_ENABLE_NPAPI_GTK2"
+    then
+        AC_DEFINE(MOZ_ENABLE_NPAPI_GTK2)
+    fi
+
+    AC_SUBST(MOZ_ENABLE_NPAPI_GTK2)
+fi
 
 dnl ========================================================
 dnl =
@@ -2199,13 +2225,9 @@ cocoa)
 
 esac
 
-dnl there are a lot of tests on MOZ_ENABLE_GTK below, that are more convenient
-dnl to keep that way than testing against MOZ_WIDGET_TOOLKIT
-case "$MOZ_WIDGET_TOOLKIT" in
-gtk*)
-    MOZ_ENABLE_GTK=1
-    ;;
-esac
+if test "$MOZ_WIDGET_TOOLKIT" = gtk2 -a -z "$MOZ_ENABLE_NPAPI_GTK2"; then
+  AC_MSG_ERROR([--disable-npapi-gtk2 cannot be used with GTK2 browser builds.])
+fi
 
 if test "$COMPILE_ENVIRONMENT"; then
   if test "$MOZ_WIDGET_TOOLKIT" = gtk3; then
@@ -2217,8 +2239,9 @@ if test "$COMPILE_ENVIRONMENT"; then
     dnl are suppressed by widget/gtk/compat-gtk3/gdk/gdkversionmacros.h.
     AC_DEFINE_UNQUOTED(GDK_VERSION_MAX_ALLOWED,$GDK_VERSION_MAX_ALLOWED)
     GLIB_VERSION_MAX_ALLOWED=GLIB_VERSION_2_32
-    dnl We want to check GTK2 packages if NPAPI is enabled, even if building with GTK3.
-    if test "$MOZ_ENABLE_NPAPI"; then
+    dnl GTK2 NPAPI plugin support needs GTK2 packages, even when the browser
+    dnl itself is built against GTK3.
+    if test "$MOZ_ENABLE_NPAPI" -a "$MOZ_ENABLE_NPAPI_GTK2"; then
       MOZ_CHECK_GTK2=1
     fi
   fi
@@ -2236,7 +2259,7 @@ if test "$COMPILE_ENVIRONMENT"; then
 
     if test "$MOZ_CHECK_GTK2"; then
       PKG_CHECK_MODULES(MOZ_GTK2, gtk+-2.0 >= $GTK2_VERSION gtk+-unix-print-2.0 glib-2.0 >= $GLIB_VERSION gobject-2.0 $GDK_PACKAGES, ,
-                               [AC_MSG_ERROR([ * * * Could not find gtk+-2.0. Required for NPAPI plugins. To build without NPAPI, add --disable-npapi to your .mozconfig and clobber.])])
+                               [AC_MSG_ERROR([ * * * Could not find gtk+-2.0. Required for GTK2 browser builds and GTK2 NPAPI plugin support. To build a GTK3 browser with NPAPI but without GTK2 NPAPI plugin support, add --disable-npapi-gtk2 to your .mozconfig and clobber.])])
     MOZ_GTK2_CFLAGS="-I${_topsrcdir}/widget/gtk/compat $MOZ_GTK2_CFLAGS"
     fi
   fi

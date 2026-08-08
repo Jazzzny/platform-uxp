@@ -143,11 +143,13 @@ LOCAL_INCLUDES += [
 
 DEFINES['FORCE_PR_LOG'] = True
 
-if CONFIG['MOZ_WIDGET_TOOLKIT'] != 'gtk3':
-    CXXFLAGS += CONFIG['TK_CFLAGS']
-else:
+if (CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gtk3' and
+        CONFIG['MOZ_ENABLE_NPAPI'] and
+        CONFIG['MOZ_ENABLE_NPAPI_GTK2']):
     # Force build against gtk+2 for struct offsets and such.
     CXXFLAGS += CONFIG['MOZ_GTK2_CFLAGS']
+else:
+    CXXFLAGS += CONFIG['TK_CFLAGS']
 
 CXXFLAGS += CONFIG['MOZ_CAIRO_CFLAGS']
 

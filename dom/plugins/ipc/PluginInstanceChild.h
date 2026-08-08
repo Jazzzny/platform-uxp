@@ -40,7 +40,7 @@
 
 #include <map>
 
-#ifdef MOZ_WIDGET_GTK
+#if defined(MOZ_WIDGET_GTK) && defined(MOZ_ENABLE_NPAPI_GTK2)
 #include "gtk2xtbin.h"
 #endif
 
@@ -466,6 +466,8 @@ private:
     NPSetWindowCallbackStruct mWsInfo;
 #ifdef MOZ_WIDGET_GTK
     bool mXEmbed;
+#endif
+#ifdef MOZ_ENABLE_NPAPI_GTK2
     XtClient mXtClient;
 #endif
 #elif defined(OS_WIN)

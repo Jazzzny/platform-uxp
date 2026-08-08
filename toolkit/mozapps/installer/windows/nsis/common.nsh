@@ -5186,13 +5186,6 @@
               ${EndIf}
             ${EndIf}
 
-            ReadINIStr $R8 $R7 "Install" "QuickLaunchShortcut"
-            ${If} $R8 == "false"
-              StrCpy $AddQuickLaunchSC "0"
-            ${Else}
-              StrCpy $AddQuickLaunchSC "1"
-            ${EndIf}
-
             ReadINIStr $R8 $R7 "Install" "DesktopShortcut"
             ${If} $R8 == "false"
               StrCpy $AddDesktopSC "0"
@@ -5812,43 +5805,11 @@
       Push $0
 
 !ifndef NONADMIN_ELEVATE
-        ${If} ${AtLeastWinVista}
-          UAC::IsAdmin
-          ; If the user is not an admin already
-          ${If} "$0" != "1"
-            UAC::SupportsUAC
-            ; If the system supports UAC
-            ${If} "$0" == "1"
-              UAC::GetElevationType
-              ; If the user account has a split token
-              ${If} "$0" == "3"
-                UAC::RunElevated
-                UAC::Unload
-                ; Nothing besides UAC initialized so no need to call OnEndCommon
-                Quit
-              ${EndIf}
-            ${EndIf}
-          ${Else}
-            ${GetParameters} $R9
-            ${If} $R9 != ""
-              ClearErrors
-              ${GetOptions} "$R9" "/UAC:" $0
-              ; If the command line contains /UAC then we need to initialize
-              ; the UAC plugin to use UAC::ExecCodeSegment to execute code in
-              ; the non-elevated context.
-              ${Unless} ${Errors}
-                UAC::RunElevated
-              ${EndUnless}
-            ${EndIf}
-          ${EndIf}
-        ${EndIf}
-!else
-      ${If} ${AtLeastWinVista}
         UAC::IsAdmin
         ; If the user is not an admin already
         ${If} "$0" != "1"
           UAC::SupportsUAC
-          ; If the system supports UAC require that the user elevate
+          ; If the system supports UAC
           ${If} "$0" == "1"
             UAC::GetElevationType
             ; If the user account has a split token
@@ -5858,41 +5819,69 @@
               ; Nothing besides UAC initialized so no need to call OnEndCommon
               Quit
             ${EndIf}
-          ${Else}
-            ; Check if UAC is enabled. If the user has turned UAC on or off
-            ; without rebooting this value will be incorrect. This is an
-            ; edgecase that we have to live with when trying to allow
-            ; installing when the user doesn't have privileges such as a public
-            ; computer while trying to also achieve UAC elevation. When this
-            ; happens the user will be presented with the runas dialog if the
-            ; value is 1 and won't be presented with the UAC dialog when the
-            ; value is 0.
-            ReadRegDWord $R9 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" "EnableLUA"
-            ${If} "$R9" == "1"
-              ; This will display the UAC version of the runas dialog which
-              ; requires a password for an existing user account.
-              UAC::RunElevated
-              ${If} "$0" == "0" ; Was elevation successful
-                UAC::Unload
-                ; Nothing besides UAC initialized so no need to call OnEndCommon
-                Quit
-              ${EndIf}
-              ; Unload UAC since the elevation request was not successful and
-              ; install anyway.
-              UAC::Unload
-            ${EndIf}
           ${EndIf}
         ${Else}
-          ClearErrors
-          ${${_MOZFUNC_UN}GetParameters} $R9
-          ${${_MOZFUNC_UN}GetOptions} "$R9" "/UAC:" $R9
-          ; If the command line contains /UAC then we need to initialize the UAC
-          ; plugin to use UAC::ExecCodeSegment to execute code in the
-          ; non-elevated context.
-          ${Unless} ${Errors}
-            UAC::RunElevated
-          ${EndUnless}
+          ${GetParameters} $R9
+          ${If} $R9 != ""
+            ClearErrors
+            ${GetOptions} "$R9" "/UAC:" $0
+            ; If the command line contains /UAC then we need to initialize
+            ; the UAC plugin to use UAC::ExecCodeSegment to execute code in
+            ; the non-elevated context.
+            ${Unless} ${Errors}
+              UAC::RunElevated
+            ${EndUnless}
+          ${EndIf}
         ${EndIf}
+!else
+      UAC::IsAdmin
+      ; If the user is not an admin already
+      ${If} "$0" != "1"
+        UAC::SupportsUAC
+        ; If the system supports UAC require that the user elevate
+        ${If} "$0" == "1"
+          UAC::GetElevationType
+          ; If the user account has a split token
+          ${If} "$0" == "3"
+            UAC::RunElevated
+            UAC::Unload
+            ; Nothing besides UAC initialized so no need to call OnEndCommon
+            Quit
+          ${EndIf}
+        ${Else}
+          ; Check if UAC is enabled. If the user has turned UAC on or off
+          ; without rebooting this value will be incorrect. This is an
+          ; edgecase that we have to live with when trying to allow
+          ; installing when the user doesn't have privileges such as a public
+          ; computer while trying to also achieve UAC elevation. When this
+          ; happens the user will be presented with the runas dialog if the
+          ; value is 1 and won't be presented with the UAC dialog when the
+          ; value is 0.
+          ReadRegDWord $R9 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" "EnableLUA"
+          ${If} "$R9" == "1"
+            ; This will display the UAC version of the runas dialog which
+            ; requires a password for an existing user account.
+            UAC::RunElevated
+            ${If} "$0" == "0" ; Was elevation successful
+              UAC::Unload
+              ; Nothing besides UAC initialized so no need to call OnEndCommon
+              Quit
+            ${EndIf}
+            ; Unload UAC since the elevation request was not successful and
+            ; install anyway.
+            UAC::Unload
+          ${EndIf}
+        ${EndIf}
+      ${Else}
+        ClearErrors
+        ${${_MOZFUNC_UN}GetParameters} $R9
+        ${${_MOZFUNC_UN}GetOptions} "$R9" "/UAC:" $R9
+        ; If the command line contains /UAC then we need to initialize the UAC
+        ; plugin to use UAC::ExecCodeSegment to execute code in the
+        ; non-elevated context.
+        ${Unless} ${Errors}
+          UAC::RunElevated
+        ${EndUnless}
       ${EndIf}
 !endif
 
@@ -5956,10 +5945,6 @@
     !define ${_MOZFUNC_UN}UnloadUAC "!insertmacro ${_MOZFUNC_UN}UnloadUACCall"
 
     Function ${_MOZFUNC_UN}UnloadUAC
-      ${Unless} ${AtLeastWinVista}
-        Return
-      ${EndUnless}
-
       Push $R9
 
       ClearErrors
@@ -6307,7 +6292,6 @@
  */
 !macro _LoggingShortcutsCommon
   !insertmacro LogDesktopShortcut
-  !insertmacro LogQuickLaunchShortcut
   !insertmacro LogSMProgramsShortcut
 !macroend
 !define _LoggingShortcutsCommon "!insertmacro _LoggingShortcutsCommon"
@@ -6329,9 +6313,9 @@
 
 /**
  * Adds shortcut entries to the shortcuts log ini file. This macro is primarily
- * a helper used by the LogDesktopShortcut, LogQuickLaunchShortcut, and
- * LogSMProgramsShortcut macros but it can be used by other code if desired. If
- * the value already exists the the value is not written to the file.
+ * a helper used by the LogDesktopShortcut and LogSMProgramsShortcut macros but
+ * it can be used by other code if desired. If the value already exists the the
+ * value is not written to the file.
  *
  * @param   _SECTION_NAME
  *          The section name to write to in the shortcut log ini file
@@ -6421,38 +6405,6 @@
   Push "DESKTOP"
   Push "${_FILE_NAME}"
   Call LogDesktopShortcut
-  !verbose pop
-!macroend
-
-/**
- * Adds a QuickLaunch shortcut entry to the shortcuts log ini file.
- *
- * @param   _FILE_NAME
- *          The shortcut file name (e.g. shortcut.lnk)
- */
-!macro LogQuickLaunchShortcut
-
-  !ifndef LogQuickLaunchShortcut
-    !insertmacro LogShortcut
-
-    !verbose push
-    !verbose ${_MOZFUNC_VERBOSE}
-    !define LogQuickLaunchShortcut "!insertmacro LogQuickLaunchShortcutCall"
-
-    Function LogQuickLaunchShortcut
-      Call LogShortcut
-    FunctionEnd
-
-    !verbose pop
-  !endif
-!macroend
-
-!macro LogQuickLaunchShortcutCall _FILE_NAME
-  !verbose push
-  !verbose ${_MOZFUNC_VERBOSE}
-  Push "QUICKLAUNCH"
-  Push "${_FILE_NAME}"
-  Call LogQuickLaunchShortcut
   !verbose pop
 !macroend
 
@@ -6611,10 +6563,6 @@
     !define ${_MOZFUNC_UN}SetAppLSPCategories "!insertmacro ${_MOZFUNC_UN}SetAppLSPCategoriesCall"
 
     Function ${_MOZFUNC_UN}SetAppLSPCategories
-      ${Unless} ${AtLeastWinVista}
-        Return
-      ${EndUnless}
-
       Exch $R9
       Push $R8
       Push $R7
@@ -6724,8 +6672,7 @@
 
       StrCpy $R5 "false"
 
-      ${If} ${AtLeastWin7}
-      ${AndIf} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar"
+      ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar"
         FindFirst $R8 $R7 "$QUICKLAUNCH\User Pinned\TaskBar\*.lnk"
         ${Do}
           ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar\$R7"
@@ -6804,8 +6751,7 @@
 
       StrCpy $R5 "false"
 
-      ${If} ${AtLeastWin7}
-      ${AndIf} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu"
+      ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu"
         FindFirst $R8 $R7 "$QUICKLAUNCH\User Pinned\StartMenu\*.lnk"
         ${Do}
           ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu\$R7"
@@ -6876,8 +6822,7 @@
 
       StrCpy $R9 0
 
-      ${If} ${AtLeastWin7}
-      ${AndIf} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar"
+      ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar"
         FindFirst $R8 $R7 "$QUICKLAUNCH\User Pinned\TaskBar\*.lnk"
         ${Do}
           ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar\$R7"
@@ -6937,8 +6882,7 @@
 
       StrCpy $R9 0
 
-      ${If} ${AtLeastWin7}
-      ${AndIf} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu"
+      ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu"
         FindFirst $R8 $R7 "$QUICKLAUNCH\User Pinned\StartMenu\*.lnk"
         ${Do}
           ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu\$R7"
@@ -7018,131 +6962,108 @@
 
       StrCpy $R3 "false"
 
-      ${If} ${AtLeastWin7}
-        ; installed shortcuts
-        ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR\uninstall\${SHORTCUTS_LOG}" $R6
-        ${If} ${FileExists} "$R6"
-          ; Update the Start Menu shortcuts' App ID for this application
-          StrCpy $R2 -1
-          ${Do}
-            IntOp $R2 $R2 + 1 ; Increment the counter
-            ClearErrors
-            ReadINIStr $R5 "$R6" "STARTMENU" "Shortcut$R2"
-            ${If} ${Errors}
-              ${ExitDo}
-            ${EndIf}
-
-            ${If} ${FileExists} "$SMPROGRAMS\$R5"
-              ShellLink::GetShortCutTarget "$SMPROGRAMS\$$R5"
-              Pop $R4
-              ${GetLongPath} "$R4" $R4
-              ${If} "$R4" == "$R9" ; link path == install path
-                ApplicationID::Set "$SMPROGRAMS\$R5" "$R8"
-                Pop $R4
-              ${EndIf}
-            ${EndIf}
-          ${Loop}
-
-          ; Update the Quick Launch shortcuts' App ID for this application
-          StrCpy $R2 -1
-          ${Do}
-            IntOp $R2 $R2 + 1 ; Increment the counter
-            ClearErrors
-            ReadINIStr $R5 "$R6" "QUICKLAUNCH" "Shortcut$R2"
-            ${If} ${Errors}
-              ${ExitDo}
-            ${EndIf}
-
-            ${If} ${FileExists} "$QUICKLAUNCH\$R5"
-              ShellLink::GetShortCutTarget "$QUICKLAUNCH\$R5"
-              Pop $R4
-              ${GetLongPath} "$R4" $R4
-              ${If} "$R4" == "$R9" ; link path == install path
-                ApplicationID::Set "$QUICKLAUNCH\$R5" "$R8"
-                Pop $R4
-              ${EndIf}
-            ${EndIf}
-          ${Loop}
-
-          ; Update the Start Menu Programs shortcuts' App ID for this application
+      ; installed shortcuts
+      ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR\uninstall\${SHORTCUTS_LOG}" $R6
+      ${If} ${FileExists} "$R6"
+        ; Update the Start Menu shortcuts' App ID for this application
+        StrCpy $R2 -1
+        ${Do}
+          IntOp $R2 $R2 + 1 ; Increment the counter
           ClearErrors
-          ReadINIStr $R7 "$R6" "SMPROGRAMS" "RelativePathToDir"
-          ${Unless} ${Errors}
-            ${${_MOZFUNC_UN}GetLongPath} "$SMPROGRAMS\$R7" $R7
-            ${Unless} "$R7" == ""
-              StrCpy $R2 -1
-              ${Do}
-                IntOp $R2 $R2 + 1 ; Increment the counter
-                ClearErrors
-                ReadINIStr $R5 "$R6" "SMPROGRAMS" "Shortcut$R2"
-                ${If} ${Errors}
-                  ${ExitDo}
-                ${EndIf}
+          ReadINIStr $R5 "$R6" "STARTMENU" "Shortcut$R2"
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
 
-                ${If} ${FileExists} "$R7\$R5"
-                  ShellLink::GetShortCutTarget "$R7\$R5"
+          ${If} ${FileExists} "$SMPROGRAMS\$R5"
+            ShellLink::GetShortCutTarget "$SMPROGRAMS\$$R5"
+            Pop $R4
+            ${GetLongPath} "$R4" $R4
+            ${If} "$R4" == "$R9" ; link path == install path
+              ApplicationID::Set "$SMPROGRAMS\$R5" "$R8"
+              Pop $R4
+            ${EndIf}
+          ${EndIf}
+        ${Loop}
+
+        ; Update the Start Menu Programs shortcuts' App ID for this application
+        ClearErrors
+        ReadINIStr $R7 "$R6" "SMPROGRAMS" "RelativePathToDir"
+        ${Unless} ${Errors}
+          ${${_MOZFUNC_UN}GetLongPath} "$SMPROGRAMS\$R7" $R7
+          ${Unless} "$R7" == ""
+            StrCpy $R2 -1
+            ${Do}
+              IntOp $R2 $R2 + 1 ; Increment the counter
+              ClearErrors
+              ReadINIStr $R5 "$R6" "SMPROGRAMS" "Shortcut$R2"
+              ${If} ${Errors}
+                ${ExitDo}
+              ${EndIf}
+
+              ${If} ${FileExists} "$R7\$R5"
+                ShellLink::GetShortCutTarget "$R7\$R5"
+                Pop $R4
+                ${GetLongPath} "$R4" $R4
+                ${If} "$R4" == "$R9" ; link path == install path
+                  ApplicationID::Set "$R7\$R5" "$R8"
                   Pop $R4
-                  ${GetLongPath} "$R4" $R4
-                  ${If} "$R4" == "$R9" ; link path == install path
-                    ApplicationID::Set "$R7\$R5" "$R8"
-                    Pop $R4
-                  ${EndIf}
                 ${EndIf}
-              ${Loop}
-            ${EndUnless}
+              ${EndIf}
+            ${Loop}
           ${EndUnless}
-        ${EndIf}
-
-        StrCpy $R7 "$QUICKLAUNCH\User Pinned"
-        StrCpy $R3 "false"
-
-        ; $R9 = main application executable path
-        ; $R8 = appid
-        ; $R7 = user pinned path
-        ; $R6 = find handle
-        ; $R5 = found filename
-        ; $R4 = GetShortCutTarget result
-
-        ; TaskBar links
-        FindFirst $R6 $R5 "$R7\TaskBar\*.lnk"
-        ${Do}
-          ${If} ${FileExists} "$R7\TaskBar\$R5"
-            ShellLink::GetShortCutTarget "$R7\TaskBar\$R5"
-            Pop $R4
-            ${If} "$R4" == "$R9" ; link path == install path
-              ApplicationID::Set "$R7\TaskBar\$R5" "$R8"
-              Pop $R4 ; pop Set result off the stack
-              StrCpy $R3 "true"
-            ${EndIf}
-          ${EndIf}
-          ClearErrors
-          FindNext $R6 $R5
-          ${If} ${Errors}
-            ${ExitDo}
-          ${EndIf}
-        ${Loop}
-        FindClose $R6
-
-        ; Start menu links
-        FindFirst $R6 $R5 "$R7\StartMenu\*.lnk"
-        ${Do}
-          ${If} ${FileExists} "$R7\StartMenu\$R5"
-            ShellLink::GetShortCutTarget "$R7\StartMenu\$R5"
-            Pop $R4
-            ${If} "$R4" == "$R9" ; link path == install path
-              ApplicationID::Set "$R7\StartMenu\$R5" "$R8"
-              Pop $R4 ; pop Set result off the stack
-              StrCpy $R3 "true"
-            ${EndIf}
-          ${EndIf}
-          ClearErrors
-          FindNext $R6 $R5
-          ${If} ${Errors}
-            ${ExitDo}
-          ${EndIf}
-        ${Loop}
-        FindClose $R6
+        ${EndUnless}
       ${EndIf}
+
+      StrCpy $R7 "$QUICKLAUNCH\User Pinned"
+      StrCpy $R3 "false"
+
+      ; $R9 = main application executable path
+      ; $R8 = appid
+      ; $R7 = user pinned path
+      ; $R6 = find handle
+      ; $R5 = found filename
+      ; $R4 = GetShortCutTarget result
+
+      ; TaskBar links
+      FindFirst $R6 $R5 "$R7\TaskBar\*.lnk"
+      ${Do}
+        ${If} ${FileExists} "$R7\TaskBar\$R5"
+          ShellLink::GetShortCutTarget "$R7\TaskBar\$R5"
+          Pop $R4
+          ${If} "$R4" == "$R9" ; link path == install path
+            ApplicationID::Set "$R7\TaskBar\$R5" "$R8"
+            Pop $R4 ; pop Set result off the stack
+            StrCpy $R3 "true"
+          ${EndIf}
+        ${EndIf}
+        ClearErrors
+        FindNext $R6 $R5
+        ${If} ${Errors}
+          ${ExitDo}
+        ${EndIf}
+      ${Loop}
+      FindClose $R6
+
+      ; Start menu links
+      FindFirst $R6 $R5 "$R7\StartMenu\*.lnk"
+      ${Do}
+        ${If} ${FileExists} "$R7\StartMenu\$R5"
+          ShellLink::GetShortCutTarget "$R7\StartMenu\$R5"
+          Pop $R4
+          ${If} "$R4" == "$R9" ; link path == install path
+            ApplicationID::Set "$R7\StartMenu\$R5" "$R8"
+            Pop $R4 ; pop Set result off the stack
+            StrCpy $R3 "true"
+          ${EndIf}
+        ${EndIf}
+        ClearErrors
+        FindNext $R6 $R5
+        ${If} ${Errors}
+          ${ExitDo}
+        ${EndIf}
+      ${Loop}
+      FindClose $R6
 
       ClearErrors
 
@@ -7249,23 +7170,21 @@
       Exch $R8 ; stack: $R8, $R9   | $R8 = regpath
       Push $R7
 
-      ${If} ${AtLeastWin7}
-        ${${_MOZFUNC_UN}GetLongPath} "$R9" $R9
-        ; Always create a new AppUserModelID and overwrite the existing one
-        ; for the current installation path.
-        CityHash::GetCityHash64 "$R9"
-        Pop $AppUserModelID
-        ${If} $AppUserModelID == "error"
-          GoTo end
-        ${EndIf}
+      ${${_MOZFUNC_UN}GetLongPath} "$R9" $R9
+      ; Always create a new AppUserModelID and overwrite the existing one
+      ; for the current installation path.
+      CityHash::GetCityHash64 "$R9"
+      Pop $AppUserModelID
+      ${If} $AppUserModelID == "error"
+        GoTo end
+      ${EndIf}
+      ClearErrors
+      WriteRegStr HKLM "$R8" "$R9" "$AppUserModelID"
+      ${If} ${Errors}
         ClearErrors
-        WriteRegStr HKLM "$R8" "$R9" "$AppUserModelID"
+        WriteRegStr HKCU "$R8" "$R9" "$AppUserModelID"
         ${If} ${Errors}
-          ClearErrors
-          WriteRegStr HKCU "$R8" "$R9" "$AppUserModelID"
-          ${If} ${Errors}
-            StrCpy $AppUserModelID "error"
-          ${EndIf}
+          StrCpy $AppUserModelID "error"
         ${EndIf}
       ${EndIf}
 
@@ -7351,15 +7270,12 @@
       StrCpy $ITaskbarList3 0
       ; Don't create when running silently.
       ${Unless} ${Silent}
-        ; This is only supported on Win 7 and above.
-        ${If} ${AtLeastWin7}
-          System::Call "ole32::CoCreateInstance(g '${CLSID_ITaskbarList}', \
-                                                i 0, \
-                                                i ${CLSCTX_INPROC_SERVER}, \
-                                                g '${IID_ITaskbarList3}', \
-                                                *i .s)"
-          Pop $ITaskbarList3
-        ${EndIf}
+        System::Call "ole32::CoCreateInstance(g '${CLSID_ITaskbarList}', \
+                                              i 0, \
+                                              i ${CLSCTX_INPROC_SERVER}, \
+                                              g '${IID_ITaskbarList3}', \
+                                              *i .s)"
+        Pop $ITaskbarList3
       ${EndUnless}
     FunctionEnd
 

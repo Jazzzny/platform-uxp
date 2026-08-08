@@ -251,7 +251,7 @@ bool GrDrawTarget::drawBatches(GrBatchFlushState* flushState) {
             if (currentRT) {
                 static const GrGpuCommandBuffer::LoadAndStoreInfo kBasicLoadStoreInfo
                     { GrGpuCommandBuffer::LoadOp::kLoad,GrGpuCommandBuffer::StoreOp::kStore,
-                      GrColor_ILLEGAL };
+                      static_cast<GrColor>(GrColor_ILLEGAL) };
                 commandBuffer.reset(fGpu->createCommandBuffer(currentRT,
                                                               kBasicLoadStoreInfo,   // Color
                                                               kBasicLoadStoreInfo)); // Stencil
