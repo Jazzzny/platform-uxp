@@ -1113,6 +1113,16 @@ CompositorOGL::DrawGeometry(const Geometry& aGeometry,
     blendMode = blendEffect->mBlendMode;
   }
 
+#if defined(XP_MACOSX) && \
+    (!defined(MAC_OS_X_VERSION_10_6) || \
+     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
+  // Certain OGL drivers on Tiger and Leopard can leave the surrounding render target partially
+  // unwritten after using the mix-blend backdrop path.
+  if (BlendOpIsMixBlendMode(blendMode)) {
+    blendMode = gfx::CompositionOp::OP_OVER;
+  }
+#endif
+
   // Only apply DEAA to quads that have been transformed such that aliasing
   // could be visible
   bool bEnableAA = gfxPrefs::LayersDEAAEnabled() &&
