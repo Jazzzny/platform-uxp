@@ -400,16 +400,8 @@ GfxInfo::GetFeatureStatusImpl(int32_t aFeature,
 #endif
 
 #if !defined(MAC_OS_X_VERSION_10_5) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
-    // 10.4 PPC OpenGL is too old for OMTC!
-#if defined(__ppc__)
-    if (aFeature == nsIGfxInfo::FEATURE_OPENGL_LAYERS &&
-        !nsCocoaFeatures::OnLeopardOrLater()) {
-      *aStatus = nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION;
-      aFailureId = "FEATURE_FAILURE_LAYERS_OSX_VERSION";
-      return NS_OK;
-    }
-#else
-    // No 10.4 intel webgl
+#if !defined(__ppc__)
+    // No 10.4 intel webgl, ppc is already blocked below
     if (aFeature == nsIGfxInfo::FEATURE_WEBGL_OPENGL &&
         !nsCocoaFeatures::OnLeopardOrLater()) {
       *aStatus = nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION;

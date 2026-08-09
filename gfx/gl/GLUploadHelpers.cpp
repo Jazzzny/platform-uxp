@@ -286,61 +286,66 @@ TexImage2DHelper(GLContext* gl,
                  GLenum type, const GLvoid* pixels)
 {
     if (gl->IsGLES()) {
-
         NS_ASSERTION(format == (GLenum)internalformat,
                     "format and internalformat not the same for glTexImage2D on GLES2");
+    }
 
-        MOZ_ASSERT(width >= 0 && height >= 0);
-        if (!CanUploadNonPowerOfTwo(gl)
-            && (stride != width * pixelsize
-            || !IsPowerOfTwo((uint32_t)width)
-            || !IsPowerOfTwo((uint32_t)height))) {
+    MOZ_ASSERT(width >= 0 && height >= 0);
+    const bool canUploadNPOT = CanUploadNonPowerOfTwo(gl);
+    const bool usePOTBacking =
+        target == LOCAL_GL_TEXTURE_2D && !canUploadNPOT &&
+        ((gl->IsGLES() && stride != width * pixelsize) ||
+         !IsPowerOfTwo((uint32_t)width) ||
+         !IsPowerOfTwo((uint32_t)height));
 
-            // Pad out texture width and height to the next power of two
-            // as we don't support/want non power of two texture uploads
-            GLsizei paddedWidth = RoundUpPow2((uint32_t)width);
-            GLsizei paddedHeight = RoundUpPow2((uint32_t)height);
+    if (usePOTBacking) {
 
-            // Width and height are never more than 16384. At 16Ki*16Ki, 4Bpp
-            // is 1GiB, but if we allow 8Bpp (or higher) here, that's 2GiB,
-            // which would overflow on 32-bit.
-            MOZ_ASSERT(width <= 16384);
-            MOZ_ASSERT(height <= 16384);
-            MOZ_ASSERT(pixelsize < 8);
+        // Pad out texture width and height to the next power of two
+        // as we don't support/want non power of two texture uploads.
+        GLsizei paddedWidth = RoundUpPow2((uint32_t)width);
+        GLsizei paddedHeight = RoundUpPow2((uint32_t)height);
 
-            const auto size =
-                CheckedInt<size_t>(paddedWidth) * paddedHeight * pixelsize;
-            if (!size.isValid()) {
-              // This should never happen, but we use a defensive check.
-              MOZ_ASSERT_UNREACHABLE("Unacceptable size calculated.!");
-              return;
-            }
+        // Width and height are never more than 16384. At 16Ki*16Ki, 4Bpp
+        // is 1GiB, but if we allow 8Bpp (or higher) here, that's 2GiB,
+        // which would overflow on 32-bit.
+        MOZ_ASSERT(width <= 16384);
+        MOZ_ASSERT(height <= 16384);
+        MOZ_ASSERT(pixelsize < 8);
 
-            GLvoid* paddedPixels = new unsigned char[size.value()];
-
-            // Pad out texture data to be in a POT sized buffer for uploading to
-            // a POT sized texture
-            CopyAndPadTextureData(pixels, paddedPixels, width, height,
-                                  paddedWidth, paddedHeight, stride, pixelsize);
-
-            gl->fPixelStorei(LOCAL_GL_UNPACK_ALIGNMENT,
-                             std::min(GetAddressAlignment((ptrdiff_t)paddedPixels),
-                                      GetAddressAlignment((ptrdiff_t)paddedWidth * pixelsize)));
-            gl->fTexImage2D(target,
-                            border,
-                            internalformat,
-                            paddedWidth,
-                            paddedHeight,
-                            border,
-                            format,
-                            type,
-                            paddedPixels);
-            gl->fPixelStorei(LOCAL_GL_UNPACK_ALIGNMENT, 4);
-
-            delete[] static_cast<unsigned char*>(paddedPixels);
-            return;
+        const auto size =
+            CheckedInt<size_t>(paddedWidth) * paddedHeight * pixelsize;
+        if (!size.isValid()) {
+          // This should never happen, but we use a defensive check.
+          MOZ_ASSERT_UNREACHABLE("Unacceptable size calculated.!");
+          return;
         }
 
+        GLvoid* paddedPixels = new unsigned char[size.value()];
+
+        // Pad out texture data to be in a POT sized buffer for uploading to
+        // a POT sized texture.
+        CopyAndPadTextureData(pixels, paddedPixels, width, height,
+                              paddedWidth, paddedHeight, stride, pixelsize);
+
+        gl->fPixelStorei(LOCAL_GL_UNPACK_ALIGNMENT,
+                         std::min(GetAddressAlignment((ptrdiff_t)paddedPixels),
+                                  GetAddressAlignment((ptrdiff_t)paddedWidth * pixelsize)));
+        gl->fTexImage2D(target,
+                        level,
+                        internalformat,
+                        paddedWidth,
+                        paddedHeight,
+                        border,
+                        format,
+                        type,
+                        paddedPixels);
+        gl->fPixelStorei(LOCAL_GL_UNPACK_ALIGNMENT, 4);
+
+        delete[] static_cast<unsigned char*>(paddedPixels);
+        return;
+    }
+
+    if (gl->IsGLES()) {
         if (stride == width * pixelsize) {
             gl->fPixelStorei(LOCAL_GL_UNPACK_ALIGNMENT,
                              std::min(GetAddressAlignment((ptrdiff_t)pixels),
@@ -580,6 +585,13 @@ UploadSurfaceToTexture(GLContext* gl,
 bool
 CanUploadNonPowerOfTwo(GLContext* gl)
 {
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+    // Some Tiger PPC drivers expose desktop GL without the NPOT extension.
+    // Upload POT backing textures and scale coordinates on those systems.
+    if (!gl->IsExtensionSupported(GLContext::ARB_texture_non_power_of_two))
+        return false;
+#endif
+
     if (!gl->WorkAroundDriverBugs())
         return true;
 

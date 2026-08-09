@@ -275,6 +275,16 @@ CompositorOGL::Initialize(nsCString* const out_failureReason)
       if (!target)
           continue;
 
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+      // Tiger's drivers can report a complete framebuffer after a failed
+      // NPOT texture allocation, do not try unless NPOT is explicitly supported.
+      if (target == LOCAL_GL_TEXTURE_2D &&
+          !mGLContext->IsExtensionSupported(
+            GLContext::ARB_texture_non_power_of_two)) {
+        continue;
+      }
+#endif
+
       mGLContext->fGenTextures(1, &testTexture);
       mGLContext->fBindTexture(target, testTexture);
       mGLContext->fTexParameteri(target,
@@ -431,11 +441,14 @@ CalculatePOTSize(const IntSize& aSize, GLContext* gl)
 gfx::Rect
 CompositorOGL::GetTextureCoordinates(gfx::Rect textureRect, TextureSource* aTexture)
 {
+  TextureSourceOGL* source = aTexture->AsSourceOGL();
+
   // If the OpenGL setup does not support non-power-of-two textures then the
   // texture's width and height will have been increased to the next
-  // power-of-two (unless already a power of two). In that case we must scale
-  // the texture coordinates to account for that.
-  if (!CanUploadNonPowerOfTwo(mGLContext)) {
+  // power-of-two (unless already a power of two). Rectangle textures retain
+  // their original dimensions and use unnormalized coordinates.
+  if (source && source->GetTextureTarget() == LOCAL_GL_TEXTURE_2D &&
+      !CanUploadNonPowerOfTwo(mGLContext)) {
     const IntSize& textureSize = aTexture->GetSize();
     const IntSize potSize = CalculatePOTSize(textureSize, mGLContext);
     if (potSize != textureSize) {
@@ -1068,7 +1081,10 @@ CompositorOGL::DrawGeometry(const Geometry& aGeometry,
     // We're assuming that the gl backend won't cheat and use NPOT
     // textures when glContext says it can't (which seems to happen
     // on a mac when you force POT textures)
-    IntSize maskSize = CalculatePOTSize(effectMask->mSize, mGLContext);
+    IntSize maskSize = effectMask->mSize;
+    if (sourceMask && sourceMask->GetTextureTarget() == LOCAL_GL_TEXTURE_2D) {
+      maskSize = CalculatePOTSize(maskSize, mGLContext);
+    }
 
     const gfx::Matrix4x4& maskTransform = effectMask->mMaskTransform;
     NS_ASSERTION(maskTransform.Is2D(), "How did we end up with a 3D transform here?!");

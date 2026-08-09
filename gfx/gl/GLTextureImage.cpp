@@ -162,6 +162,14 @@ BasicTextureImage::Resize(const gfx::IntSize& aSize)
 {
     mGLContext->fBindTexture(LOCAL_GL_TEXTURE_2D, mTexture);
 
+    gfx::IntSize textureSize = aSize;
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+    if (!CanUploadNonPowerOfTwo(mGLContext)) {
+        textureSize.width = RoundUpPow2((uint32_t)aSize.width);
+        textureSize.height = RoundUpPow2((uint32_t)aSize.height);
+    }
+#endif
+
     // This matches the logic in UploadImageDataToTexture so that
     // we avoid mixing formats.
     GLenum format;
@@ -178,8 +186,8 @@ BasicTextureImage::Resize(const gfx::IntSize& aSize)
     mGLContext->fTexImage2D(LOCAL_GL_TEXTURE_2D,
                             0,
                             LOCAL_GL_RGBA,
-                            aSize.width,
-                            aSize.height,
+                            textureSize.width,
+                            textureSize.height,
                             0,
                             format,
                             type,
