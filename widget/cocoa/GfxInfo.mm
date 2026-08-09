@@ -341,9 +341,6 @@ GfxInfo::GetGfxDriverInfo()
     IMPLEMENT_MAC_DRIVER_BLOCKLIST(OperatingSystem::OSX,
       (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorNVIDIA), (GfxDeviceFamily*) GfxDriverInfo::GetDeviceFamily(Geforce7300GT),
       nsIGfxInfo::FEATURE_WEBGL_OPENGL, nsIGfxInfo::FEATURE_BLOCKED_DEVICE, "FEATURE_FAILURE_MAC_7300_NO_WEBGL");
-    IMPLEMENT_MAC_DRIVER_BLOCKLIST(OperatingSystem::OSX,
-      (nsAString&) GfxDriverInfo::GetDeviceVendor(VendorNVIDIA), (GfxDeviceFamily*) GfxDriverInfo::GetDeviceFamily(GeforceFX),
-      nsIGfxInfo::FEATURE_OPENGL_LAYERS, nsIGfxInfo::FEATURE_BLOCKED_DEVICE, "FEATURE_FAILURE_MAC_GEFORCEFX_NO_LAYERS");
   }
   return *mDriverInfo;
 }
