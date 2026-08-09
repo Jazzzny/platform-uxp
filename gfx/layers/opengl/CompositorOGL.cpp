@@ -858,6 +858,15 @@ CompositorOGL::GetShaderConfigFor(Effect *aEffect,
   }
   config.SetColorMatrix(aColorMatrix);
   config.SetMask(aMask == MaskType::Mask);
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+  // Apple's PPC ATI GLSL compiler can collapse normalized sampler2DRect
+  // coordinates when they are scaled in a masked fragment shader.
+  config.SetBETextureRectCoordsInVertex(
+      gfxPlatform::GetPlatform()->GetDefaultContentBackend() == BackendType::SKIA &&
+      aEffect->mType == EffectTypes::RENDER_TARGET &&
+      aMask == MaskType::Mask &&
+      mFBOTextureTarget == LOCAL_GL_TEXTURE_RECTANGLE_ARB);
+#endif
   config.SetDEAA(aDEAAEnabled);
   config.SetCompositionOp(aOp);
   return config;

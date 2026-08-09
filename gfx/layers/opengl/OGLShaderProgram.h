@@ -42,7 +42,10 @@ enum ShaderFeatures {
   ENABLE_MASK=0x800,
   ENABLE_NO_PREMUL_ALPHA=0x1000,
   ENABLE_DEAA=0x2000,
-  ENABLE_DYNAMIC_GEOMETRY=0x4000
+  ENABLE_DYNAMIC_GEOMETRY=0x4000,
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+  ENABLE_BE_TEXTURE_RECT_COORDS_IN_VERTEX=0x8000
+#endif
 };
 
 class KnownUniform {
@@ -228,6 +231,9 @@ public:
   void SetColorMatrix(bool aEnabled);
   void SetBlur(bool aEnabled);
   void SetMask(bool aEnabled);
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+  void SetBETextureRectCoordsInVertex(bool aEnabled);
+#endif
   void SetDEAA(bool aEnabled);
   void SetCompositionOp(gfx::CompositionOp aOp);
   void SetNoPremultipliedAlpha();

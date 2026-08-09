@@ -145,6 +145,14 @@ ShaderConfigOGL::SetMask(bool aEnabled)
   SetFeature(ENABLE_MASK, aEnabled);
 }
 
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+void
+ShaderConfigOGL::SetBETextureRectCoordsInVertex(bool aEnabled)
+{
+  SetFeature(ENABLE_BE_TEXTURE_RECT_COORDS_IN_VERTEX, aEnabled);
+}
+#endif
+
 void
 ShaderConfigOGL::SetNoPremultipliedAlpha()
 {
@@ -200,6 +208,11 @@ ProgramProfileOGL::GetProfileFor(ShaderConfigOGL aConfig)
   if (!(aConfig.mFeatures & ENABLE_RENDER_COLOR)) {
     vs << "uniform mat4 uTextureTransform;" << endl;
     vs << "uniform vec4 uTextureRects[4];" << endl;
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+    if (aConfig.mFeatures & ENABLE_BE_TEXTURE_RECT_COORDS_IN_VERTEX) {
+      vs << "uniform vec2 uTexCoordMultiplier;" << endl;
+    }
+#endif
     vs << "varying vec2 vTexCoord;" << endl;
 
     if (aConfig.mFeatures & ENABLE_DYNAMIC_GEOMETRY) {
@@ -300,6 +313,12 @@ ProgramProfileOGL::GetProfileFor(ShaderConfigOGL aConfig)
     }
   }
 
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+  if (aConfig.mFeatures & ENABLE_BE_TEXTURE_RECT_COORDS_IN_VERTEX) {
+    vs << "  vTexCoord *= uTexCoordMultiplier;" << endl;
+  }
+#endif
+
   if (aConfig.mFeatures & ENABLE_MASK) {
     vs << "  vMaskCoord.xy = (uMaskTransform * (finalPosition / finalPosition.w)).xy;" << endl;
     // correct for perspective correct interpolation, see comment in D3D11 shader
@@ -360,7 +379,13 @@ ProgramProfileOGL::GetProfileFor(ShaderConfigOGL aConfig)
   const char *texture2D = "texture2D";
 
   if (aConfig.mFeatures & ENABLE_TEXTURE_RECT) {
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+    if (!(aConfig.mFeatures & ENABLE_BE_TEXTURE_RECT_COORDS_IN_VERTEX)) {
+      fs << "uniform vec2 uTexCoordMultiplier;" << endl;
+    }
+#else
     fs << "uniform vec2 uTexCoordMultiplier;" << endl;
+#endif
     if (aConfig.mFeatures & ENABLE_TEXTURE_YCBCR ||
         aConfig.mFeatures & ENABLE_TEXTURE_NV12) {
       fs << "uniform vec2 uCbCrTexCoordMultiplier;" << endl;
@@ -453,7 +478,15 @@ ProgramProfileOGL::GetProfileFor(ShaderConfigOGL aConfig)
       fs << "    color = alphas;" << endl;
     } else {
       if (aConfig.mFeatures & ENABLE_TEXTURE_RECT) {
+#if defined(XP_MACOSX) && defined(IS_BIG_ENDIAN)
+        if (aConfig.mFeatures & ENABLE_BE_TEXTURE_RECT_COORDS_IN_VERTEX) {
+          fs << "  color = " << texture2D << "(uTexture, coord);" << endl;
+        } else {
+          fs << "  color = " << texture2D << "(uTexture, coord * uTexCoordMultiplier);" << endl;
+        }
+#else
         fs << "  color = " << texture2D << "(uTexture, coord * uTexCoordMultiplier);" << endl;
+#endif
       } else {
         fs << "  color = " << texture2D << "(uTexture, coord);" << endl;
       }
