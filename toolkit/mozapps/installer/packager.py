@@ -78,12 +78,6 @@ class ToolLauncher(object):
                     env['PATH'] = '%s;%s' % (vcdir, env['PATH'])
                     break
 
-        # Work around a bug in Python 2.7.2 and lower where unicode types in
-        # environment variables aren't handled by subprocess.
-        for k, v in list(env.items()):
-            if isinstance(v, str):
-                env[k] = v.encode('utf-8')
-
         print('Executing', ' '.join(cmd), file=errors.out)
         errors.out.flush()
         return subprocess.call(cmd, env=env)

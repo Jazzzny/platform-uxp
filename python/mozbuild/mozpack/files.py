@@ -481,7 +481,7 @@ class PreprocessedFile(BaseFile):
         pp = Preprocessor(defines=self.defines, marker=self.marker)
         pp.setSilenceDirectiveWarnings(self.silence_missing_directive_warnings)
 
-        with open(self.path, 'rU') as input:
+        with open(self.path, 'r') as input:
             pp.processFile(input=input, output=dest, depfile=deps_out)
 
         dest.close()

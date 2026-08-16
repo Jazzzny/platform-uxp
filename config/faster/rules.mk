@@ -81,7 +81,7 @@ $(addprefix install-,$(INSTALL_MANIFESTS)): install-%: $(addprefix $(TOPOBJDIR)/
 		--track install_$(subst /,_,$*).track \
 		$(TOPOBJDIR)/$* \
 		-DAB_CD=en-US \
-		-DBOOKMARKS_INCLUDE_DIR=$(TOPSRCDIR)/browser/locales/en-US/profile \
+		-DBOOKMARKS_INCLUDE_DIR=$(TOPSRCDIR)/$(MOZ_BUILD_APP)/locales/en-US/profile \
 		$(ACDEFINES) \
 		install_$(subst /,_,$*)
 
