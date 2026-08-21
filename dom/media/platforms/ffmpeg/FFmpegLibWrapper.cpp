@@ -14,13 +14,6 @@
   #include <dlfcn.h>
   #include <libgen.h>
   #include <mach-o/dyld.h>
-
-namespace mozilla {
-
-void* FFmpegLibWrapper::mAVUtilLib = nullptr;
-void* FFmpegLibWrapper::mAVCodecLib = nullptr;
-
-}  // namespace mozilla
 #endif /* XP_DARWIN */
 
 #define AV_LOG_WARNING 24
@@ -179,7 +172,7 @@ FFmpegLibWrapper::Unlink()
   }
   if (mAVCodecLib) {
   #ifdef XP_DARWIN
-    dlclose(mAVUtilLib);
+    dlclose(mAVCodecLib);
   #else
     PR_UnloadLibrary(mAVCodecLib);
   #endif

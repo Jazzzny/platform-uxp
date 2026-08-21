@@ -352,11 +352,14 @@ PDMFactory::CreatePDMs()
     mWMFFailedToLoad = MediaPrefs::DecoderDoctorWMFDisabledIsFailure();
   }
 #endif
-#ifdef MOZ_FFVPX
-  if (MediaPrefs::PDMFFVPXEnabled()) {
-    m = FFVPXRuntimeLinker::CreateDecoderModule();
-    StartupPDM(m);
-  }
+// New load order for PowerFox.
+// 1. Try Apple media, this works on 10.6 and provides hardware decoding. If the hardware decoder fails to start,
+// it will bail out instead of trying the rather slow VideoToolbox which is software only on 10.6-10.8.
+// 2. Try the external FFmpeg, which has SIMD code, is compiled with LTO, and has patches for AltiVec.
+// 3. For the rest of the codecs that aren't covered, use the built-in FFVPX decoder or their respective vendored decoders.
+#ifdef MOZ_APPLEMEDIA
+  m = new AppleDecoderModule();
+  StartupPDM(m);
 #endif
 #ifdef MOZ_FFMPEG
   if (MediaPrefs::PDMFFmpegEnabled()) {
@@ -366,9 +369,11 @@ PDMFactory::CreatePDMs()
     mFFmpegFailedToLoad = false;
   }
 #endif
-#ifdef MOZ_APPLEMEDIA
-  m = new AppleDecoderModule();
-  StartupPDM(m);
+#ifdef MOZ_FFVPX
+  if (MediaPrefs::PDMFFVPXEnabled()) {
+    m = FFVPXRuntimeLinker::CreateDecoderModule();
+    StartupPDM(m);
+  }
 #endif
 
   m = new AgnosticDecoderModule();
