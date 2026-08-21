@@ -48,19 +48,26 @@ AppleCMLinker::Link()
     goto fail;
   }
 
-#define LINK_FUNC2(func)                                       \
-  func = (typeof(func))dlsym(sLink, #func);                    \
-  if (!func) {                                                 \
-    NS_WARNING("Couldn't load CoreMedia function " #func );    \
-    goto fail;                                                 \
+#define LINK_FUNC2(func, legacy)                                  \
+  func = (typeof(func))dlsym(sLink, #func);                       \
+  if (!func) {                                                    \
+    func = (typeof(func))dlsym(sLink, #legacy);                   \
+  }                                                               \
+  if (!func) {                                                    \
+    NS_WARNING("Couldn't load CoreMedia function " #func);       \
+    goto fail;                                                    \
   }
-#define LINK_FUNC(func) LINK_FUNC2(CM ## func)
+#define LINK_FUNC(func) LINK_FUNC2(CM ## func, Fig ## func)
 #include "AppleCMFunctions.h"
 #undef LINK_FUNC
 #undef LINK_FUNC2
 
     skPropExtensionAtoms =
       GetIOConst("kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms");
+    if (!skPropExtensionAtoms) {
+      skPropExtensionAtoms =
+        GetIOConst("kFigFormatDescriptionExtension_SampleDescriptionExtensionAtoms");
+    }
 
     skPropFullRangeVideo =
       GetIOConst("kCMFormatDescriptionExtension_FullRangeVideo");

@@ -15,7 +15,15 @@
 // but we can depend on the real framework headers at build time.
 
 #include <CoreFoundation/CoreFoundation.h>
+#if defined(MAC_OS_X_VERSION_10_7) && \
+    (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)
 #include <CoreMedia/CoreMedia.h>
+#else
+#include "../CoreMediaCompat.h"
+enum {
+  kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange = '420v'
+};
+#endif
 #include <CoreVideo/CVPixelBuffer.h>
 
 typedef uint32_t VTDecodeFrameFlags;

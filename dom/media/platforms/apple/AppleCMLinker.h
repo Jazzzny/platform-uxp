@@ -8,7 +8,12 @@
 
 extern "C" {
 #pragma GCC visibility push(default)
+#if defined(MAC_OS_X_VERSION_10_7) && \
+    (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)
 #include <CoreMedia/CoreMedia.h>
+#else
+#include "CoreMediaCompat.h"
+#endif
 #pragma GCC visibility pop
 }
 
