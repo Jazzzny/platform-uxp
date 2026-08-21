@@ -6,20 +6,22 @@
 #include "AppleATDecoder.h"
 #include "AppleCMLinker.h"
 #include "AppleDecoderModule.h"
+#include "AppleVDADecoder.h"
+#include "AppleVDALinker.h"
 #include "AppleVTDecoder.h"
 #include "AppleVTLinker.h"
 #include "MacIOSurfaceImage.h"
-#include "MediaPrefs.h"
 #include "mozilla/DebugOnly.h"
 #include "mozilla/Logging.h"
 #include "mozilla/gfx/gfxVars.h"
+#include "nsCocoaFeatures.h"
 
 namespace mozilla {
 
 bool AppleDecoderModule::sInitialized = false;
 bool AppleDecoderModule::sIsCoreMediaAvailable = false;
 bool AppleDecoderModule::sIsVTAvailable = false;
-bool AppleDecoderModule::sIsVTHWAvailable = false;
+bool AppleDecoderModule::sIsVDAAvailable = false;
 bool AppleDecoderModule::sCanUseHardwareVideoDecoder = true;
 
 AppleDecoderModule::AppleDecoderModule()
@@ -42,6 +44,13 @@ AppleDecoderModule::Init()
   MacIOSurfaceLib::LoadLibrary();
   const bool loaded = MacIOSurfaceLib::isInit();
 
+  // dlopen VideoDecodeAcceleration.framework if it's available on <10.9
+  if (loaded && !nsCocoaFeatures::OnMavericksOrLater()) {
+    sIsVDAAvailable = AppleVDALinker::Link();
+  } else {
+    sIsVDAAvailable = false;
+  }
+
   // dlopen CoreMedia.framework if it's available.
   sIsCoreMediaAvailable = AppleCMLinker::Link();
   // dlopen VideoToolbox.framework if it's available.
@@ -49,8 +58,6 @@ AppleDecoderModule::Init()
   // paired Link/Unlink calls
   bool haveVideoToolbox = loaded && AppleVTLinker::Link();
   sIsVTAvailable = sIsCoreMediaAvailable && haveVideoToolbox;
-
-  sIsVTHWAvailable = AppleVTLinker::skPropEnableHWAccel != nullptr;
 
   sCanUseHardwareVideoDecoder = loaded &&
     gfx::gfxVars::CanUseHardwareVideoDecoding();
@@ -61,7 +68,11 @@ AppleDecoderModule::Init()
 nsresult
 AppleDecoderModule::Startup()
 {
-  if (!sInitialized || !sIsVTAvailable) {
+  if (!sInitialized) {
+    return NS_ERROR_FAILURE;
+  }
+  if (nsCocoaFeatures::OnMavericksOrLater() ? !sIsVTAvailable
+                                            : !sIsVDAAvailable) {
     return NS_ERROR_FAILURE;
   }
   return NS_OK;
@@ -70,11 +81,32 @@ AppleDecoderModule::Startup()
 already_AddRefed<MediaDataDecoder>
 AppleDecoderModule::CreateVideoDecoder(const CreateDecoderParams& aParams)
 {
-  RefPtr<MediaDataDecoder> decoder =
-    new AppleVTDecoder(aParams.VideoConfig(),
-                       aParams.mTaskQueue,
-                       aParams.mCallback,
-                       aParams.mImageContainer);
+  RefPtr<MediaDataDecoder> decoder;
+
+  if (!nsCocoaFeatures::OnMavericksOrLater()) {
+    if (!sIsVDAAvailable) {
+      return nullptr;
+    }
+    decoder =
+      AppleVDADecoder::CreateVDADecoder(aParams.VideoConfig(),
+                                        aParams.mTaskQueue,
+                                        aParams.mCallback,
+                                        aParams.mImageContainer);
+    if (decoder) {
+      return decoder.forget();
+    }
+    // VideoToolbox is software-only on these systems and performs worse than
+    // ffvpx. Returning nullptr lets PDMFactory try its next decoder module.
+    return nullptr;
+  }
+
+  if (sIsVTAvailable) {
+    decoder =
+      new AppleVTDecoder(aParams.VideoConfig(),
+                         aParams.mTaskQueue,
+                         aParams.mCallback,
+                         aParams.mImageContainer);
+  }
   return decoder.forget();
 }
 
@@ -92,11 +124,15 @@ bool
 AppleDecoderModule::SupportsMimeType(const nsACString& aMimeType,
                                      DecoderDoctorDiagnostics* aDiagnostics) const
 {
+  const bool supportsVideo = nsCocoaFeatures::OnMavericksOrLater()
+                               ? sIsVTAvailable
+                               : sIsVDAAvailable;
   return (sIsCoreMediaAvailable &&
           (aMimeType.EqualsLiteral("audio/mpeg") ||
            aMimeType.EqualsLiteral("audio/mp4a-latm"))) ||
-    (sIsVTAvailable && (aMimeType.EqualsLiteral("video/mp4") ||
-                        aMimeType.EqualsLiteral("video/avc")));
+    (supportsVideo &&
+     (aMimeType.EqualsLiteral("video/mp4") ||
+      aMimeType.EqualsLiteral("video/avc")));
 }
 
 PlatformDecoderModule::ConversionRequired

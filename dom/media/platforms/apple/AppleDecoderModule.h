@@ -39,7 +39,7 @@ private:
   static bool sInitialized;
   static bool sIsCoreMediaAvailable;
   static bool sIsVTAvailable;
-  static bool sIsVTHWAvailable;
+  static bool sIsVDAAvailable;
 };
 
 } // namespace mozilla

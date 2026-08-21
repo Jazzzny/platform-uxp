@@ -78,6 +78,8 @@ if CONFIG['MOZ_APPLEMEDIA']:
       'apple/AppleATDecoder.cpp',
       'apple/AppleCMLinker.cpp',
       'apple/AppleDecoderModule.cpp',
+      'apple/AppleVDADecoder.cpp',
+      'apple/AppleVDALinker.cpp',
       'apple/AppleVTDecoder.cpp',
       'apple/AppleVTLinker.cpp',
   ]
