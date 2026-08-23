@@ -40,7 +40,7 @@
  * Otherwise statically choose the AltiVec path in case the compiler
  * was told to build with AltiVec support.
  */
-#if (defined(__POWERPC__) || defined(__powerpc__))
+#if defined(HAVE_ALTIVEC) && (defined(__POWERPC__) || defined(__powerpc__)) && !defined(__NO_FPRS__)
 #if defined(__linux__)
 #include <unistd.h>
 #include <fcntl.h>
@@ -109,7 +109,7 @@ static inline qcms_bool have_altivec() {
 #else
 #define have_altivec() false
 #endif
-#endif // (defined(__POWERPC__) || defined(__powerpc__))
+#endif // defined(HAVE_ALTIVEC) && PowerPC with FPRs
 
 // Build a White point, primary chromas transfer matrix from RGB to CIE XYZ
 // This is just an approximation, I am not handling all the non-linear
@@ -1295,7 +1295,7 @@ qcms_transform* qcms_transform_create(
 #endif
 		    } else
 #endif
-#if (defined(__POWERPC__) || defined(__powerpc__) && !defined(__NO_FPRS__))
+#if defined(HAVE_ALTIVEC) && (defined(__POWERPC__) || defined(__powerpc__)) && !defined(__NO_FPRS__)
 		    if (have_altivec()) {
 			    if (in_type == QCMS_DATA_RGB_8)
 				    transform->transform_fn = qcms_transform_data_rgb_out_lut_altivec;

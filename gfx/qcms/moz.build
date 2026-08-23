@@ -46,5 +46,6 @@ if use_sse2:
     SOURCES['transform-sse2.c'].flags += CONFIG['SSE2_FLAGS']
 
 if use_altivec:
+    DEFINES['HAVE_ALTIVEC'] = True
     SOURCES += ['transform-altivec.c']
     SOURCES['transform-altivec.c'].flags += ['-maltivec']
