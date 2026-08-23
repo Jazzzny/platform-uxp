@@ -579,14 +579,15 @@ if test "$GNU_CC"; then
       ;;
 
     ppc*)
-      AC_MSG_CHECKING([whether we can enable AltiVec support])
+      AC_MSG_CHECKING([whether AltiVec support is enabled for the target])
       HAVE_ALTIVEC=
-      _SAVE_CFLAGS=$CFLAGS
-      CFLAGS="$CFLAGS -maltivec"
-      AC_TRY_COMPILE(,,AC_MSG_RESULT([yes])
+      AC_TRY_COMPILE([
+#if !defined(__ALTIVEC__) && !defined(__VEC__)
+#error AltiVec is not enabled for this target
+#endif
+                     ],,AC_MSG_RESULT([yes])
                        [HAVE_ALTIVEC=1],
                        AC_MSG_RESULT([no]))
-      CFLAGS=$_SAVE_CFLAGS
       ;;
     esac
 
