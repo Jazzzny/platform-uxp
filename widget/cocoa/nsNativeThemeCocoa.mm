@@ -2539,7 +2539,8 @@ ToolbarCanBeUnified(CGContextRef cgContext, const HIRect& inBoxRect, NSWindow* a
 // So we draw square corners.
 static void
 DrawNativeTitlebarToolbarWithSquareCorners(CGContextRef aContext, const CGRect& aRect,
-                                           CGFloat aUnifiedHeight, BOOL aIsMain, BOOL aIsFlipped)
+                                           CGFloat aUnifiedHeight, BOOL aIsMain,
+                                           BOOL aIsFlipped, NSWindow* aWindow)
 {
 #if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
   // We extend the draw rect horizontally and clip away the rounded corners.
@@ -2569,6 +2570,21 @@ DrawNativeTitlebarToolbarWithSquareCorners(CGContextRef aContext, const CGRect& 
 
   HIThemeDrawBackground(&aRect, &bdi, aContext, HITHEME_ORIENTATION);
 #endif
+
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  // The Panther content view covers the real window frame, and
+  // nsChildView composites the standard AppKit buttons over Gecko's
+  // titlebar. Keep that button layer synchronized whenever the titlebar
+  // background is repainted, especially during live resize.
+  [[aWindow standardWindowButton:NSWindowCloseButton] setNeedsDisplay:YES];
+  [[aWindow standardWindowButton:NSWindowMiniaturizeButton] setNeedsDisplay:YES];
+  [[aWindow standardWindowButton:NSWindowZoomButton] setNeedsDisplay:YES];
+  NSButton* toolbarButton =
+    [aWindow standardWindowButton:NSWindowToolbarButton];
+  if (![toolbarButton isHidden]) {
+    [toolbarButton setNeedsDisplay:YES];
+  }
+#endif
 }
 
 void
@@ -2586,7 +2602,9 @@ nsNativeThemeCocoa::DrawUnifiedToolbar(CGContextRef cgContext, const HIRect& inB
   CGFloat titlebarHeight = unifiedHeight - inBoxRect.size.height;
   CGRect drawRect = CGRectMake(inBoxRect.origin.x, inBoxRect.origin.y - titlebarHeight,
                                inBoxRect.size.width, inBoxRect.size.height + titlebarHeight);
-  DrawNativeTitlebarToolbarWithSquareCorners(cgContext, drawRect, unifiedHeight, isMain, YES);
+  DrawNativeTitlebarToolbarWithSquareCorners(cgContext, drawRect,
+                                             unifiedHeight, isMain, YES,
+                                             aWindow);
 
   CGContextRestoreGState(cgContext);
 
@@ -2640,10 +2658,13 @@ nsNativeThemeCocoa::DrawStatusBar(CGContextRef cgContext, const HIRect& inBoxRec
 
 void
 nsNativeThemeCocoa::DrawNativeTitlebar(CGContextRef aContext, CGRect aTitlebarRect,
-                                       CGFloat aUnifiedHeight, BOOL aIsMain, BOOL aIsFlipped)
+                                       CGFloat aUnifiedHeight, BOOL aIsMain,
+                                       BOOL aIsFlipped, NSWindow* aWindow)
 {
   CGFloat unifiedHeight = std::max(aUnifiedHeight, aTitlebarRect.size.height);
-  DrawNativeTitlebarToolbarWithSquareCorners(aContext, aTitlebarRect, unifiedHeight, aIsMain, aIsFlipped);
+  DrawNativeTitlebarToolbarWithSquareCorners(aContext, aTitlebarRect,
+                                             unifiedHeight, aIsMain,
+                                             aIsFlipped, aWindow);
 
 // On 10.5, we do not get the traffic lights drawn for us by CoreUI, draw them ourselves.
 #if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
@@ -3139,16 +3160,8 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       BOOL isMain = [win isMainWindow];
       float unifiedToolbarHeight = [win isKindOfClass:[ToolbarWindow class]] ?
         [(ToolbarWindow*)win unifiedToolbarHeight] : macRect.size.height;
-      DrawNativeTitlebar(cgContext, macRect, unifiedToolbarHeight, isMain, YES);
-#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
-      // The Panther content view covers the real window frame, and
-      // nsChildView composites the standard AppKit buttons over Gecko's
-      // titlebar. Keep that button layer synchronized whenever the titlebar
-      // background is repainted, especially during live resize.
-      [[win standardWindowButton:NSWindowCloseButton] setNeedsDisplay:YES];
-      [[win standardWindowButton:NSWindowMiniaturizeButton] setNeedsDisplay:YES];
-      [[win standardWindowButton:NSWindowZoomButton] setNeedsDisplay:YES];
-#endif
+      DrawNativeTitlebar(cgContext, macRect, unifiedToolbarHeight, isMain,
+                         YES, win);
     }
       break;
 

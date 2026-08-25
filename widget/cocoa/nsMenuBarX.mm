@@ -28,16 +28,21 @@
 #include "nsIStringBundle.h"
 #include "nsToolkitCompsCID.h"
 
-#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
-    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
 @interface NSMenu (TigerMenuImplementation)
 - (id)_menuImpl;
 @end
 
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+@interface NSEvent (PantherKeyEquivalents)
+- (EventRef)_eventRef;
+@end
+#else
 @interface NSEvent (TigerKeyEquivalents)
 - (BOOL)_matchesKeyEquivalent:(NSString*)keyEquivalent
                  modifierMask:(NSUInteger)modifierMask;
 @end
+#endif
 
 @interface NSObject (TigerCarbonMenuImplementation)
 - (void)performActionWithHighlightingForItemAtIndex:(NSInteger)index;
@@ -804,13 +809,33 @@ void nsMenuBarX::SetParent(nsIWidget* aParent)
 // Controls whether or not native menu items should invoke their commands.
 static BOOL gMenuItemsExecuteCommands = YES;
 
-#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
-    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
 static BOOL
 HighlightKeyEquivalentInMenu(NSMenu* aMenu, NSEvent* aEvent)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
 
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  // Panther does not implement Tiger's private
+  // -[NSEvent _matchesKeyEquivalent:modifierMask:]. Use the native Carbon
+  // matcher instead. Passing no start menu searches the current menu bar and,
+  // unlike MenuEvent, only identifies the shortcut and highlights its menu;
+  // Gecko's keyDown: path remains responsible for executing the command.
+  [aMenu update];
+  EventRef eventRef = [aEvent _eventRef];
+  BOOL matched = eventRef &&
+    IsMenuKeyEvent(nullptr, eventRef, kNilOptions, nullptr, nullptr);
+  if (matched) {
+    // IsMenuKeyEvent leaves the matching menu title highlighted for its
+    // caller to clear after dispatching the command. Gecko performs that
+    // dispatch instead, so reproduce AppKit's brief flash and cleanup here.
+    [NSObject cancelPreviousPerformRequestsWithTarget:aMenu
+      selector:@selector(clearPantherMenuHighlight:) object:nil];
+    [aMenu performSelector:@selector(clearPantherMenuHighlight:)
+                withObject:nil afterDelay:0.1];
+  }
+  return matched;
+#else
   [aMenu update];
   NSInteger itemCount = [aMenu numberOfItems];
   for (NSInteger index = 0; index < itemCount; ++index) {
@@ -851,6 +876,7 @@ HighlightKeyEquivalentInMenu(NSMenu* aMenu, NSEvent* aEvent)
     }
   }
   return NO;
+#endif
 
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(NO);
 }
@@ -858,8 +884,14 @@ HighlightKeyEquivalentInMenu(NSMenu* aMenu, NSEvent* aEvent)
 
 @implementation GeckoNSMenu
 
-#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
-    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+- (void)clearPantherMenuHighlight:(id)aUnused
+{
+  HiliteMenu(0);
+}
+#endif
+
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
 - (void)performKeyEquivalentForHighlightingOnly:(NSEvent*)theEvent
 {
   HighlightKeyEquivalentInMenu(self, theEvent);

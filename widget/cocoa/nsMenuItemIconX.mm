@@ -97,6 +97,20 @@ nsMenuItemIconX::SetupIcon()
     return NS_ERROR_FAILURE;
   }
 
+#if !defined(MAC_OS_X_VERSION_10_4) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+// it doesnt work at all on 10.3
+  if (!nsCocoaFeatures::OnTigerOrLater()) {
+    if (mIconRequest) {
+      mIconRequest->CancelAndForgetObserver(NS_BINDING_ABORTED);
+      mIconRequest = nullptr;
+    }
+    [mNativeMenuItem setImage:nil];
+    mLoadedIcon = false;
+    mSetIcon = false;
+    return NS_OK;
+  }
+#endif
+
   nsCOMPtr<nsIURI> iconURI;
   nsresult rv = GetIconURI(getter_AddRefs(iconURI));
   if (NS_FAILED(rv)) {

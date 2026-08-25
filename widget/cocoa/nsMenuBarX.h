@@ -38,9 +38,11 @@ protected:
 @interface GeckoNSMenu : NSMenu
 {
 }
-#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
-    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
 - (void)performKeyEquivalentForHighlightingOnly:(NSEvent*)theEvent;
+#endif
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+- (void)clearPantherMenuHighlight:(id)aUnused;
 #endif
 @end
 

@@ -3863,9 +3863,12 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 
 static void
 DrawNativeTitlebar(CGContextRef aContext, CGRect aTitlebarRect,
-                   CGFloat aUnifiedToolbarHeight, BOOL aIsMain)
+                   CGFloat aUnifiedToolbarHeight, BOOL aIsMain,
+                   NSWindow* aWindow)
 {
-  nsNativeThemeCocoa::DrawNativeTitlebar(aContext, aTitlebarRect, aUnifiedToolbarHeight, aIsMain, NO);
+  nsNativeThemeCocoa::DrawNativeTitlebar(aContext, aTitlebarRect,
+                                         aUnifiedToolbarHeight, aIsMain,
+                                         NO, aWindow);
 
   // The call to CUIDraw doesn't draw the top pixel strip at some window widths.
   // We don't want to have a flickering transparent line, so we overdraw it.
@@ -3886,7 +3889,7 @@ TitlebarDrawCallback(void* aInfo, CGContextRef aContext)
     if (!titlebarColor) {
       // If the titlebar color is nil, draw the default titlebar shading.
       DrawNativeTitlebar(aContext, NSRectToCGRect(titlebarRect),
-                         [window unifiedToolbarHeight], isMain);
+                         [window unifiedToolbarHeight], isMain, window);
     } else {
       // If the titlebar color is not nil, just set and draw it normally.
       [NSGraphicsContext saveGraphicsState];

@@ -5704,22 +5704,6 @@ GetIntegerDeltaForEvent(NSEvent* aEvent)
     return;
   }
 
-#if !defined(MAC_OS_X_VERSION_10_4) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
-  // We cover AppKit's real titlebar, but Panther needs the native traffic lights
-  // Refresh the native controls in our cached titlebar image whenever a
-  // wheel event is sent to Gecko, so scrolling cannot leave them stale or
-  // temporarily missing.
-  NSWindow* window = [self window];
-  [[window standardWindowButton:NSWindowCloseButton] setNeedsDisplay:YES];
-  [[window standardWindowButton:NSWindowMiniaturizeButton] setNeedsDisplay:YES];
-  [[window standardWindowButton:NSWindowZoomButton] setNeedsDisplay:YES];
-  NSButton* toolbarButton =
-    [window standardWindowButton:NSWindowToolbarButton];
-  if (![toolbarButton isHidden]) {
-    [toolbarButton setNeedsDisplay:YES];
-  }
-#endif
-
   NSEventPhase phase = nsCocoaUtils::EventPhase(theEvent);
   // Fire eWheelOperationStart/End events when 2 fingers touch/release the
   // touchpad.
@@ -7712,8 +7696,7 @@ static const char* ToEscapedString(NSString* aString, nsAutoCString& aBuf)
     if (mf & NSCommandKeyMask) {
         UInt32 kc = [theEvent keyCode];
         if (kc != kTildeKeyCode) {
-#if defined(MAC_OS_X_VERSION_10_4) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4 && \
-    (!defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5)
+#if !defined(MAC_OS_X_VERSION_10_5) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
             // PowerFox's window responder reaches us before NSApplication
             // checks the main menu.  Run only the menu's disabled-action pass
             // for AppKit's visual feedback, then dispatch through the reliable
@@ -7726,7 +7709,7 @@ static const char* ToEscapedString(NSString* aString, nsAutoCString& aBuf)
 #endif
     		[self keyDown:theEvent]; // this calls processKeyDownEvent too
     		return YES;
-	}
+	    }
     }
     return NO; // handlers take over
 }

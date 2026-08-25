@@ -107,7 +107,8 @@ public:
                     double inValue, double inMaxValue, nsIFrame* aFrame);
 
   static void DrawNativeTitlebar(CGContextRef aContext, CGRect aTitlebarRect,
-                                 CGFloat aUnifiedHeight, BOOL aIsMain, BOOL aIsFlipped);
+                                 CGFloat aUnifiedHeight, BOOL aIsMain,
+                                 BOOL aIsFlipped, NSWindow* aWindow);
 
 protected:
   virtual ~nsNativeThemeCocoa();
