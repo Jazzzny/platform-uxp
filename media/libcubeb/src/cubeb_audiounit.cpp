@@ -916,6 +916,13 @@ static AudioObjectID audiounit_get_default_device_id(cubeb_device_type type);
 static int
 audiounit_install_device_changed_callback(cubeb_stream * stm)
 {
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+  // Panther cannot dispatch reinitialization away from the CoreAudio callback
+  // thread. The DefaultOutput unit still follows the default output device.
+  (void) stm;
+  return CUBEB_OK;
+#endif
+
   OSStatus r;
 
   if (stm->output_unit) {
@@ -968,6 +975,11 @@ audiounit_install_device_changed_callback(cubeb_stream * stm)
 static int
 audiounit_install_system_changed_callback(cubeb_stream * stm)
 {
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+  (void) stm;
+  return CUBEB_OK;
+#endif
+
   OSStatus r;
 
   if (stm->output_unit) {
@@ -999,6 +1011,11 @@ audiounit_install_system_changed_callback(cubeb_stream * stm)
 static int
 audiounit_uninstall_device_changed_callback(cubeb_stream * stm)
 {
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+  (void) stm;
+  return CUBEB_OK;
+#endif
+
   OSStatus r;
 
   if (stm->output_unit) {
@@ -1034,6 +1051,11 @@ audiounit_uninstall_device_changed_callback(cubeb_stream * stm)
 static int
 audiounit_uninstall_system_changed_callback(cubeb_stream * stm)
 {
+#if defined(CUBEB_AUDIOUNIT_USE_LEGACY_AUDIO_HARDWARE)
+  (void) stm;
+  return CUBEB_OK;
+#endif
+
   OSStatus r;
 
   if (stm->output_unit) {
@@ -2046,8 +2068,8 @@ audiounit_stream_init(cubeb * context,
 
   stm->switching_device = false;
 
-  auto_lock context_lock(context->mutex);
   {
+    auto_lock context_lock(context->mutex);
     // It's not critical to lock here, because no other thread has been started
     // yet, but it allows to assert that the lock has been taken in
     // `audiounit_setup_stream`.
@@ -2065,6 +2087,7 @@ audiounit_stream_init(cubeb * context,
   r = audiounit_install_system_changed_callback(stm);
   if (r != CUBEB_OK) {
     LOG("(%p) Could not install the device change callback.", stm);
+    audiounit_stream_destroy(stm);
     return r;
   }
 

@@ -13,6 +13,7 @@
   #include <dlfcn.h>
   #include <libgen.h>
   #include <mach-o/dyld.h>
+  #include <AvailabilityMacros.h>
 #endif /* XP_DARWIN */
 
 namespace mozilla
@@ -30,6 +31,31 @@ public:
 
 static FFmpegLibWrapper sLibAV;
 
+#ifdef XP_DARWIN
+static void*
+DlopenFFmpegLibrary(const char* aName, const char* aExecDir)
+{
+  void* handle = dlopen(aName, RTLD_NOW | RTLD_LOCAL);
+  char* fullPath = nullptr;
+  if (!handle &&
+      asprintf(&fullPath, "%s/%s", aExecDir, aName) > 0 && fullPath) {
+    handle = dlopen(fullPath, RTLD_NOW | RTLD_LOCAL);
+  }
+
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+  if (!handle) {
+    handle = dlopen(aName, RTLD_NOW | RTLD_GLOBAL);
+  }
+  if (!handle && fullPath) {
+    handle = dlopen(fullPath, RTLD_NOW | RTLD_GLOBAL);
+  }
+#endif
+
+  free(fullPath);
+  return handle;
+}
+#endif
+
 static const char* sLibs[] = {
 #if defined(XP_DARWIN)
   "libavcodec.61.dylib",
@@ -44,6 +70,19 @@ static const char* sLibs[] = {
   "libavcodec-ffmpeg.so.58",
 #endif
 };
+
+#if defined(XP_DARWIN) && \
+    (!defined(MAC_OS_X_VERSION_10_4) || \
+     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4)
+static const char* sAVUtilLibs[] = {
+  "libavutil.59.dylib",
+  "libavutil.58.dylib",
+  "libavutil.57.dylib",
+  "libavutil.56.dylib",
+};
+static_assert(ArrayLength(sLibs) == ArrayLength(sAVUtilLibs),
+              "libavcodec and libavutil candidates must stay paired");
+#endif
 
 /* static */ bool
 FFmpegRuntimeLinker::Init()
@@ -68,17 +107,24 @@ FFmpegRuntimeLinker::Init()
     const char* lib = sLibs[i];
 #ifdef XP_DARWIN
     /* Loading FFMPEG on Mac OS X (macOS is a typo) fails because mozilla
-      searches for sybols defined in libavutil with a handle to libavcodec.
+      searches for symbols defined in libavutil with a handle to libavcodec.
       This is due to the fact that NSPR uses NSAddressOfSymbol & cie who limits
       its researches only to libavcodec and not its dependencies.  We don't have
       this issue with dlsym().  */
-    if (!(sLibAV.mAVCodecLib = dlopen(lib, RTLD_NOW | RTLD_LOCAL))) {
-      /* Bonus time: if we don't find libavcodec in standard locations, we look
-        if our venerable FFMPEG's libraries are in the same folder as XUL. */
-      char *libFullPath = NULL;
-      if (asprintf(&libFullPath, "%s/%s", execDir, lib) > 0 && libFullPath)
-        sLibAV.mAVCodecLib = dlopen(libFullPath, RTLD_NOW | RTLD_LOCAL);
-      free(libFullPath);
+    sLibAV.mAVCodecLib = DlopenFFmpegLibrary(lib, execDir);
+    if (sLibAV.mAVCodecLib) {
+#if !defined(MAC_OS_X_VERSION_10_4) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
+      // Panther's dlcompat does not search a handle's dependencies in dlsym().
+      // Keep an explicit libavutil handle for all symbols owned by that library.
+      sLibAV.mAVUtilLib = DlopenFFmpegLibrary(sAVUtilLibs[i], execDir);
+      if (!sLibAV.mAVUtilLib) {
+        FFMPEG_LOG("%s loaded, but its paired %s did not",
+                   lib, sAVUtilLibs[i]);
+        sLibAV.Unlink();
+      }
+#else
+      sLibAV.mAVUtilLib = sLibAV.mAVCodecLib;
+#endif
     }
 #else
     PRLibSpec lspec;
@@ -87,7 +133,9 @@ FFmpegRuntimeLinker::Init()
     sLibAV.mAVCodecLib = PR_LoadLibraryWithFlags(lspec, PR_LD_NOW | PR_LD_LOCAL);
 #endif /* XP_DARWIN */
     if (sLibAV.mAVCodecLib) {
+#ifndef XP_DARWIN
       sLibAV.mAVUtilLib = sLibAV.mAVCodecLib;
+#endif
       switch (sLibAV.Link()) {
         case FFmpegLibWrapper::LinkResult::Success:
           sLinkStatus = LinkStatus_SUCCEEDED;
