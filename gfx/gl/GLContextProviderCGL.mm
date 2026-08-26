@@ -398,13 +398,23 @@ CreateOffscreenFBOContext(CreateContextFlags flags)
         return nullptr;
     }
 
-    ContextProfile profile;
+    ContextProfile profile = ContextProfile::OpenGLCompatibility;
     NSOpenGLContext* context = nullptr;
 
+#if defined(MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7)
     if (!(flags & CreateContextFlags::REQUIRE_COMPAT_PROFILE)) {
-        profile = ContextProfile::OpenGLCore;
-        context = CreateWithFormat(kAttribs_offscreen_coreProfile);
+        if (nsCocoaFeatures::OnLionOrLater()) {
+            profile = ContextProfile::OpenGLCore;
+            context = CreateWithFormat(kAttribs_offscreen_coreProfile);
+        } else {
+            context = CreateWithFormat(kAttribs_offscreen_accel);
+        }
     }
+#else
+    if (!(flags & CreateContextFlags::REQUIRE_COMPAT_PROFILE)) {
+        context = CreateWithFormat(kAttribs_offscreen_accel);
+    }
+#endif
     if (!context) {
         profile = ContextProfile::OpenGLCompatibility;
 

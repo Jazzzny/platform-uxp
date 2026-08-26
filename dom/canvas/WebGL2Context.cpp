@@ -14,6 +14,10 @@
 #include "WebGLFormats.h"
 #include "WebGLTransformFeedback.h"
 
+#ifdef MOZ_WIDGET_COCOA
+#include "nsCocoaFeatures.h"
+#endif
+
 namespace mozilla {
 
 WebGL2Context::WebGL2Context()
@@ -37,7 +41,15 @@ WebGL2Context::CreateFormatUsage(gl::GLContext* gl) const
 /*static*/ bool
 WebGL2Context::IsSupported()
 {
-    return gfxPrefs::WebGL2Enabled();
+    if (!gfxPrefs::WebGL2Enabled()) {
+        return false;
+    }
+
+#ifdef MOZ_WIDGET_COCOA
+    return nsCocoaFeatures::OnLionOrLater();
+#else
+    return true;
+#endif
 }
 
 /*static*/ WebGL2Context*
