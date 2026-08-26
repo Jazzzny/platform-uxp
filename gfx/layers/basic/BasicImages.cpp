@@ -87,10 +87,12 @@ public:
 bool
 BasicPlanarYCbCrImage::CopyData(const Data& aData)
 {
-  RecyclingPlanarYCbCrImage::CopyData(aData);
+  if (!RecyclingPlanarYCbCrImage::CopyData(aData)) {
+    return false;
+  }
 
   if (mDelayedConversion) {
-    return false;
+    return true;
   }
 
   // Do some sanity checks to prevent integer overflow
