@@ -225,7 +225,8 @@ PlatformCallback(void* decompressionOutputRefCon,
                  CVImageBufferRef image)
 {
   LOG("AppleVDADecoder[%s] status %d flags %d retainCount %ld",
-      __func__, status, infoFlags, CFGetRetainCount(frameInfo));
+      __func__, status, infoFlags,
+      frameInfo ? CFGetRetainCount(frameInfo) : 0);
 
   // Validate our arguments.
   // According to Apple's TN2267
@@ -246,15 +247,16 @@ PlatformCallback(void* decompressionOutputRefCon,
   AppleVDADecoder* decoder =
     static_cast<AppleVDADecoder*>(decompressionOutputRefCon);
 
-  AutoCFRelease<CFNumberRef> ptsref =
+  // CFDictionaryGetValue returns borrowed references owned by frameInfo.
+  CFNumberRef ptsref =
     (CFNumberRef)CFDictionaryGetValue(frameInfo, CFSTR("FRAME_PTS"));
-  AutoCFRelease<CFNumberRef> dtsref =
+  CFNumberRef dtsref =
     (CFNumberRef)CFDictionaryGetValue(frameInfo, CFSTR("FRAME_DTS"));
-  AutoCFRelease<CFNumberRef> durref =
+  CFNumberRef durref =
     (CFNumberRef)CFDictionaryGetValue(frameInfo, CFSTR("FRAME_DURATION"));
-  AutoCFRelease<CFNumberRef> boref =
+  CFNumberRef boref =
     (CFNumberRef)CFDictionaryGetValue(frameInfo, CFSTR("FRAME_OFFSET"));
-  AutoCFRelease<CFNumberRef> kfref =
+  CFNumberRef kfref =
     (CFNumberRef)CFDictionaryGetValue(frameInfo, CFSTR("FRAME_KEYFRAME"));
 
   int64_t dts;
@@ -542,6 +544,18 @@ AppleVDADecoder::DoDecode(MediaRawData* aSample)
                        &kCFTypeDictionaryKeyCallBacks,
                        &kCFTypeDictionaryValueCallBacks);
 
+  if (!frameInfo) {
+    NS_ERROR("Couldn't create frame metadata dictionary");
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
+
+  if (mIs106) {
+    // TN2267 says VDA retains frameInfo for the output callback, but the 10.6
+    // implementation releases it one time too many. Retain it before entering
+    // VDA because the callback can run synchronously, including on errors.
+    CFRetain(frameInfo);
+  }
+
   mQueuedSamples++;
 
   OSStatus rv = VDADecoderDecode(mDecoder,
@@ -554,17 +568,6 @@ AppleVDADecoder::DoDecode(MediaRawData* aSample)
     mCallback->Error(MediaResult(NS_ERROR_DOM_MEDIA_DECODE_ERR,
                                 "Couldn't pass frame to decoder"));
     return NS_ERROR_DOM_MEDIA_DECODE_ERR;
-  }
-
-  if (mIs106) {
-    // TN2267:
-    // frameInfo: A CFDictionaryRef containing information to be returned in
-    // the output callback for this frame.
-    // This dictionary can contain client provided information associated with
-    // the frame being decoded, for example presentation time.
-    // The CFDictionaryRef will be retained by the framework.
-    // In 10.6, it is released one too many. So retain it.
-    CFRetain(frameInfo);
   }
 
   return NS_OK;
