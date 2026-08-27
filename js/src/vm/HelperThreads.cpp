@@ -939,13 +939,8 @@ GlobalHelperThreadState::maxParseThreads() const
 {
     if (IsHelperThreadSimulatingOOM(js::oom::THREAD_TYPE_PARSE))
         return 1;
-#if defined(JS_CODEGEN_PPC_OSX)
-    // Severe regression with more than one thread, up to 20% slower
+
     return 1;
-#else
-    // Use the number of logical processors in a system.
-    return cpuCount;
-#endif
 }
 
 size_t
